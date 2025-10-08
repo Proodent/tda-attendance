@@ -1,0 +1,4 @@
+*.zip
+key.json
+node_modules
+.env

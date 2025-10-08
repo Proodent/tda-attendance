@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tolon District Assembly Staff Attendance Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .container {
+      text-align: center;
+    }
+    .popup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 1000;
+      text-align: center;
+      max-width: 80%;
+    }
+    .popup-header { font-size: 1.5em; font-weight: bold; }
+    .popup-footer { font-size: 0.8em; color: #555; margin-top: 10px; }
+    .popup-retry { margin-top: 10px; }
+    .popup-retry button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #faceRecognition {
+      display: none;
+      position: relative;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+    #video, #canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      height: auto;
+    }
+    #diagnostic { font-size: 0.8em; color: #f00; margin-top: 10px; }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6; /* Reduced opacity for partial fade */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><span style="font-size: 0.72em;">Tolon District Assembly</span><br><span style="font-size: 0.48em;">Staff Attendance Management</span></h1>
+    <p id="status">Checking location...</p>
+    <p id="location">Location: Loading...</p>
+    <button id="clockIn" disabled>Clock In</button>
+    <button id="clockOut" disabled>Clock Out</button>
+    <p id="message"></p>
+    <div id="faceRecognition">
+      <video id="video" autoplay></video>
+      <canvas id="canvas"></canvas>
+      <p id="faceMessage"></p>
+    </div>
+    <div id="popup" class="popup">
+      <div class="popup-header" id="popupHeader"></div>
+      <div id="popupMessage"></div>
+      <div class="popup-footer" id="popupFooter"></div>
+      <div class="popup-retry" id="popupRetry"></div>
+    </div>
+    <div id="diagnostic"></div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
