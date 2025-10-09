@@ -40,6 +40,25 @@ async function authDoc() {
   await doc.loadInfo();
 }
 
+// ----------------- HEALTH CHECK -----------------
+app.get("/healthz", async (req, res) => {
+  try {
+    await authDoc();
+    res.status(200).json({
+      status: "ok",
+      message: "Server and Google Sheets connection healthy ✅",
+      spreadsheet: doc.title
+    });
+  } catch (err) {
+    console.error("❌ /healthz check failed:", err.message);
+    res.status(500).json({
+      status: "error",
+      message: "Health check failed",
+      details: err.message
+    });
+  }
+});
+
 // ----------------- API: Locations -----------------
 app.get("/api/locations", async (req, res) => {
   try {
@@ -51,7 +70,7 @@ app.get("/api/locations", async (req, res) => {
       return res.status(500).json({
         success: false,
         error: "Google Sheet tab 'Locations Sheet' not found.",
-        hint: "Open your Google Sheet and ensure there’s a tab named exactly 'Locations Sheet'."
+        hint: "Ensure there’s a tab named exactly 'Locations Sheet'."
       });
     }
 
