@@ -27,16 +27,16 @@ const serviceAccountAuth = new JWT({
   scopes: ["https://www.googleapis.com/auth/spreadsheets"]
 });
 
-const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID, serviceAccountAuth);
+const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
 
 // ==================== ROUTES ====================
 
 // Health check
 app.get("/", (req, res) => {
-  res.send("✅ Attendance system server running.");
+  res.send("✅ Tolon Attendance System backend is running successfully.");
 });
 
-// Proxy for CompreFace
+// ==================== COMPRE-FACE PROXY ====================
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const { image } = req.body;
@@ -54,8 +54,8 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (err) {
-    console.error("Proxy error:", err);
-    res.status(500).json({ error: "CompreFace proxy error" });
+    console.error("❌ CompreFace proxy error:", err);
+    res.status(500).json({ error: "CompreFace proxy error." });
   }
 });
 
@@ -64,12 +64,16 @@ app.post("/api/attendance/web", async (req, res) => {
   const { action, latitude, longitude, timestamp, subjectName } = req.body;
   console.log(`📥 Attendance request: ${action} | ${subjectName} | ${latitude}, ${longitude}`);
 
+  // Basic input validation
   if (!action || !subjectName || isNaN(latitude) || isNaN(longitude)) {
     return res.status(400).json({ success: false, message: "Invalid input received." });
   }
 
   try {
+    // Authorize and load Google Sheet
+    await doc.useServiceAccountAuth(serviceAccountAuth);
     await doc.loadInfo();
+
     const staffSheet = doc.sheetsByTitle["Staff"];
     const attendanceSheet = doc.sheetsByTitle["Attendance"];
 
@@ -89,11 +93,28 @@ app.post("/api/attendance/web", async (req, res) => {
       });
     }
 
-    // Record attendance
+    // Prepare data for logging
     const now = new Date(timestamp);
-    const formattedDate = now.toLocaleDateString();
-    const formattedTime = now.toLocaleTimeString();
+    const formattedDate = now.toLocaleDateString("en-GB"); // e.g. 08/10/2025
+    const formattedTime = now.toLocaleTimeString("en-GB");
 
+    // Avoid duplicate same-day logs (optional)
+    const attendanceRows = await attendanceSheet.getRows();
+    const alreadyLogged = attendanceRows.some(
+      (r) =>
+        r.get("Name") === subjectName &&
+        r.get("Action") === action &&
+        r.get("Date") === formattedDate
+    );
+
+    if (alreadyLogged) {
+      return res.json({
+        success: false,
+        message: `${subjectName} already logged ${action} today.`
+      });
+    }
+
+    // Record attendance
     await attendanceSheet.addRow({
       Date: formattedDate,
       Name: subjectName,
@@ -117,8 +138,8 @@ app.post("/api/attendance/web", async (req, res) => {
 
 // ==================== STATIC FILES ====================
 const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname));
 
 // ==================== START SERVER ====================
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Tolon Attendance Server running on port ${PORT}`));
