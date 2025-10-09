@@ -9,6 +9,14 @@
     .container {
       text-align: center;
     }
+
+    #officeName {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #006837;
+      margin-bottom: 5px;
+    }
+
     .popup {
       display: none;
       position: fixed;
@@ -23,9 +31,11 @@
       text-align: center;
       max-width: 80%;
     }
+
     .popup-header { font-size: 1.5em; font-weight: bold; }
     .popup-footer { font-size: 0.8em; color: #555; margin-top: 10px; }
     .popup-retry { margin-top: 10px; }
+
     .popup-retry button {
       background-color: #4CAF50;
       color: white;
@@ -34,6 +44,7 @@
       border-radius: 5px;
       cursor: pointer;
     }
+
     #faceRecognition {
       display: none;
       position: relative;
@@ -42,13 +53,16 @@
       max-width: 640px;
       overflow: hidden;
     }
+
     #video, #canvas {
       display: block;
       margin: 0 auto;
       width: 100%;
       height: auto;
     }
+
     #diagnostic { font-size: 0.8em; color: #f00; margin-top: 10px; }
+
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -59,33 +73,45 @@
       cursor: pointer;
       transition: opacity 0.3s;
     }
+
     button:disabled {
       cursor: not-allowed;
-      opacity: 0.6; /* Reduced opacity for partial fade */
+      opacity: 0.6;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1><span style="font-size: 0.72em;">Tolon District Assembly</span><br><span style="font-size: 0.48em;">Staff Attendance Management</span></h1>
+    <h1>
+      <span style="font-size: 0.72em;">Tolon District Assembly</span><br>
+      <span style="font-size: 0.48em;">Staff Attendance Management</span>
+    </h1>
+
+    <p id="officeName">Detecting Office...</p>
     <p id="status">Checking location...</p>
-    <p id="location">Location: Loading...</p>
+    <p id="location">GPS Location: Loading...</p>
+
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
+
     <p id="message"></p>
+
     <div id="faceRecognition">
       <video id="video" autoplay></video>
       <canvas id="canvas"></canvas>
       <p id="faceMessage"></p>
     </div>
+
     <div id="popup" class="popup">
       <div class="popup-header" id="popupHeader"></div>
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
       <div class="popup-retry" id="popupRetry"></div>
     </div>
+
     <div id="diagnostic"></div>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
