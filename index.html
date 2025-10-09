@@ -1,91 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tolon District Assembly Staff Attendance Management</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    .container {
-      text-align: center;
-    }
-    .popup {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      padding: 20px;
-      border: 1px solid #ccc;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-      z-index: 1000;
-      text-align: center;
-      max-width: 80%;
-    }
-    .popup-header { font-size: 1.5em; font-weight: bold; }
-    .popup-footer { font-size: 0.8em; color: #555; margin-top: 10px; }
-    .popup-retry { margin-top: 10px; }
-    .popup-retry button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    #faceRecognition {
-      display: none;
-      position: relative;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 640px;
-      overflow: hidden;
-    }
-    #video, #canvas {
-      display: block;
-      margin: 0 auto;
-      width: 100%;
-      height: auto;
-    }
-    #diagnostic { font-size: 0.8em; color: #f00; margin-top: 10px; }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: opacity 0.3s;
-    }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.6; /* Reduced opacity for partial fade */
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tolon Attendance System</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.ico" />
 </head>
 <body>
   <div class="container">
-    <h1><span style="font-size: 0.72em;">Tolon District Assembly</span><br><span style="font-size: 0.48em;">Staff Attendance Management</span></h1>
-    <p id="status">Checking location...</p>
-    <p id="location">Location: Loading...</p>
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
-    <div id="faceRecognition">
-      <video id="video" autoplay></video>
-      <canvas id="canvas"></canvas>
-      <p id="faceMessage"></p>
+    <h1>Tolon Attendance System</h1>
+    <h3 id="officeName">📍 Current Location: <span>Tolon District Office</span></h3>
+
+    <div id="locationInfo" class="info-card">
+      <h4>Location Details</h4>
+      <p><strong>Latitude:</strong> <span id="latitude">Loading...</span></p>
+      <p><strong>Longitude:</strong> <span id="longitude">Loading...</span></p>
     </div>
-    <div id="popup" class="popup">
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div class="popup-retry" id="popupRetry"></div>
+
+    <div id="cameraContainer" class="info-card">
+      <h4>Face Recognition</h4>
+      <video id="camera" width="320" height="240" autoplay playsinline></video>
+      <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+      <button id="captureBtn">Capture & Verify Face</button>
+      <p id="recognitionResult"></p>
     </div>
-    <div id="diagnostic"></div>
+
+    <div id="attendanceActions" class="info-card" style="display:none;">
+      <h4>Attendance Actions</h4>
+      <p><strong>Detected Staff:</strong> <span id="staffName"></span></p>
+      <button class="action-btn" data-action="Clock In">Clock In</button>
+      <button class="action-btn" data-action="Clock Out">Clock Out</button>
+      <p id="attendanceStatus"></p>
+    </div>
   </div>
-  <script src="script.js"></script>
+
+  <script>
+    // =============== LOCATION DETECTION ===============
+    function updateLocationDisplay(lat, lon) {
+      document.getElementById('latitude').textContent = lat.toFixed(6);
+      document.getElementById('longitude').textContent = lon.toFixed(6);
+    }
+
+    function fetchLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported by your browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          updateLocationDisplay(latitude, longitude);
+        },
+        (err) => {
+          console.error("Location error:", err);
+          alert("Unable to get location. Please allow location access.");
+        }
+      );
+    }
+
+    fetchLocation();
+
+    // =============== CAMERA + FACE CAPTURE ===============
+    const video = document.getElementById("camera");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+    const captureBtn = document.getElementById("captureBtn");
+    const recognitionResult = document.getElementById("recognitionResult");
+    const staffNameSpan = document.getElementById("staffName");
+    const attendanceSection = document.getElementById("attendanceActions");
+
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        alert("Unable to access camera.");
+        console.error(err);
+      }
+    }
+
+    initCamera();
+
+    captureBtn.addEventListener("click", async () => {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageBase64 = canvas.toDataURL("image/jpeg").split(",")[1];
+
+      recognitionResult.textContent = "Recognizing face...";
+      const res = await fetch("/api/proxy/face-recognition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageBase64 }),
+      });
+
+      const data = await res.json();
+      console.log("Face recognition:", data);
+
+      if (data?.result?.[0]?.subjects?.[0]) {
+        const subjectName = data.result[0].subjects[0].subject;
+        recognitionResult.textContent = `✅ Face recognized: ${subjectName}`;
+        staffNameSpan.textContent = subjectName;
+        attendanceSection.style.display = "block";
+      } else {
+        recognitionResult.textContent = "❌ Face not recognized. Please try again.";
+        attendanceSection.style.display = "none";
+      }
+    });
+
+    // =============== ATTENDANCE ACTIONS ===============
+    document.querySelectorAll(".action-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const action = btn.getAttribute("data-action");
+        const subjectName = staffNameSpan.textContent;
+        const latitude = parseFloat(document.getElementById("latitude").textContent);
+        const longitude = parseFloat(document.getElementById("longitude").textContent);
+        const timestamp = new Date().toISOString();
+
+        const payload = { action, latitude, longitude, timestamp, subjectName };
+        const res = await fetch("/api/attendance/web", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await res.json();
+        document.getElementById("attendanceStatus").textContent = result.message;
+      });
+    });
+  </script>
 </body>
 </html>
