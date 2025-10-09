@@ -1,49 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tolon District Assembly Staff Attendance Management</title>
-  <link rel="stylesheet" href="styles.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proodent IT Attendance Portal</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+
   <style>
-    .container { text-align: center; }
-    .popup { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-      background:white; padding:20px; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,0.5); z-index:1000;
-      text-align:center; max-width:80%; }
-    .popup-header { font-size:1.2em; font-weight:bold; }
-    .popup-footer { font-size:0.8em; color:#555; margin-top:10px; }
-    #faceRecognition { display:none; margin:0 auto; max-width:640px; }
-    #video, #canvas { display:block; margin:0 auto; width:100%; height:auto; }
-    button { padding:10px 20px; font-size:16px; margin:5px; background:#4CAF50; color:#fff; border:none; cursor:pointer; }
-    button:disabled{ background:#ccc; cursor:not-allowed; }
-    pre { white-space: pre-wrap; text-align:center; }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background-color: #f6f8f6;
+      color: #333;
+    }
+
+    header {
+      background-color: #006837;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+      margin: 0;
+    }
+
+    #statusContainer {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 15px;
+    }
+
+    .status-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: gray;
+      display: inline-block;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    main {
+      padding: 20px;
+      text-align: center;
+    }
+
+    #map {
+      width: 100%;
+      height: 400px;
+      background-color: #e9ecef;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 18px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 10px;
+      background: #f0f0f0;
+      color: #555;
+      font-size: 14px;
+      border-top: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1><span style="font-size: 0.72em;">Tolon District Assembly</span><br><span style="font-size: 0.48em;">Staff Attendance Management</span></h1>
-    <p id="status">Checking location...</p>
-    <pre id="location">Location: Loading...</pre>
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
 
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <p id="faceMessage"></p>
+  <header>
+    <h2>Proodent IT Attendance Portal</h2>
+    <div id="statusContainer">
+      <span class="status-light" id="statusLight"></span>
+      <span id="systemStatus">Checking system health...</span>
     </div>
+  </header>
 
-    <div id="popup" class="popup">
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div class="popup-retry" id="popupRetry"></div>
-    </div>
+  <main>
+    <h3>Office Locations</h3>
+    <div id="map">Loading locations...</div>
+  </main>
 
-    <div id="diagnostic"></div>
-  </div>
+  <footer>
+    &copy; <span id="year"></span> Proodent IT Solutions — Smart IT, Smarter Solutions
+  </footer>
 
-  <script src="script.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    async function checkSystemHealth() {
+      const statusText = document.getElementById('systemStatus');
+      const statusLight = document.getElementById('statusLight');
+
+      try {
+        const res = await fetch('/healthz');
+        if (!res.ok) throw new Error('Unhealthy');
+        const data = await res.json();
+
+        statusText.textContent = `System Online — ${data.spreadsheet || 'Spreadsheet Connected'}`;
+        statusText.style.color = '#00FF66';
+        statusLight.style.backgroundColor = '#00FF66';
+        statusLight.style.boxShadow = '0 0 8px #00FF66';
+
+      } catch (err) {
+        statusText.textContent = 'System Offline — Unable to connect';
+        statusText.style.color = '#FF5555';
+        statusLight.style.backgroundColor = '#FF5555';
+        statusLight.style.boxShadow = '0 0 8px #FF5555';
+      }
+    }
+
+    // Initial check + repeat every 60s
+    checkSystemHealth();
+    setInterval(checkSystemHealth, 60000);
+  </script>
+
 </body>
 </html>
