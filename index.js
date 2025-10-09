@@ -318,6 +318,19 @@ const __dirname = path.resolve();
 app.use(express.static(__dirname));
 
 const listenPort = Number(PORT) || 3000;
+// ----------------- Health Check -----------------
+app.get("/healthz", async (req, res) => {
+  try {
+    await authDoc(); // confirm Google Sheets access
+    const info = doc.title || "Spreadsheet connected";
+    res.json({ status: "ok", spreadsheet: info });
+  } catch (err) {
+    console.error("Health check failed:", err.message);
+    res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 app.listen(listenPort, () =>
   console.log(`🚀 Tolon Attendance Server running on port ${listenPort}`)
 );
+
