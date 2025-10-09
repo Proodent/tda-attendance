@@ -31,10 +31,19 @@ const doc = new GoogleSpreadsheet(GOOGLE_SHEET_ID);
 
 // ==================== ROUTES ====================
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("✅ Tolon Attendance System backend is running successfully.");
+// ✅ Health check (for testing backend separately)
+app.get("/api/health", (req, res) => {
+  res.json({ status: "✅ Tolon Attendance System backend is running successfully." });
 });
+
+// ✅ Serve the main attendance webpage (frontend)
+const __dirname = path.resolve();
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// ✅ Serve static assets (JS, CSS, images)
+app.use(express.static(__dirname));
 
 // ==================== COMPRE-FACE PROXY ====================
 app.post("/api/proxy/face-recognition", async (req, res) => {
@@ -64,13 +73,11 @@ app.post("/api/attendance/web", async (req, res) => {
   const { action, latitude, longitude, timestamp, subjectName } = req.body;
   console.log(`📥 Attendance request: ${action} | ${subjectName} | ${latitude}, ${longitude}`);
 
-  // Basic input validation
   if (!action || !subjectName || isNaN(latitude) || isNaN(longitude)) {
     return res.status(400).json({ success: false, message: "Invalid input received." });
   }
 
   try {
-    // Authorize and load Google Sheet
     await doc.useServiceAccountAuth(serviceAccountAuth);
     await doc.loadInfo();
 
@@ -93,12 +100,12 @@ app.post("/api/attendance/web", async (req, res) => {
       });
     }
 
-    // Prepare data for logging
+    // Format date/time
     const now = new Date(timestamp);
-    const formattedDate = now.toLocaleDateString("en-GB"); // e.g. 08/10/2025
+    const formattedDate = now.toLocaleDateString("en-GB");
     const formattedTime = now.toLocaleTimeString("en-GB");
 
-    // Avoid duplicate same-day logs (optional)
+    // Avoid duplicate same-day entries
     const attendanceRows = await attendanceSheet.getRows();
     const alreadyLogged = attendanceRows.some(
       (r) =>
@@ -135,10 +142,6 @@ app.post("/api/attendance/web", async (req, res) => {
     });
   }
 });
-
-// ==================== STATIC FILES ====================
-const __dirname = path.resolve();
-app.use(express.static(__dirname));
 
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 3000;
