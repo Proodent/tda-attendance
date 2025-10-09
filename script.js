@@ -1,6 +1,54 @@
 // ==================== GLOBALS ====================
-let watchId = null, video, canvas, popup, popupHeader, popupMessage, popupFooter, popupRetry;
+let watchId = null;
+let video, canvas, popup, popupHeader, popupMessage, popupFooter, popupRetry;
 let popupTimeout;
+let locationsData = [];
+
+// ==================== FETCH LOCATIONS ====================
+async function loadLocations() {
+  try {
+    const res = await fetch('/api/locations');
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) throw new Error('No location data found');
+    locationsData = data.map(loc => ({
+      name: loc['Location Name'],
+      lat: parseFloat(loc['Latitude']),
+      lon: parseFloat(loc['Longitude']),
+      radius: parseFloat(loc['Radius'])
+    }));
+
+    console.log('Loaded locations:', locationsData);
+  } catch (err) {
+    console.error('Error loading locations:', err);
+    showPopup('Error', 'Unable to load location data. Please reload.', true);
+  }
+}
+
+// ==================== GEO DISTANCE HELPER ====================
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) ** 2 +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+// ==================== FIND CURRENT OFFICE ====================
+function getCurrentOffice(lat, lon) {
+  for (const loc of locationsData) {
+    const distance = getDistance(lat, lon, loc.lat, loc.lon);
+    if (distance <= loc.radius) return loc.name;
+  }
+  return null;
+}
 
 // ==================== LOCATION WATCH ====================
 async function startLocationWatch() {
@@ -17,6 +65,9 @@ async function startLocationWatch() {
   popupFooter = document.getElementById('popupFooter');
   popupRetry = document.getElementById('popupRetry');
 
+  // load locations first
+  await loadLocations();
+
   if (!navigator.geolocation) {
     status.textContent = 'Geolocation not supported by your browser.';
     clockIn.disabled = clockOut.disabled = true;
@@ -26,9 +77,17 @@ async function startLocationWatch() {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
-      location.textContent = `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-      status.textContent = 'Ready for clock in/out.';
-      clockIn.disabled = clockOut.disabled = false;
+      const currentOffice = getCurrentOffice(latitude, longitude);
+
+      if (currentOffice) {
+        status.textContent = `You are currently at ${currentOffice}`;
+        location.textContent = `GPS Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        clockIn.disabled = clockOut.disabled = false;
+      } else {
+        status.textContent = 'Unapproved Location';
+        location.textContent = `GPS Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        clockIn.disabled = clockOut.disabled = true;
+      }
     },
     (err) => {
       status.textContent = `Error getting location: ${err.message}`;
@@ -89,17 +148,16 @@ async function validateFace(imageData) {
 async function handleClock(action) {
   const faceRecognition = document.getElementById('faceRecognition');
   const locationText = document.getElementById('location').textContent;
-  if (!locationText.includes('Location:')) {
-    return showPopup('Location Error', 'Unable to detect GPS coordinates.', true);
+  const statusText = document.getElementById('status').textContent;
+
+  if (statusText.includes('Unapproved') || !statusText.includes('at')) {
+    return showPopup('Location Error', 'You are not within an approved office location.', true);
   }
 
-  const [latStr, lonStr] = locationText.replace('Location: ', '').split(', ');
+  const officeName = statusText.replace('You are currently at ', '');
+  const [latStr, lonStr] = locationText.replace('GPS Location: ', '').split(', ');
   const latitude = parseFloat(latStr);
   const longitude = parseFloat(lonStr);
-
-  if (!latitude || !longitude) {
-    return showPopup('Location Error', 'Unable to get GPS location.', true);
-  }
 
   faceRecognition.style.display = 'block';
   await startVideo();
@@ -109,7 +167,6 @@ async function handleClock(action) {
   canvasTemp.height = 480;
   const ctx = canvasTemp.getContext('2d');
 
-  // Mirror correction
   ctx.translate(canvasTemp.width, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, canvasTemp.width, canvasTemp.height);
@@ -122,7 +179,6 @@ async function handleClock(action) {
     return showPopup('Verification Unsuccessful', face.error, true);
   }
 
-  // ✅ Send to backend for Google Sheets logging
   try {
     const response = await fetch('/api/attendance/web', {
       method: 'POST',
@@ -132,6 +188,7 @@ async function handleClock(action) {
         subjectName: face.subjectName,
         latitude,
         longitude,
+        office: officeName,
         timestamp: new Date().toISOString()
       })
     });
@@ -140,7 +197,7 @@ async function handleClock(action) {
     if (result.success) {
       showPopup(
         'Verification Successful',
-        `Dear ${face.subjectName}, you have successfully ${action} at ${new Date().toLocaleTimeString()}.`
+        `Dear ${face.subjectName}, you have successfully ${action} at ${new Date().toLocaleTimeString()}, at ${officeName}.`
       );
     } else {
       showPopup('Verification Unsuccessful', result.message || 'Attendance not logged.', true);
