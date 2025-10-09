@@ -3,9 +3,13 @@ let watchId = null;
 let video, canvas, popup, popupHeader, popupMessage, popupFooter, popupRetry;
 let popupTimeout;
 let locationsData = [];
+let locationsLoaded = false;
 
 // ==================== FETCH LOCATIONS ====================
 async function loadLocations() {
+  const status = document.getElementById('status');
+  status.innerHTML = 'Fetching office data... ⏳';
+
   try {
     const res = await fetch('/api/locations');
     const data = await res.json();
@@ -18,9 +22,12 @@ async function loadLocations() {
       radius: parseFloat(loc['Radius'])
     }));
 
-    console.log('Loaded locations:', locationsData);
+    console.log('✅ Loaded locations:', locationsData);
+    locationsLoaded = true;
+    status.innerHTML = 'Location data loaded. Detecting your position... 📍';
   } catch (err) {
-    console.error('Error loading locations:', err);
+    console.error('❌ Error loading locations:', err);
+    status.textContent = 'Error loading office data. Please reload.';
     showPopup('Error', 'Unable to load location data. Please reload.', true);
   }
 }
@@ -65,7 +72,7 @@ async function startLocationWatch() {
   popupFooter = document.getElementById('popupFooter');
   popupRetry = document.getElementById('popupRetry');
 
-  // load locations first
+  // Load locations first
   await loadLocations();
 
   if (!navigator.geolocation) {
@@ -76,15 +83,17 @@ async function startLocationWatch() {
 
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
+      if (!locationsLoaded) return; // wait until sheet data is ready
+
       const { latitude, longitude } = pos.coords;
       const currentOffice = getCurrentOffice(latitude, longitude);
 
       if (currentOffice) {
-        status.textContent = `You are currently at ${currentOffice}`;
+        status.innerHTML = `✅ You are currently at <b>${currentOffice}</b>`;
         location.textContent = `GPS Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         clockIn.disabled = clockOut.disabled = false;
       } else {
-        status.textContent = 'Unapproved Location';
+        status.innerHTML = '❌ Unapproved Location';
         location.textContent = `GPS Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         clockIn.disabled = clockOut.disabled = true;
       }
@@ -154,7 +163,7 @@ async function handleClock(action) {
     return showPopup('Location Error', 'You are not within an approved office location.', true);
   }
 
-  const officeName = statusText.replace('You are currently at ', '');
+  const officeName = statusText.replace(/.*at\s*/, '').replace(/<\/?b>/g, '').trim();
   const [latStr, lonStr] = locationText.replace('GPS Location: ', '').split(', ');
   const latitude = parseFloat(latStr);
   const longitude = parseFloat(lonStr);
