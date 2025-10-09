@@ -1,8 +1,6 @@
-// ==================== LOCATION CONFIG (now loaded from sheet via backend) ====================
-// (No static OFFICE_LOCATIONS here anymore)
-
 // ==================== GLOBALS ====================
 let watchId = null, video, canvas, popup, popupHeader, popupMessage, popupFooter, popupRetry;
+let popupTimeout;
 
 // ==================== LOCATION WATCH ====================
 async function startLocationWatch() {
@@ -20,7 +18,7 @@ async function startLocationWatch() {
   popupRetry = document.getElementById('popupRetry');
 
   if (!navigator.geolocation) {
-    status.textContent = 'Geolocation not supported';
+    status.textContent = 'Geolocation not supported by your browser.';
     clockIn.disabled = clockOut.disabled = true;
     return;
   }
@@ -29,11 +27,11 @@ async function startLocationWatch() {
     (pos) => {
       const { latitude, longitude } = pos.coords;
       location.textContent = `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-      status.textContent = 'Checking proximity...';
+      status.textContent = 'Ready for clock in/out.';
       clockIn.disabled = clockOut.disabled = false;
     },
     (err) => {
-      status.textContent = `Error: ${err.message}`;
+      status.textContent = `Error getting location: ${err.message}`;
       clockIn.disabled = clockOut.disabled = true;
     },
     { enableHighAccuracy: true, maximumAge: 10000 }
@@ -72,15 +70,16 @@ async function validateFace(imageData) {
     const result = await response.json();
     console.log('Face API response:', result);
 
-    if (result?.result?.[0]?.subjects?.[0]) {
+    if (result?.result?.length && result.result[0].subjects?.length) {
       const match = result.result[0].subjects[0];
-      if (match.similarity >= 0.7)
+      if (match.similarity >= 0.7) {
         return { success: true, subjectName: match.subject };
-      else
+      } else {
         return { success: false, error: 'Face match too low. Try again.' };
+      }
     }
 
-    return { success: false, error: 'No matching face found.' };
+    return { success: false, error: 'No matching face found. Try again.' };
   } catch (err) {
     return { success: false, error: `Face API error: ${err.message}` };
   }
@@ -89,12 +88,18 @@ async function validateFace(imageData) {
 // ==================== ATTENDANCE HANDLER ====================
 async function handleClock(action) {
   const faceRecognition = document.getElementById('faceRecognition');
-  const [latStr, lonStr] = document.getElementById('location').textContent.replace('Location: ', '').split(', ');
+  const locationText = document.getElementById('location').textContent;
+  if (!locationText.includes('Location:')) {
+    return showPopup('Location Error', 'Unable to detect GPS coordinates.', true);
+  }
+
+  const [latStr, lonStr] = locationText.replace('Location: ', '').split(', ');
   const latitude = parseFloat(latStr);
   const longitude = parseFloat(lonStr);
 
-  if (!latitude || !longitude)
+  if (!latitude || !longitude) {
     return showPopup('Location Error', 'Unable to get GPS location.', true);
+  }
 
   faceRecognition.style.display = 'block';
   await startVideo();
@@ -103,16 +108,21 @@ async function handleClock(action) {
   canvasTemp.width = 640;
   canvasTemp.height = 480;
   const ctx = canvasTemp.getContext('2d');
+
+  // Mirror correction
+  ctx.translate(canvasTemp.width, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(video, -canvasTemp.width, 0, canvasTemp.width, canvasTemp.height);
+  ctx.drawImage(video, 0, 0, canvasTemp.width, canvasTemp.height);
+
   const imageData = canvasTemp.toDataURL('image/jpeg').split(',')[1];
   stopVideo();
 
   const face = await validateFace(imageData);
-  if (!face.success)
+  if (!face.success) {
     return showPopup('Verification Unsuccessful', face.error, true);
+  }
 
-  // ✅ Send to backend for Google Sheets check
+  // ✅ Send to backend for Google Sheets logging
   try {
     const response = await fetch('/api/attendance/web', {
       method: 'POST',
@@ -127,11 +137,14 @@ async function handleClock(action) {
     });
 
     const result = await response.json();
-    if (result.success)
-      showPopup('Verification Successful',
-        `Dear ${face.subjectName}, you have successfully ${action} at ${new Date().toLocaleTimeString()}.`);
-    else
+    if (result.success) {
+      showPopup(
+        'Verification Successful',
+        `Dear ${face.subjectName}, you have successfully ${action} at ${new Date().toLocaleTimeString()}.`
+      );
+    } else {
       showPopup('Verification Unsuccessful', result.message || 'Attendance not logged.', true);
+    }
 
   } catch (err) {
     showPopup('Server Error', `Failed to log attendance: ${err.message}`, true);
@@ -140,12 +153,15 @@ async function handleClock(action) {
 
 // ==================== POPUP HELPER ====================
 function showPopup(title, message, retry = false) {
+  if (popupTimeout) clearTimeout(popupTimeout);
+
   popupHeader.textContent = title;
   popupMessage.textContent = message;
   popupFooter.textContent = new Date().toLocaleString();
   popupRetry.innerHTML = retry ? '<button onclick="window.location.reload()">Retry</button>' : '';
+
   popup.style.display = 'block';
-  setTimeout(() => popup.style.display = 'none', retry ? 8000 : 5000);
+  popupTimeout = setTimeout(() => popup.style.display = 'none', retry ? 8000 : 5000);
 }
 
 // ==================== CLEANUP ====================
