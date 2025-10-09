@@ -1,126 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proodent IT Attendance Portal</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Portal</title>
   <style>
     body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      background-color: #f6f8f6;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f4;
       color: #333;
+      padding: 40px;
     }
 
-    header {
-      background-color: #006837;
+    h1 {
+      color: #006837;
+    }
+
+    #status {
+      font-weight: bold;
+      margin: 10px 0;
+      color: #009245;
+    }
+
+    #location {
+      margin: 15px 0;
+      font-size: 1.1em;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #009245;
       color: white;
-      padding: 15px;
-      text-align: center;
-      position: sticky;
-      top: 0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      cursor: pointer;
+      font-size: 1em;
     }
 
-    h2 {
-      margin: 0;
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
     }
 
-    #statusContainer {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      font-size: 15px;
-    }
-
-    .status-light {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background-color: gray;
-      display: inline-block;
-      box-shadow: 0 0 4px rgba(0,0,0,0.3);
-    }
-
-    main {
+    #popup {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -20%);
+      background: white;
       padding: 20px;
-      text-align: center;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      width: 80%;
+      max-width: 400px;
+      z-index: 10;
     }
 
-    #map {
-      width: 100%;
-      height: 400px;
-      background-color: #e9ecef;
-      border-radius: 8px;
+    #popup h3 {
+      margin-top: 0;
+      color: #006837;
+    }
+
+    #popupRetry button {
+      background: #006837;
+      margin-top: 10px;
+    }
+
+    #video {
+      display: none;
+      width: 320px;
+      height: 240px;
+      border-radius: 10px;
       margin-top: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #666;
-      font-size: 18px;
-    }
-
-    footer {
-      text-align: center;
-      padding: 10px;
-      background: #f0f0f0;
-      color: #555;
-      font-size: 14px;
-      border-top: 1px solid #ddd;
     }
   </style>
 </head>
 <body>
+  <h1>Attendance Portal</h1>
+  <p id="status">Initializing system...</p>
+  <p id="location">Detecting location...</p>
 
-  <header>
-    <h2>Proodent IT Attendance Portal</h2>
-    <div id="statusContainer">
-      <span class="status-light" id="statusLight"></span>
-      <span id="systemStatus">Checking system health...</span>
-    </div>
-  </header>
+  <button id="clockIn" disabled>Clock In</button>
+  <button id="clockOut" disabled>Clock Out</button>
 
-  <main>
-    <h3>Office Locations</h3>
-    <div id="map">Loading locations...</div>
-  </main>
+  <div id="faceRecognition">
+    <video id="video" autoplay muted></video>
+  </div>
 
-  <footer>
-    &copy; <span id="year"></span> Proodent IT Solutions — Smart IT, Smarter Solutions
-  </footer>
+  <!-- Popup -->
+  <div id="popup">
+    <h3 id="popupHeader"></h3>
+    <p id="popupMessage"></p>
+    <small id="popupFooter"></small>
+    <div id="popupRetry"></div>
+  </div>
 
-  <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    async function checkSystemHealth() {
-      const statusText = document.getElementById('systemStatus');
-      const statusLight = document.getElementById('statusLight');
-
-      try {
-        const res = await fetch('/healthz');
-        if (!res.ok) throw new Error('Unhealthy');
-        const data = await res.json();
-
-        statusText.textContent = `System Online — ${data.spreadsheet || 'Spreadsheet Connected'}`;
-        statusText.style.color = '#00FF66';
-        statusLight.style.backgroundColor = '#00FF66';
-        statusLight.style.boxShadow = '0 0 8px #00FF66';
-
-      } catch (err) {
-        statusText.textContent = 'System Offline — Unable to connect';
-        statusText.style.color = '#FF5555';
-        statusLight.style.backgroundColor = '#FF5555';
-        statusLight.style.boxShadow = '0 0 8px #FF5555';
-      }
-    }
-
-    // Initial check + repeat every 60s
-    checkSystemHealth();
-    setInterval(checkSystemHealth, 60000);
-  </script>
-
+  <script src="index.js"></script>
 </body>
 </html>
