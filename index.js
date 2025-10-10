@@ -23,7 +23,7 @@ const {
   GOOGLE_SERVICE_ACCOUNT_EMAIL,
   GOOGLE_PRIVATE_KEY,
   COMPREFACE_API_KEY,
-  COMPREFACE_BASE_URL,
+  COMPREFACE_URL,
   PORT
 } = process.env;
 
@@ -87,7 +87,7 @@ app.get("/api/locations", async (req, res) => {
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
-    const url = `${COMPREFACE_BASE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
+    const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -241,3 +241,4 @@ app.get("/dev", (req, res) => {
 // ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
+
