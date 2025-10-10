@@ -2,6 +2,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import { GoogleSpreadsheet } from "google-spreadsheet";
+import { JWT } from "google-auth-library";
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
@@ -30,25 +31,39 @@ if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
   console.error("❌ Missing Google Sheets config in .env file!");
 }
 
-// ----------------- Google Sheets Setup -----------------
-const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
+// ----------------- Google Sheets Setup (v4 compatible) -----------------
+const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+const serviceAccountAuth = new JWT({
+  email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  key: processedKey,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
 
-async function authDoc() {
-  const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
-  await doc.useServiceAccountAuth({
-    client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: processedKey
-  });
+const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
+
+// Helper to load doc safely
+async function loadDoc() {
   await doc.loadInfo();
 }
+
+// ----------------- API: Health -----------------
+app.get("/api/health", async (req, res) => {
+  try {
+    await loadDoc();
+    res.json({ success: true, message: "Google Sheets connected successfully!" });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 // ----------------- API: Locations -----------------
 app.get("/api/locations", async (req, res) => {
   try {
-    await authDoc();
+    await loadDoc();
     const locSheet = doc.sheetsByTitle["Locations Sheet"];
     if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
     const rows = await locSheet.getRows();
+
     const locations = rows.map(r => {
       const name = r["Location Name"] ?? r.get("Location Name") ?? "";
       const lon = parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0);
@@ -99,7 +114,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
 
-    await authDoc();
+    await loadDoc();
 
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
     const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
