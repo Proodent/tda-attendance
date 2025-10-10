@@ -134,11 +134,12 @@ function stopVideo(){
 async function validateFaceWithProxy(base64Image){
   try {
     // send as { file: "<base64>" } because some CompreFace installations expect "file"
-    const r = await fetch('/api/proxy/face-recognition', {
+       const r = await fetch('/api/proxy/face-recognition', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64Image })
+      body: JSON.stringify({ image: base64Image })
     });
+
     const j = await r.json();
     console.log('CompreFace proxy returned:', j);
     // result array format (example): j.result[0].subjects = [{subject: "Name", similarity: 0.99}, ...]
@@ -220,3 +221,4 @@ async function handleClock(action){
 // ---------- Init ----------
 window.onload = startLocationWatch;
 window.onunload = () => { if (watchId) navigator.geolocation.clearWatch(watchId); stopVideo(); };
+
