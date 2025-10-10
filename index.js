@@ -6,6 +6,52 @@ import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
 
+
+// ----------------- HEALTH CHECK -----------------
+app.get("/api/health", async (req, res) => {
+  try {
+    // Quick check: try to access spreadsheet info
+    await authDoc();
+    await doc.loadInfo();
+    res.json({
+      success: true,
+      status: "ok",
+      spreadsheetTitle: doc.title,
+      time: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Health check failed:", err.message);
+    res.status(500).json({
+      success: false,
+      status: "error",
+      error: err.message
+    });
+  }
+});
+
+// ----------------- LOCATIONS ROUTE -----------------
+app.get("/api/locations", async (req, res) => {
+  try {
+    await authDoc();
+    const locSheet = doc.sheetsByTitle["Locations Sheet"];
+    if (!locSheet) {
+      return res.status(404).json({ success: false, message: "Locations Sheet not found" });
+    }
+    const rows = await locSheet.getRows();
+    const locations = rows.map(r => ({
+      name: r["Location Name"] || r.get("Location Name") || "",
+      latitude: parseFloat(r["Latitude"] || r.get("Latitude") || 0),
+      longitude: parseFloat(r["Longitude"] || r.get("Longitude") || 0),
+      radius: parseFloat(r["Radius"] || r.get("Radius") || r["Radius (Meters)"] || 150)
+    }));
+    res.json({ success: true, locations });
+  } catch (err) {
+    console.error("Error loading locations:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 // ==================== CONFIG ====================
 dotenv.config();
 const app = express();
@@ -260,3 +306,4 @@ app.use(express.static(__dirname));
 // ==================== SERVER START ====================
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () => console.log(`🚀 Tolon Attendance Server running on port ${listenPort}`));
+
