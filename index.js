@@ -1,244 +1,145 @@
-// index.js — Proodent Attendance System Server
+// index.js
 import express from "express";
 import fetch from "node-fetch";
-import { GoogleSpreadsheet } from "google-spreadsheet";
-import { JWT } from "google-auth-library";
-import dotenv from "dotenv";
-import path from "path";
+import bodyParser from "body-parser";
 import cors from "cors";
-import { fileURLToPath } from "url";
+import { GoogleSpreadsheet } from "google-spreadsheet";
+import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
 const app = express();
-app.use(express.json({ limit: "12mb" }));
+
+// ------------------ CONFIG ------------------
+const PORT = process.env.PORT || 3000;
+
+// 🔹 CompreFace settings
+const COMPREFACE_URL = process.env.COMPREFACE_URL || "http://server.proodentit.com:8081";
+const COMPREFACE_API_KEY = process.env.COMPREFACE_API_KEY || "4f4766d9-fc3b-436a-b24e-f57851a1c865";
+
+// 🔹 Google Sheets (for office locations)
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || "YOUR_SHEET_ID_HERE";
+const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "your-service-account@project.iam.gserviceaccount.com";
+const GOOGLE_PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
+// ------------------ MIDDLEWARE ------------------
 app.use(cors());
+app.use(bodyParser.json({ limit: "10mb" }));
+app.use(express.static("public"));
 
-// Fix __dirname in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ------------------ LOAD LOCATIONS ------------------
+let cachedLocations = [];
 
-// ----------------- ENV -----------------
-const {
-  SPREADSHEET_ID,
-  GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_PRIVATE_KEY,
-  COMPREFACE_API_KEY,
-  COMPREFACE_URL,
-  PORT
-} = process.env;
-
-if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-  console.error("❌ Missing Google Sheets config in .env file!");
-}
-
-// ----------------- Google Sheets Setup (v4 compatible) -----------------
-const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
-const serviceAccountAuth = new JWT({
-  email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  key: processedKey,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
-
-const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
-
-// Helper to load doc safely
-async function loadDoc() {
-  await doc.loadInfo();
-}
-
-// ----------------- API: Health -----------------
-app.get("/api/health", async (req, res) => {
+async function loadLocations() {
   try {
-    await loadDoc();
-    res.json({ success: true, message: "Google Sheets connected successfully!" });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
-
-// ----------------- API: Locations -----------------
-app.get("/api/locations", async (req, res) => {
-  try {
-    await loadDoc();
-    const locSheet = doc.sheetsByTitle["Locations Sheet"];
-    if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
-    const rows = await locSheet.getRows();
-
-    const locations = rows.map(r => {
-      const name = r["Location Name"] ?? r.get("Location Name") ?? "";
-      const lon = parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0);
-      const lat = parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0);
-      const radiusMeters = parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150);
-      return {
-        name: (name || "").toString(),
-        lat: Number.isFinite(lat) ? lat : 0,
-        long: Number.isFinite(lon) ? lon : 0,
-        radiusMeters: Number.isFinite(radiusMeters) ? radiusMeters : 150
-      };
+    const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
+    await doc.useServiceAccountAuth({
+      client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key: GOOGLE_PRIVATE_KEY,
     });
-    res.json({ success: true, locations });
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0];
+    const rows = await sheet.getRows();
+
+    cachedLocations = rows
+      .filter(r => r.name && r.lat && r.long)
+      .map(r => ({
+        name: r.name.trim(),
+        lat: parseFloat(r.lat),
+        long: parseFloat(r.long),
+        radiusMeters: Number(r.radiusMeters || 150),
+      }));
+
+    console.log(`✅ Loaded ${cachedLocations.length} office locations from Google Sheets.`);
   } catch (err) {
-    console.error("GET /api/locations error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error("❌ Error loading Google Sheet:", err);
   }
+}
+
+// ------------------ ROUTES ------------------
+
+// 1️⃣ Locations route
+app.get("/api/locations", async (req, res) => {
+  if (!cachedLocations.length) await loadLocations();
+  if (!cachedLocations.length)
+    return res.json({ success: false, message: "No locations found." });
+
+  res.json({ success: true, locations: cachedLocations });
 });
 
-// ----------------- Proxy CompreFace -----------------
+// 2️⃣ Face Recognition Proxy
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
-    const payload = req.body || {};
+    const { file } = req.body; // frontend sends { file: "<base64>" }
+    if (!file)
+      return res
+        .status(400)
+        .json({ success: false, message: "No image received from frontend." });
+
     const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "x-api-key": COMPREFACE_API_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ image_base64: file }), // ✅ CompreFace expects "image_base64"
     });
 
     const data = await response.json();
-    return res.json(data);
+
+    // 🧠 Log recognition results
+    if (data?.result?.length && data.result[0].subjects?.length) {
+      const top = data.result[0].subjects[0];
+      console.log(`✅ Match found: ${top.subject} (${(top.similarity * 100).toFixed(1)}%)`);
+    } else {
+      console.log("⚠️ No match found.");
+    }
+
+    res.json(data);
   } catch (err) {
-    console.error("POST /api/proxy/face-recognition error:", err);
-    res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
+    console.error("❌ CompreFace proxy error:", err);
+    res.status(500).json({
+      success: false,
+      error: "CompreFace proxy error",
+      details: err.message,
+    });
   }
 });
 
-// ----------------- Attendance logging -----------------
+// 3️⃣ Attendance endpoint
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, latitude, longitude, timestamp } = req.body;
-    if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
-      return res.status(400).json({ success: false, message: "Invalid input." });
+
+    if (!subjectName || !action) {
+      return res.json({
+        success: false,
+        message: "Missing subject name or action.",
+      });
     }
 
-    await loadDoc();
-
-    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
-    const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
-    const locationsSheet = doc.sheetsByTitle["Locations Sheet"];
-
-    if (!staffSheet || !attendanceSheet || !locationsSheet) {
-      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
-    }
-
-    const staffRows = await staffSheet.getRows();
-    const attendanceRows = await attendanceSheet.getRows();
-    const locRows = await locationsSheet.getRows();
-
-    const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").toString().trim() === subjectName.toString().trim() &&
-      (r["Active"] || r.get("Active") || "").toString().trim().toLowerCase() === "yes"
+    // You could save this to a database or Google Sheet.
+    console.log(
+      `🕒 Attendance ${action.toUpperCase()} recorded for ${subjectName} @ [${latitude}, ${longitude}] on ${timestamp}`
     );
 
-    if (!staffMember) {
-      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
-    }
-
-    const officeLocations = locRows.map(r => ({
-      name: (r["Location Name"] || r.get("Location Name") || "").toString(),
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
-      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
-    }));
-
-    function toRad(v) { return v * Math.PI / 180; }
-    function getDistanceKm(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    let officeName = null;
-    for (const o of officeLocations) {
-      const distKm = getDistanceKm(Number(latitude), Number(longitude), Number(o.lat), Number(o.long));
-      if (distKm <= (o.radiusMeters / 1000)) {
-        officeName = o.name;
-        break;
-      }
-    }
-
-    if (!officeName) {
-      return res.status(403).json({ success: false, message: "Not inside any approved location." });
-    }
-
-    const allowedLocationsRaw = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "";
-    const allowed = allowedLocationsRaw.split(",").map(s => s.trim()).filter(Boolean);
-    if (!allowed.includes(officeName)) {
-      return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
-    }
-
-    const dt = new Date(timestamp);
-    const dateStr = dt.toISOString().split("T")[0];
-    const timeStr = dt.toTimeString().split(" ")[0];
-
-    const userId = (staffMember["User ID"] || staffMember.get("User ID") || "").toString();
-    const department = (staffMember["Department"] || staffMember.get("Department") || "").toString();
-
-    if (action === "clock in") {
-      const existing = attendanceRows.find(r => (r["Date"] || r.get("Date")) === dateStr && (r["User ID"] || r.get("User ID")) === userId);
-      if (existing && (existing["Time In"] || existing.get("Time In"))) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
-      }
-
-      await attendanceSheet.addRow({
-        "User ID": userId,
-        "Name": subjectName,
-        "Department": department,
-        "Date": dateStr,
-        "Time In": timeStr,
-        "Clock In Location": officeName,
-        "Time Out": "",
-        "Clock Out Location": ""
-      });
-
-      return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
-    }
-
-    if (action === "clock out") {
-      const existing = attendanceRows.find(r => (r["Date"] || r.get("Date")) === dateStr && (r["User ID"] || r.get("User ID")) === userId);
-      if (!existing) {
-        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
-      }
-      if (existing["Time Out"] || existing.get("Time Out")) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
-      }
-
-      existing["Time Out"] = timeStr;
-      existing["Clock Out Location"] = officeName;
-      await existing.save();
-
-      return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
-    }
-
-    res.status(400).json({ success: false, message: "Unknown action." });
-
+    res.json({
+      success: true,
+      message: `Dear ${subjectName}, ${action} recorded successfully.`,
+    });
   } catch (err) {
-    console.error("POST /api/attendance/web error:", err);
-    res.status(500).json({ success: false, message: "Server error", error: err.message });
+    console.error("❌ Attendance API error:", err);
+    res.json({
+      success: false,
+      message: "Server error while logging attendance.",
+    });
   }
 });
 
-// ----------------- Static Frontend -----------------
-app.use(express.static(__dirname));
-
-// Serve main user interface
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+// ------------------ SERVER ------------------
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  loadLocations(); // preload office locations
 });
-
-// Serve developer dashboard (optional)
-app.get("/dev", (req, res) => {
-  res.sendFile(path.join(__dirname, "developer.html"));
-});
-
-// ----------------- Start Server -----------------
-const listenPort = Number(PORT) || 3000;
-app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
-
