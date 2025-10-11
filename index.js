@@ -188,10 +188,10 @@ app.post("/api/attendance/web", async (req, res) => {
       }
 
       await attendanceSheet.addRow({
-        "User ID": userId,
-        "Name": subjectName,
-        "Department": department,
         "Date": dateStr,
+        "User ID": userId,
+        "Department": department,
+        "Name": subjectName,
         "Time In": timeStr,
         "Clock In Location": officeName,
         "Time Out": "",
@@ -241,4 +241,5 @@ app.get("/dev", (req, res) => {
 // ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
+
 
