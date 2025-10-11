@@ -12,17 +12,8 @@
       padding: 20px;
       line-height: 1.6;
     }
-
-    h1 {
-      color: #006837;
-      text-align: center;
-    }
-
-    h2 {
-      border-bottom: 2px solid #009245;
-      color: #333;
-    }
-
+    h1 { color: #006837; text-align: center; }
+    h2 { border-bottom: 2px solid #009245; color: #333; }
     #log {
       background: #111;
       color: #0f0;
@@ -33,7 +24,6 @@
       font-family: monospace;
       font-size: 0.9em;
     }
-
     .section {
       margin-bottom: 30px;
       padding: 15px;
@@ -41,58 +31,30 @@
       border-radius: 10px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
     }
-
     th, td {
       border: 1px solid #ddd;
       padding: 8px;
       text-align: left;
     }
-
-    th {
-      background: #009245;
-      color: white;
-    }
-
+    th { background: #009245; color: white; }
     .status {
       padding: 6px 10px;
       border-radius: 4px;
       font-weight: bold;
     }
-
     .ok { background: #d4edda; color: #155724; }
     .fail { background: #f8d7da; color: #721c24; }
-
     #video {
       width: 320px;
       height: 240px;
       border-radius: 10px;
       border: 2px solid #009245;
       display: none;
-    }
-
-    #popup {
-      display: none;
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translate(-50%, -20%);
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-      width: 80%;
-      max-width: 400px;
-      z-index: 10;
-    }
-
-    #popup h3 {
-      color: #006837;
     }
   </style>
 </head>
@@ -129,7 +91,7 @@
   </div>
 
   <div class="section">
-    <h2>Face Recognition</h2>
+    <h2>Face Recognition Test</h2>
     <video id="video" autoplay muted></video><br>
     <button id="startFace" style="background:#009245;color:white;padding:8px 15px;border:none;border-radius:5px;">Test Face Recognition</button>
   </div>
@@ -137,13 +99,6 @@
   <div class="section">
     <h2>Logs</h2>
     <div id="log"></div>
-  </div>
-
-  <!-- Popup -->
-  <div id="popup">
-    <h3 id="popupHeader"></h3>
-    <p id="popupMessage"></p>
-    <small id="popupFooter"></small>
   </div>
 
   <script>
@@ -154,10 +109,10 @@
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    // ==================== TEST BACKEND CONNECTION ====================
+    // ------------------- HEALTH CHECK -------------------
     async function checkBackend() {
       try {
-        const res = await fetch('/api/health');
+        const res = await fetch('/api/locations');
         if (res.ok) {
           document.getElementById('backendStatus').textContent = 'Online';
           document.getElementById('backendStatus').className = 'status ok';
@@ -170,19 +125,19 @@
       }
     }
 
-    // ==================== LOAD LOCATIONS FROM GOOGLE SHEETS ====================
+    // ------------------- LOAD LOCATIONS -------------------
     let offices = [];
     async function loadLocations() {
       try {
         const res = await fetch('/api/locations');
-        if (!res.ok) throw new Error('Unable to fetch locations');
         const data = await res.json();
-        offices = data.locations || [];
+        if (!data.success) throw new Error('Bad locations response');
+        offices = data.locations;
         const tbody = document.querySelector('#locationsTable tbody');
         tbody.innerHTML = '';
         offices.forEach(o => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${o.name}</td><td>${o.latitude}</td><td>${o.longitude}</td><td>${o.radius}</td>`;
+          tr.innerHTML = `<td>${o.name}</td><td>${o.lat}</td><td>${o.long}</td><td>${o.radiusMeters}</td>`;
           tbody.appendChild(tr);
         });
         document.getElementById('locationCount').textContent = `${offices.length} office locations loaded.`;
@@ -197,7 +152,7 @@
       }
     }
 
-    // ==================== GEOLOCATION ====================
+    // ------------------- GEOLOCATION -------------------
     function getDistance(lat1, lon1, lat2, lon2) {
       const R = 6371000;
       const φ1 = lat1 * Math.PI / 180;
@@ -215,8 +170,8 @@
         document.getElementById('gpsCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
         let detected = '—';
         for (const o of offices) {
-          const dist = getDistance(latitude, longitude, o.latitude, o.longitude);
-          if (dist <= o.radius) { detected = o.name; break; }
+          const dist = getDistance(latitude, longitude, o.lat, o.long);
+          if (dist <= o.radiusMeters) { detected = o.name; break; }
         }
         document.getElementById('detectedOffice').textContent = detected;
         document.getElementById('gpsStatus').textContent = detected === '—' ? 'Outside office zone' : 'Inside office zone';
@@ -225,7 +180,7 @@
       }, { enableHighAccuracy: true, maximumAge: 10000 });
     }
 
-    // ==================== FACE RECOGNITION TEST ====================
+    // ------------------- FACE RECOGNITION TEST -------------------
     const video = document.getElementById('video');
     document.getElementById('startFace').addEventListener('click', async () => {
       try {
@@ -233,16 +188,20 @@
         video.srcObject = stream;
         video.style.display = 'block';
         await new Promise(r => setTimeout(r, 2000));
+
         const canvas = document.createElement('canvas');
         canvas.width = 320; canvas.height = 240;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, 320, 240);
         const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
+
+        // ✅ Backend expects { file: "<base64>" }
         const res = await fetch('/api/proxy/face-recognition', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: imgData })
+          body: JSON.stringify({ file: imgData })
         });
+
         const data = await res.json();
         log('🧠 Face API response: ' + JSON.stringify(data));
       } catch (err) {
@@ -250,7 +209,7 @@
       }
     });
 
-    // ==================== INIT ====================
+    // ------------------- INIT -------------------
     (async () => {
       await checkBackend();
       await loadLocations();
