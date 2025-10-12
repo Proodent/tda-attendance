@@ -13,7 +13,7 @@ const app = express();
 app.use(express.json({ limit: "12mb" }));
 app.use(cors());
 
-// Fix __dirname for ES modules
+// Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -41,21 +41,22 @@ const serviceAccountAuth = new JWT({
 
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
 
+// Load document safely
 async function loadDoc() {
   await doc.loadInfo();
 }
 
-// ----------------- API: Health -----------------
+// ----------------- HEALTH CHECK -----------------
 app.get("/api/health", async (req, res) => {
   try {
     await loadDoc();
-    res.json({ success: true, message: "Google Sheets connected successfully!" });
+    res.json({ success: true, message: "✅ Google Sheets connected successfully!" });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
 });
 
-// ----------------- API: Locations -----------------
+// ----------------- LOCATIONS -----------------
 app.get("/api/locations", async (req, res) => {
   try {
     await loadDoc();
@@ -64,10 +65,10 @@ app.get("/api/locations", async (req, res) => {
     const rows = await locSheet.getRows();
 
     const locations = rows.map(r => ({
-      name: r["Location Name"] || r.get("Location Name") || "",
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
-      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+      name: (r["Location Name"] || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? 0),
+      long: parseFloat(r["Longitude"] ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r["Radius (Meters)"] ?? 150)
     }));
 
     res.json({ success: true, locations });
@@ -77,7 +78,7 @@ app.get("/api/locations", async (req, res) => {
   }
 });
 
-// ----------------- Proxy: CompreFace -----------------
+// ----------------- FACE RECOGNITION PROXY -----------------
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
@@ -93,49 +94,53 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
     });
 
     const data = await response.json();
-    return res.json(data);
+    res.json(data);
   } catch (err) {
     console.error("POST /api/proxy/face-recognition error:", err);
     res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
   }
 });
 
-// ----------------- Attendance Logging -----------------
+// ----------------- ATTENDANCE -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, latitude, longitude, timestamp } = req.body;
-    if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
+
+    if (!action || !subjectName || isNaN(latitude) || isNaN(longitude) || !timestamp) {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
 
     await loadDoc();
-
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
     const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
     const locationsSheet = doc.sheetsByTitle["Locations Sheet"];
 
     if (!staffSheet || !attendanceSheet || !locationsSheet) {
-      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
+      return res.status(500).json({ success: false, message: "Missing required sheet(s)." });
     }
 
-    const staffRows = await staffSheet.getRows();
-    const attendanceRows = await attendanceSheet.getRows();
-    const locRows = await locationsSheet.getRows();
+    const [staffRows, attendanceRows, locRows] = await Promise.all([
+      staffSheet.getRows(),
+      attendanceSheet.getRows(),
+      locationsSheet.getRows()
+    ]);
 
+    // ✅ Identify staff
     const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
-      (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
+      (r["Name"] || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
+      (r["Active"] || "").trim().toLowerCase() === "yes"
     );
 
     if (!staffMember) {
-      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
+      return res.json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
+    // ✅ Distance calculation
     const officeLocations = locRows.map(r => ({
-      name: (r["Location Name"] || r.get("Location Name") || "").toString(),
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
-      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+      name: (r["Location Name"] || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? 0),
+      long: parseFloat(r["Longitude"] ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r["Radius (Meters)"] ?? 150)
     }));
 
     function toRad(v) { return v * Math.PI / 180; }
@@ -145,87 +150,89 @@ app.post("/api/attendance/web", async (req, res) => {
       const dLon = toRad(lon2 - lon1);
       const a = Math.sin(dLat / 2) ** 2 +
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     let officeName = null;
-    for (const o of officeLocations) {
-      const distKm = getDistanceKm(Number(latitude), Number(longitude), Number(o.lat), Number(o.long));
-      if (distKm <= (o.radiusMeters / 1000)) {
-        officeName = o.name;
+    for (const loc of officeLocations) {
+      const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
+      if (distKm <= loc.radiusMeters / 1000) {
+        officeName = loc.name;
         break;
       }
     }
 
     if (!officeName) {
-      return res.status(403).json({ success: false, message: "Not inside any approved location." });
+      return res.json({ success: false, message: "Unapproved Location" });
     }
 
-    const allowedLocations = ((staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "")
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    if (!allowedLocations.includes(officeName)) {
-      return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
+    // ✅ Check allowed locations
+    const allowedRaw = (staffMember["Allowed Locations"] || "").split(",").map(s => s.trim());
+    if (!allowedRaw.includes(officeName)) {
+      return res.json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
     }
 
-    const dt = new Date(timestamp);
-    const dateStr = dt.toISOString().split("T")[0];
-    const timeStr = dt.toTimeString().split(" ")[0];
+    // ✅ Prepare record
+    const userId = (staffMember["User ID"] || "").toString().trim();
+    const department = (staffMember["Department"] || "").toString().trim();
+    const dateStr = new Date(timestamp).toISOString().split("T")[0];
+    const timeStr = new Date(timestamp).toTimeString().split(" ")[0];
 
-    const userId = (staffMember["User ID"] || staffMember.get("User ID") || "").toString();
-    const department = (staffMember["Department"] || staffMember.get("Department") || "").toString();
-
-    const existing = attendanceRows.find(r =>
-      (r["Date"] || r.get("Date")) === dateStr &&
-      (r["User ID"] || r.get("User ID")) === userId
+    const todayRecord = attendanceRows.find(r =>
+      (r["Date"] || "").trim() === dateStr &&
+      (r["User ID"] || "").trim() === userId
     );
 
     if (action === "clock in") {
-      if (existing && (existing["Time In"] || existing.get("Time In"))) {
+      if (todayRecord && (todayRecord["Time In"] || "").trim() !== "") {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
-      await attendanceSheet.addRow({
-        "User ID": userId,
-        "Name": subjectName,
-        "Department": department,
-        "Date": dateStr,
-        "Time In": timeStr,
-        "Clock In Location": officeName,
-        "Time Out": "",
-        "Clock Out Location": ""
-      });
+      if (!todayRecord) {
+        await attendanceSheet.addRow({
+          "User ID": userId,
+          "Name": subjectName,
+          "Department": department,
+          "Date": dateStr,
+          "Time In": timeStr,
+          "Clock In Location": officeName,
+          "Time Out": "",
+          "Clock Out Location": ""
+        });
+      } else {
+        todayRecord["Time In"] = timeStr;
+        todayRecord["Clock In Location"] = officeName;
+        await todayRecord.save();
+      }
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
     if (action === "clock out") {
-      if (!existing) {
-        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
+      if (!todayRecord) {
+        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in record found for today.` });
       }
 
-      if (existing["Time Out"] || existing.get("Time Out")) {
+      if ((todayRecord["Time Out"] || "").trim() !== "") {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      existing["Time Out"] = timeStr;
-      existing["Clock Out Location"] = officeName;
-      await existing.save();
+      todayRecord["Time Out"] = timeStr;
+      todayRecord["Clock Out Location"] = officeName;
+      await todayRecord.save();
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
-    res.status(400).json({ success: false, message: "Unknown action." });
+    return res.status(400).json({ success: false, message: "Unknown action." });
+
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
 
-// ----------------- Static Frontend -----------------
+// ----------------- STATIC FRONTEND -----------------
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
@@ -236,8 +243,6 @@ app.get("/dev", (req, res) => {
   res.sendFile(path.join(__dirname, "developer.html"));
 });
 
-// ----------------- Start Server -----------------
+// ----------------- START SERVER -----------------
 const listenPort = Number(PORT) || 3000;
-app.listen(listenPort, () =>
-  console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
-);
+app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
