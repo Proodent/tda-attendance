@@ -13,7 +13,7 @@ const app = express();
 app.use(express.json({ limit: "12mb" }));
 app.use(cors());
 
-// Fix __dirname in ES modules
+// Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,7 +31,7 @@ if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
   console.error("❌ Missing Google Sheets config in .env file!");
 }
 
-// ----------------- Google Sheets Setup (v4 compatible) -----------------
+// ----------------- Google Sheets Setup -----------------
 const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
 const serviceAccountAuth = new JWT({
   email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -41,7 +41,6 @@ const serviceAccountAuth = new JWT({
 
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
 
-// Helper to load doc safely
 async function loadDoc() {
   await doc.loadInfo();
 }
@@ -64,18 +63,13 @@ app.get("/api/locations", async (req, res) => {
     if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
     const rows = await locSheet.getRows();
 
-    const locations = rows.map(r => {
-      const name = r["Location Name"] ?? r.get("Location Name") ?? "";
-      const lon = parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0);
-      const lat = parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0);
-      const radiusMeters = parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150);
-      return {
-        name: (name || "").toString(),
-        lat: Number.isFinite(lat) ? lat : 0,
-        long: Number.isFinite(lon) ? lon : 0,
-        radiusMeters: Number.isFinite(radiusMeters) ? radiusMeters : 150
-      };
-    });
+    const locations = rows.map(r => ({
+      name: r["Location Name"] || r.get("Location Name") || "",
+      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
+      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+    }));
+
     res.json({ success: true, locations });
   } catch (err) {
     console.error("GET /api/locations error:", err);
@@ -83,7 +77,7 @@ app.get("/api/locations", async (req, res) => {
   }
 });
 
-// ----------------- Proxy CompreFace -----------------
+// ----------------- Proxy: CompreFace -----------------
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
@@ -106,7 +100,7 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   }
 });
 
-// ----------------- Attendance logging -----------------
+// ----------------- Attendance Logging -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, latitude, longitude, timestamp } = req.body;
@@ -129,8 +123,8 @@ app.post("/api/attendance/web", async (req, res) => {
     const locRows = await locationsSheet.getRows();
 
     const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").toString().trim() === subjectName.toString().trim() &&
-      (r["Active"] || r.get("Active") || "").toString().trim().toLowerCase() === "yes"
+      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
+      (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
 
     if (!staffMember) {
@@ -168,9 +162,12 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any approved location." });
     }
 
-    const allowedLocationsRaw = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "";
-    const allowed = allowedLocationsRaw.split(",").map(s => s.trim()).filter(Boolean);
-    if (!allowed.includes(officeName)) {
+    const allowedLocations = ((staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (!allowedLocations.includes(officeName)) {
       return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
     }
 
@@ -181,8 +178,12 @@ app.post("/api/attendance/web", async (req, res) => {
     const userId = (staffMember["User ID"] || staffMember.get("User ID") || "").toString();
     const department = (staffMember["Department"] || staffMember.get("Department") || "").toString();
 
+    const existing = attendanceRows.find(r =>
+      (r["Date"] || r.get("Date")) === dateStr &&
+      (r["User ID"] || r.get("User ID")) === userId
+    );
+
     if (action === "clock in") {
-      const existing = attendanceRows.find(r => (r["Date"] || r.get("Date")) === dateStr && (r["User ID"] || r.get("User ID")) === userId);
       if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
@@ -202,10 +203,10 @@ app.post("/api/attendance/web", async (req, res) => {
     }
 
     if (action === "clock out") {
-      const existing = attendanceRows.find(r => (r["Date"] || r.get("Date")) === dateStr && (r["User ID"] || r.get("User ID")) === userId);
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
+
       if (existing["Time Out"] || existing.get("Time Out")) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
@@ -218,7 +219,6 @@ app.post("/api/attendance/web", async (req, res) => {
     }
 
     res.status(400).json({ success: false, message: "Unknown action." });
-
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
@@ -228,17 +228,16 @@ app.post("/api/attendance/web", async (req, res) => {
 // ----------------- Static Frontend -----------------
 app.use(express.static(__dirname));
 
-// Serve main user interface
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Serve developer dashboard (optional)
 app.get("/dev", (req, res) => {
   res.sendFile(path.join(__dirname, "developer.html"));
 });
 
 // ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
-app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
-
+app.listen(listenPort, () =>
+  console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
+);
