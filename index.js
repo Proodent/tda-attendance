@@ -1,4 +1,4 @@
-// index.js — Proodent Attendance System Server (fixed & robust)
+// index.js — Proodent Attendance System Server (Stable Release)
 import express from "express";
 import fetch from "node-fetch";
 import { GoogleSpreadsheet } from "google-spreadsheet";
@@ -30,34 +30,14 @@ if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
   console.error("❌ Missing Google Sheets config in .env file!");
 }
 
-// Utility: safe get for different header variants and trimming
-function safeCellValue(row, ...keys) {
-  for (const k of keys) {
-    const v = row[k];
-    if (typeof v !== "undefined" && v !== null && (v + "").trim() !== "") return (v + "").trim();
-    // google-spreadsheet Row objects sometimes expose getter functions (row.get)
-    if (typeof row.get === "function") {
-      try {
-        const g = row.get(k);
-        if (typeof g !== "undefined" && g !== null && (g + "").trim() !== "") return (g + "").trim();
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
-  return "";
-}
-
 // ----------------- Google Sheets Setup -----------------
-// We'll create a doc instance and authorise on each request (robust if token/session expires)
+const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
 
-async function authDoc() {
-  // google private key in env often contains literal \n sequences; convert them
-  const processedKey = (GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+async function loadDoc() {
   await doc.useServiceAccountAuth({
     client_email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: processedKey
+    private_key: processedKey,
   });
   await doc.loadInfo();
 }
@@ -65,33 +45,32 @@ async function authDoc() {
 // ----------------- API: Health -----------------
 app.get("/api/health", async (req, res) => {
   try {
-    await authDoc();
+    await loadDoc();
     res.json({ success: true, message: "Google Sheets connected successfully!" });
   } catch (err) {
-    console.error("Health error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Health check failed:", err);
+    res.json({ success: false, error: err.message });
   }
 });
 
 // ----------------- API: Locations -----------------
 app.get("/api/locations", async (req, res) => {
   try {
-    await authDoc();
+    await loadDoc();
     const locSheet = doc.sheetsByTitle["Locations Sheet"];
-    if (!locSheet) return res.status(500).json({ success: false, error: "Locations Sheet not found" });
+    if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
     const rows = await locSheet.getRows();
 
     const locations = rows.map(r => {
-      // support different header names
-      const name = safeCellValue(r, "Location Name", "Office Name", "Name");
-      const lat = parseFloat(safeCellValue(r, "Latitude", "Lat")) || 0;
-      const lon = parseFloat(safeCellValue(r, "Longitude", "Long", "Lng")) || 0;
-      const radiusMeters = parseFloat(safeCellValue(r, "Radius (Meters)", "Radius")) || 150;
+      const name = r["Location Name"] ?? r.get("Location Name") ?? "";
+      const lon = parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0);
+      const lat = parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0);
+      const radiusMeters = parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150);
       return {
-        name,
-        lat,
-        long: lon,
-        radiusMeters
+        name: (name || "").toString(),
+        lat: Number.isFinite(lat) ? lat : 0,
+        long: Number.isFinite(lon) ? lon : 0,
+        radiusMeters: Number.isFinite(radiusMeters) ? radiusMeters : 150
       };
     });
 
@@ -106,9 +85,6 @@ app.get("/api/locations", async (req, res) => {
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
-    if (!COMPREFACE_URL || !COMPREFACE_API_KEY) {
-      return res.status(500).json({ success: false, error: "CompreFace config missing" });
-    }
     const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
 
     const response = await fetch(url, {
@@ -136,8 +112,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
 
-    // re-auth and load sheets fresh every request
-    await authDoc();
+    await loadDoc();
 
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
     const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
@@ -147,45 +122,27 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
     }
 
-    // load relevant rows
-    const [staffRows, attendanceRows, locRows] = await Promise.all([
-      staffSheet.getRows(),
-      attendanceSheet.getRows(),
-      locationsSheet.getRows()
-    ]);
+    const staffRows = await staffSheet.getRows();
+    const attendanceRows = await attendanceSheet.getRows();
+    const locRows = await locationsSheet.getRows();
 
-    // find staff member by name (case-insensitive)
     const staffMember = staffRows.find(r =>
-      safeCellValue(r, "Name", "Full Name").toLowerCase() === (subjectName + "").toString().trim().toLowerCase()
+      (r["Name"] || r.get("Name") || "").toString().trim() === subjectName.toString().trim() &&
+      (r["Active"] || r.get("Active") || "").toString().trim().toLowerCase() === "yes"
     );
 
     if (!staffMember) {
-      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found.` });
+      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
-    const activeFlag = safeCellValue(staffMember, "Active", "IsActive") || "";
-    if (activeFlag.trim().toLowerCase() !== "yes") {
-      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not active.` });
-    }
-
-    // get required staff details
-    const userId = safeCellValue(staffMember, "User ID", "UserID", "Emp ID", "Employee ID");
-    const department = safeCellValue(staffMember, "Department");
-
-    // **Important**: require User ID to avoid blank-user collisions
-    if (!userId) {
-      return res.status(400).json({ success: false, message: `Staff '${subjectName}' does not have a User ID in Staff Sheet.` });
-    }
-
-    // build office locations
+    // --- Verify location ---
     const officeLocations = locRows.map(r => ({
-      name: safeCellValue(r, "Location Name", "Office Name"),
-      lat: Number(safeCellValue(r, "Latitude", "Lat")) || 0,
-      long: Number(safeCellValue(r, "Longitude", "Long", "Lng")) || 0,
-      radiusMeters: Number(safeCellValue(r, "Radius (Meters)", "Radius")) || 150
+      name: (r["Location Name"] || r.get("Location Name") || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
+      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
     }));
 
-    // distance functions (Haversine)
     function toRad(v) { return v * Math.PI / 180; }
     function getDistanceKm(lat1, lon1, lat2, lon2) {
       const R = 6371;
@@ -197,11 +154,10 @@ app.post("/api/attendance/web", async (req, res) => {
       return R * c;
     }
 
-    // determine which office (if any)
     let officeName = null;
     for (const o of officeLocations) {
       const distKm = getDistanceKm(Number(latitude), Number(longitude), Number(o.lat), Number(o.long));
-      if (distKm <= (Number(o.radiusMeters) / 1000)) {
+      if (distKm <= (o.radiusMeters / 1000)) {
         officeName = o.name;
         break;
       }
@@ -211,32 +167,29 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any approved location." });
     }
 
-    const allowedLocationsRaw = safeCellValue(staffMember, "Allowed Locations", "Allowed");
+    const allowedLocationsRaw = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "";
     const allowed = allowedLocationsRaw.split(",").map(s => s.trim()).filter(Boolean);
-    if (allowed.length > 0 && !allowed.includes(officeName)) {
+    if (!allowed.includes(officeName)) {
       return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
     }
 
-    // prepare date/time
     const dt = new Date(timestamp);
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    // find today's attendance row for this user (note: compare trimmed strings)
-    const findAttendanceRow = () => attendanceRows.find(r => {
-      const rowDate = (r["Date"] || r.get?.("Date") || "").toString().trim();
-      // accept different headers for user id
-      const rowUser = ((r["User ID"] || r["UserID"] || r.get?.("User ID") || r.get?.("UserID") || "") + "").toString().trim();
-      return rowDate === dateStr && rowUser === userId.trim();
-    });
+    const userId = (staffMember["User ID"] || staffMember.get("User ID") || "").toString();
+    const department = (staffMember["Department"] || staffMember.get("Department") || "").toString();
 
+    // --- Clock In ---
     if (action === "clock in") {
-      const existing = findAttendanceRow();
-      if (existing && ((existing["Time In"] || existing.get?.("Time In") || "") + "").toString().trim()) {
+      const existing = attendanceRows.find(r =>
+        (r["Date"] || r.get("Date")) === dateStr &&
+        (r["User ID"] || r.get("User ID")) === userId
+      );
+      if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
-      // add new row — ensure header names match exactly what your sheet has
       await attendanceSheet.addRow({
         "Date": dateStr,
         "User ID": userId,
@@ -251,25 +204,29 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
+    // --- Clock Out ---
     if (action === "clock out") {
-      const existing = findAttendanceRow();
+      const existing = attendanceRows.find(r =>
+        (r["Date"] || r.get("Date")) === dateStr &&
+        (r["User ID"] || r.get("User ID")) === userId
+      );
+
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
-
-      const timeOutVal = ((existing["Time Out"] || existing.get?.("Time Out") || "") + "").toString().trim();
-      if (timeOutVal) {
+      if (existing["Time Out"] || existing.get("Time Out")) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
       existing["Time Out"] = timeStr;
       existing["Clock Out Location"] = officeName;
-      await existing.save(); // <-- important: persist back to sheet
+      await existing.save();
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
-    return res.status(400).json({ success: false, message: "Unknown action." });
+    res.status(400).json({ success: false, message: "Unknown action." });
+
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
