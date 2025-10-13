@@ -128,7 +128,7 @@ app.post("/api/attendance/web", async (req, res) => {
     ]);
 
     const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
+      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
 
@@ -172,8 +172,11 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
+      const department = staffMember["Department"] || staffMember.get("Department") || "";
+
       await attendanceSheet.addRow({
         "Name": subjectName,
+        "Department": department,
         "Date": dateStr,
         "Time In": timeStr,
         "Clock In Location": officeName,
@@ -193,7 +196,6 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // ✅ Robust cell update method
       const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
       const timeOutCol = headers.indexOf("time out");
       const clockOutLocCol = headers.indexOf("clock out location");
@@ -203,8 +205,8 @@ app.post("/api/attendance/web", async (req, res) => {
       }
 
       await attendanceSheet.loadCells();
+      const rowIndex = existing._rowNumber - 1;
 
-      const rowIndex = existing._rowNumber - 1; // 0-based index
       attendanceSheet.getCell(rowIndex, timeOutCol).value = timeStr;
       attendanceSheet.getCell(rowIndex, clockOutLocCol).value = officeName;
 
