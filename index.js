@@ -118,15 +118,12 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
     }
 
-    const [staffRows, attendanceRows, locRows] = await Promise.all([
-      staffSheet.getRows(),
-      attendanceSheet.getRows(),
-      locationsSheet.getRows()
-    ]);
+    const staffRows = await staffSheet.getRows();
+    const attendanceRows = await attendanceSheet.getRows();
+    const locRows = await locationsSheet.getRows();
 
-    // ✅ Find active staff
     const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
+      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
 
@@ -134,7 +131,6 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
-    // ✅ Prepare location data
     const officeLocations = locRows.map(r => ({
       name: (r["Location Name"] || r.get("Location Name") || "").toString(),
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
@@ -166,36 +162,23 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any approved location." });
     }
 
-    const allowedLocations = ((staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "") + "")
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    if (!allowedLocations.includes(officeName)) {
-      return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
-    }
-
     const dt = new Date(timestamp);
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    const department = (staffMember["Department"] || staffMember.get("Department") || "").toString();
-
-    // ✅ Find existing attendance row (match Name + Date)
-    const existingRow = attendanceRows.find(r =>
+    // ✅ Ignore User ID — match by Name + Date
+    const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
     );
 
-    // ------------------- CLOCK IN -------------------
-    if (action.toLowerCase() === "clock in") {
-      if (existingRow && (existingRow["Time In"] || existingRow.get("Time In"))) {
+    if (action === "clock in") {
+      if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
       await attendanceSheet.addRow({
         "Name": subjectName,
-        "Department": department,
         "Date": dateStr,
         "Time In": timeStr,
         "Clock In Location": officeName,
@@ -206,21 +189,21 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
-    // ------------------- CLOCK OUT -------------------
-    if (action.toLowerCase() === "clock out") {
-      if (!existingRow) {
+    if (action === "clock out") {
+      if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
 
-      const currentOut = (existingRow["Time Out"] || existingRow.get("Time Out") || "").trim();
-      if (currentOut) {
+      if (existing["Time Out"] || existing.get("Time Out")) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // ✅ Update in-place and force save
-      existingRow["Time Out"] = timeStr;
-      existingRow["Clock Out Location"] = officeName;
-      await existingRow.save();
+      // ✅ Explicit update and save
+      existing["Time Out"] = timeStr;
+      existing["Clock Out Location"] = officeName;
+
+      await existing.save(); // <-- This ensures update happens
+      console.log(`✅ Clock-out updated for ${subjectName} at ${timeStr}`);
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
