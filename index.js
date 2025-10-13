@@ -27,11 +27,6 @@ const {
   PORT
 } = process.env;
 
-if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-  console.error("❌ Missing Google Sheets config in .env file!");
-}
-
-// ----------------- Google Sheets Setup -----------------
 const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
 const serviceAccountAuth = new JWT({
   email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -40,9 +35,18 @@ const serviceAccountAuth = new JWT({
 });
 
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
+async function loadDoc() { await doc.loadInfo(); }
 
-async function loadDoc() {
-  await doc.loadInfo();
+// ----------------- Utility functions -----------------
+function toRad(v) { return v * Math.PI / 180; }
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 // ----------------- API: Health -----------------
@@ -109,7 +113,6 @@ app.post("/api/attendance/web", async (req, res) => {
     }
 
     await loadDoc();
-
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
     const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
     const locationsSheet = doc.sheetsByTitle["Locations Sheet"];
@@ -118,9 +121,11 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
     }
 
-    const staffRows = await staffSheet.getRows();
-    const attendanceRows = await attendanceSheet.getRows();
-    const locRows = await locationsSheet.getRows();
+    const [staffRows, attendanceRows, locRows] = await Promise.all([
+      staffSheet.getRows(),
+      attendanceSheet.getRows(),
+      locationsSheet.getRows()
+    ]);
 
     const staffMember = staffRows.find(r =>
       (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
@@ -137,17 +142,6 @@ app.post("/api/attendance/web", async (req, res) => {
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
     }));
-
-    function toRad(v) { return v * Math.PI / 180; }
-    function getDistanceKm(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
 
     let officeName = null;
     for (const o of officeLocations) {
@@ -166,12 +160,13 @@ app.post("/api/attendance/web", async (req, res) => {
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    // ✅ Ignore User ID — match by Name + Date
+    // ✅ Match Name + Date only
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
     );
 
+    // -------------------- CLOCK IN --------------------
     if (action === "clock in") {
       if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
@@ -189,26 +184,37 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
+    // -------------------- CLOCK OUT --------------------
     if (action === "clock out") {
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
-
       if (existing["Time Out"] || existing.get("Time Out")) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // ✅ Explicit update and save
-      existing["Time Out"] = timeStr;
-      existing["Clock Out Location"] = officeName;
+      // ✅ Robust cell update method
+      const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
+      const timeOutCol = headers.indexOf("time out");
+      const clockOutLocCol = headers.indexOf("clock out location");
 
-      await existing.save(); // <-- This ensures update happens
-      console.log(`✅ Clock-out updated for ${subjectName} at ${timeStr}`);
+      if (timeOutCol === -1 || clockOutLocCol === -1) {
+        return res.status(500).json({ success: false, message: "Missing Time Out or Clock Out Location columns." });
+      }
 
+      await attendanceSheet.loadCells();
+
+      const rowIndex = existing._rowNumber - 1; // 0-based index
+      attendanceSheet.getCell(rowIndex, timeOutCol).value = timeStr;
+      attendanceSheet.getCell(rowIndex, clockOutLocCol).value = officeName;
+
+      await attendanceSheet.saveUpdatedCells();
+
+      console.log(`✅ Updated clock-out for ${subjectName} on ${dateStr} (${officeName})`);
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
-    res.status(400).json({ success: false, message: "Unknown action." });
+    return res.status(400).json({ success: false, message: "Unknown action." });
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
@@ -217,14 +223,8 @@ app.post("/api/attendance/web", async (req, res) => {
 
 // ----------------- Static Frontend -----------------
 app.use(express.static(__dirname));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.get("/dev", (req, res) => {
-  res.sendFile(path.join(__dirname, "developer.html"));
-});
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/dev", (req, res) => res.sendFile(path.join(__dirname, "developer.html")));
 
 // ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
