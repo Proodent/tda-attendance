@@ -1,4 +1,6 @@
-// index.js — Proodent Attendance System Server (Fixed version)
+// index.js — Proodent Attendance System Server (merged, fixed & ready)
+// Matches Name+Date (NOT User ID). New row on clock-in only. Clock-out updates that row.
+
 import express from "express";
 import fetch from "node-fetch";
 import { GoogleSpreadsheet } from "google-spreadsheet";
@@ -27,16 +29,31 @@ const {
   PORT
 } = process.env;
 
-const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
+  console.error("❌ Missing Google Sheets config in .env file!");
+}
+
+// ----------------- Google Sheets Setup -----------------
+// Keep the same approach you used previously (works with v4-compatible JWT)
+let processedKey = "";
+try {
+  processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+} catch (e) {
+  // If PRIVATE_KEY is missing or malformed, we still let loadDoc throw later with clear error
+  processedKey = GOOGLE_PRIVATE_KEY || "";
+}
+
 const serviceAccountAuth = new JWT({
   email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
   key: processedKey,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
+// Create doc instance with same constructor you used before
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
 
 async function loadDoc() {
+  // This will attempt to auth (using JWT passed earlier) and load spreadsheet metadata
   await doc.loadInfo();
 }
 
@@ -46,7 +63,8 @@ app.get("/api/health", async (req, res) => {
     await loadDoc();
     res.json({ success: true, message: "Google Sheets connected successfully!" });
   } catch (err) {
-    res.json({ success: false, error: err.message });
+    console.error("GET /api/health error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -55,25 +73,40 @@ app.get("/api/locations", async (req, res) => {
   try {
     await loadDoc();
     const locSheet = doc.sheetsByTitle["Locations Sheet"];
+    if (!locSheet) return res.status(500).json({ success: false, error: "Locations Sheet not found" });
+
     const rows = await locSheet.getRows();
 
-    const locations = rows.map(r => ({
-      name: (r["Location Name"] || "").toString(),
-      lat: parseFloat(r["Latitude"]) || 0,
-      long: parseFloat(r["Longitude"]) || 0,
-      radiusMeters: parseFloat(r["Radius (Meters)"] || r["Radius"] || 150)
-    }));
+    const locations = rows.map(r => {
+      // keep the exact logic you had so this doesn't break your frontend
+      const name = (r["Location Name"] ?? r.get?.("Location Name") ?? "") + "";
+      const lon = parseFloat(r["Longitude"] ?? r.get?.("Longitude") ?? 0);
+      const lat = parseFloat(r["Latitude"] ?? r.get?.("Latitude") ?? 0);
+      const radiusMeters = parseFloat(
+        r["Radius"] ?? r.get?.("Radius") ?? r["Radius (Meters)"] ?? r.get?.("Radius (Meters)") ?? 150
+      );
+      return {
+        name: name.toString(),
+        lat: Number.isFinite(lat) ? lat : 0,
+        long: Number.isFinite(lon) ? lon : 0,
+        radiusMeters: Number.isFinite(radiusMeters) ? radiusMeters : 150
+      };
+    });
 
     res.json({ success: true, locations });
   } catch (err) {
+    console.error("GET /api/locations error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ----------------- Proxy CompreFace -----------------
+// ----------------- Proxy: CompreFace -----------------
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
+    if (!COMPREFACE_URL || !COMPREFACE_API_KEY) {
+      return res.status(500).json({ success: false, error: "CompreFace config missing" });
+    }
     const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
 
     const response = await fetch(url, {
@@ -86,100 +119,129 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
     });
 
     const data = await response.json();
-    res.json(data);
+    return res.json(data);
   } catch (err) {
-    console.error("Face recognition error:", err);
+    console.error("POST /api/proxy/face-recognition error:", err);
     res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
   }
 });
 
-// ----------------- Attendance logging -----------------
+// ----------------- Attendance Logging -----------------
+// Behavior:
+// - Match by Name + Date (case-insensitive, trimmed).
+// - On "clock in": if no existing row for (Name+Date) create row (do NOT create duplicate).
+// - On "clock out": find existing row for (Name+Date) and update Time Out and Clock Out Location (do NOT add a new row).
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, latitude, longitude, timestamp } = req.body;
 
-    if (!action || !subjectName || !latitude || !longitude) {
+    if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
 
     await loadDoc();
+
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
     const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
-    const locSheet = doc.sheetsByTitle["Locations Sheet"];
+    const locationsSheet = doc.sheetsByTitle["Locations Sheet"];
 
-    const staffRows = await staffSheet.getRows();
-    const attendanceRows = await attendanceSheet.getRows();
-    const locRows = await locSheet.getRows();
+    if (!staffSheet || !attendanceSheet || !locationsSheet) {
+      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
+    }
 
-    // ✅ Fix 1: Match staff by Name (trimmed & case-insensitive)
+    // Load rows
+    const [staffRows, attendanceRows, locRows] = await Promise.all([
+      staffSheet.getRows(),
+      attendanceSheet.getRows(),
+      locationsSheet.getRows()
+    ]);
+
+    // Find staff member (case-insensitive name match) and ensure active
+    const normalizedSubject = subjectName.toString().trim().toLowerCase();
     const staffMember = staffRows.find(r =>
-      (r["Name"] || "").toString().trim().toLowerCase() === subjectName.toLowerCase().trim()
+      ((r["Name"] || r.get?.("Name") || "") + "").toString().trim().toLowerCase() === normalizedSubject &&
+      (((r["Active"] || r.get?.("Active") || "") + "").toString().trim().toLowerCase() === "yes")
     );
 
     if (!staffMember) {
-      return res.status(403).json({ success: false, message: `No active staff found for ${subjectName}.` });
+      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
-    const userId = (staffMember["User ID"] || "").toString().trim();
-    const department = (staffMember["Department"] || "").toString().trim();
+    // Build office locations array (same as before)
+    const officeLocations = locRows.map(r => ({
+      name: (r["Location Name"] || r.get?.("Location Name") || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? r.get?.("Latitude") ?? 0),
+      long: parseFloat(r["Longitude"] ?? r.get?.("Longitude") ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r.get?.("Radius") ?? r["Radius (Meters)"] ?? r.get?.("Radius (Meters)") ?? 150)
+    }));
 
-    // ✅ Fix 2: Distance + allowed location
-    function toRad(v) { return (v * Math.PI) / 180; }
+    // distance helpers (Haversine) — same as before
+    function toRad(v) { return v * Math.PI / 180; }
     function getDistanceKm(lat1, lon1, lat2, lon2) {
       const R = 6371;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a = Math.sin(dLat / 2) ** 2 +
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
 
-    const officeLocations = locRows.map(r => ({
-      name: (r["Location Name"] || "").toString(),
-      lat: parseFloat(r["Latitude"]) || 0,
-      long: parseFloat(r["Longitude"]) || 0,
-      radiusMeters: parseFloat(r["Radius (Meters)"] || r["Radius"] || 150)
-    }));
-
+    // Determine which office (if any) we are in
     let officeName = null;
     for (const o of officeLocations) {
-      const distKm = getDistanceKm(latitude, longitude, o.lat, o.long);
-      if (distKm <= o.radiusMeters / 1000) {
+      const distKm = getDistanceKm(Number(latitude), Number(longitude), Number(o.lat), Number(o.long));
+      if (distKm <= (o.radiusMeters / 1000)) {
         officeName = o.name;
         break;
       }
     }
 
     if (!officeName) {
-      return res.status(403).json({ success: false, message: "Unapproved Location" });
+      return res.status(403).json({ success: false, message: "Not inside any approved location." });
     }
 
-    const allowedRaw = (staffMember["Allowed Locations"] || "").toString();
-    const allowed = allowedRaw.split(",").map(x => x.trim());
-    if (!allowed.includes(officeName)) {
+    // Validate staff allowed locations (split, trim)
+    const allowedLocationsRaw = (staffMember["Allowed Locations"] || staffMember.get?.("Allowed Locations") || "") + "";
+    const allowed = allowedLocationsRaw.split(",").map(s => s.trim()).filter(Boolean);
+    if (allowed.length && !allowed.includes(officeName)) {
+      // if Allowed Locations is empty we treat it as "no restriction"; if it's set then enforce it
       return res.status(403).json({ success: false, message: `You are not permitted to ${action} at ${officeName}.` });
     }
 
+    // Prepare date/time strings
     const dt = new Date(timestamp);
+    // If timestamp is not parseable, fallback to now
+    if (isNaN(dt.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid timestamp." });
+    }
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    // ✅ Fix 3: Correctly match by Date + User ID
-    const todayRow = attendanceRows.find(r =>
-      (r["Date"] || "").toString() === dateStr &&
-      (r["User ID"] || "").toString() === userId
-    );
+    // Department (optional) and userId (ignored in matching but we still read it)
+    const department = (staffMember["Department"] || staffMember.get?.("Department") || "") + "";
+    const userId = (staffMember["User ID"] || staffMember.get?.("User ID") || "") + "";
 
+    // --- Match attendance row by Name + Date (case-insensitive, trimmed) ---
+    const existing = attendanceRows.find(r => {
+      const rowDate = (r["Date"] || r.get?.("Date") || "") + "";
+      const rowName = ((r["Name"] || r.get?.("Name") || "") + "").toString().trim().toLowerCase();
+      return rowDate === dateStr && rowName === normalizedSubject;
+    });
+
+    // --- Handle clock in ---
     if (action === "clock in") {
-      if (todayRow && (todayRow["Time In"] || "").trim()) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you already clocked in today.` });
+      // If existing row for name+date exists and has Time In -> prevent duplicate
+      if (existing && ((existing["Time In"] || existing.get?.("Time In") || "") + "").toString().trim() !== "") {
+        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
+      // Add new row (Date first is helpful for reading)
       await attendanceSheet.addRow({
-        "User ID": userId,
-        "Name": subjectName,
-        "Department": department,
         "Date": dateStr,
+        "User ID": userId,
+        "Department": department,
+        "Name": subjectName,
         "Time In": timeStr,
         "Clock In Location": officeName,
         "Time Out": "",
@@ -189,33 +251,48 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
+    // --- Handle clock out ---
     if (action === "clock out") {
-      if (!todayRow) {
-        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in record found for today.` });
-      }
-      if (todayRow["Time Out"] && todayRow["Time Out"].trim()) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you already clocked out today.` });
+      // If no existing row for name+date -> can't clock out
+      if (!existing) {
+        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
 
-      todayRow["Time Out"] = timeStr;
-      todayRow["Clock Out Location"] = officeName;
-      await todayRow.save();
+      // If Time Out already set -> already clocked out
+      if (((existing["Time Out"] || existing.get?.("Time Out") || "") + "").toString().trim() !== "") {
+        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
+      }
+
+      // Update the existing row in place
+      existing["Time Out"] = timeStr;
+      existing["Clock Out Location"] = officeName;
+      await existing.save();
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
-    res.status(400).json({ success: false, message: "Invalid action type." });
+    // Unknown action
+    return res.status(400).json({ success: false, message: "Unknown action." });
 
   } catch (err) {
-    console.error("Attendance error:", err);
-    res.status(500).json({ success: false, message: "Server error", details: err.message });
+    console.error("POST /api/attendance/web error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
 
 // ----------------- Static Frontend -----------------
 app.use(express.static(__dirname));
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/dev", (req, res) => res.sendFile(path.join(__dirname, "developer.html")));
 
+// Serve main user interface
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// Serve developer dashboard (optional)
+app.get("/dev", (req, res) => {
+  res.sendFile(path.join(__dirname, "developer.html"));
+});
+
+// ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () => console.log(`✅ Proodent Attendance API running on port ${listenPort}`));
