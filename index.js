@@ -49,10 +49,65 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// ----------------- API: Health -----------------
+app.get("/api/health", async (req, res) => {
+  try {
+    await loadDoc();
+    res.json({ success: true, message: "Google Sheets connected successfully!" });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ----------------- API: Locations -----------------
+app.get("/api/locations", async (req, res) => {
+  try {
+    await loadDoc();
+    const locSheet = doc.sheetsByTitle["Locations Sheet"];
+    if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
+    const rows = await locSheet.getRows();
+
+    const locations = rows.map(r => ({
+      name: r["Location Name"] || r.get("Location Name") || "",
+      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
+      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+    }));
+
+    res.json({ success: true, locations });
+  } catch (err) {
+    console.error("GET /api/locations error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------- Proxy: CompreFace -----------------
+app.post("/api/proxy/face-recognition", async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-api-key": COMPREFACE_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (err) {
+    console.error("POST /api/proxy/face-recognition error:", err);
+    res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
+  }
+});
+
 // ----------------- Attendance Logging -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
-    const { action, subjectName, latitude, longitude, timestamp } = req.body;
+    const { action, subjectName, department, latitude, longitude, timestamp } = req.body;
     if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
@@ -105,7 +160,7 @@ app.post("/api/attendance/web", async (req, res) => {
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    // ✅ Match Name + Date only
+    // ✅ Match by Name + Date
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
@@ -117,11 +172,9 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
-      const department = staffMember["Department"] || staffMember.get("Department") || "";
-
       await attendanceSheet.addRow({
         "Date": dateStr,
-        "Department": department,
+        "Department": department || "",
         "Name": subjectName,
         "Time In": timeStr,
         "Clock In Location": officeName,
@@ -141,6 +194,7 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
+      // ✅ Update Time Out + Clock Out Location only
       const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
       const timeOutCol = headers.indexOf("time out");
       const clockOutLocCol = headers.indexOf("clock out location");
@@ -157,7 +211,7 @@ app.post("/api/attendance/web", async (req, res) => {
 
       await attendanceSheet.saveUpdatedCells();
 
-      console.log(`✅ Updated clock-out for ${subjectName} on ${dateStr} (${officeName})`);
+      console.log(`✅ Clock-out updated for ${subjectName} on ${dateStr} (${officeName})`);
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
