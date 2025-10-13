@@ -5,25 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="stylesheet" href="styles.css"/>
+
   <style>
-    .container { text-align: center; }
-    .popup { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-      background:white; padding:20px; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,0.5); z-index:1000;
-      text-align:center; max-width:80%; }
-    .popup-header { font-size:1.2em; font-weight:bold; }
-    .popup-footer { font-size:0.8em; color:#555; margin-top:10px; }
-    #faceRecognition { display:none; margin:0 auto; max-width:640px; }
-    #video, #canvas { display:block; margin:0 auto; width:100%; height:auto; }
-    button { padding:10px 20px; font-size:16px; margin:5px; background:#4CAF50; color:#fff; border:none; cursor:pointer; }
-    button:disabled{ background:#ccc; cursor:not-allowed; }
-    pre { white-space: pre-wrap; text-align:center; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      text-align: center;
+    }
+
+    .container { text-align: center; padding: 20px; }
+
+    .popup {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 1000;
+      text-align: center;
+      max-width: 80%;
+      border-radius: 10px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -60%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    .popup-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+    .popup-footer { font-size: 0.8em; color: #555; margin-top: 10px; }
+
+    #faceRecognition { display: none; margin: 0 auto; max-width: 640px; }
+    #video, #canvas { display: block; margin: 0 auto; width: 100%; height: auto; }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #009245;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .icon-success {
+      font-size: 48px;
+      color: #009245;
+      animation: pop 0.4s ease-in-out;
+    }
+    .icon-error {
+      font-size: 48px;
+      color: #e74c3c;
+      animation: pop 0.4s ease-in-out;
+    }
+    @keyframes pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    pre { white-space: pre-wrap; text-align: center; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1><span style="font-size: 0.72em;">Tolon District Assembly</span><br><span style="font-size: 0.48em;">Staff Attendance Management</span></h1>
+    <h1>
+      <span style="font-size: 0.72em;">Tolon District Assembly</span><br>
+      <span style="font-size: 0.48em;">Staff Attendance Management</span>
+    </h1>
+
     <p id="status">Checking location...</p>
     <pre id="location">Location: Loading...</pre>
+
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
@@ -35,10 +104,12 @@
     </div>
 
     <div id="popup" class="popup">
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div class="popup-retry" id="popupRetry"></div>
+      <div id="popupContent">
+        <div class="popup-header" id="popupHeader"></div>
+        <div id="popupMessage"></div>
+        <div id="popupIcon"></div>
+        <div class="popup-footer" id="popupFooter"></div>
+      </div>
     </div>
 
     <div id="diagnostic"></div>
