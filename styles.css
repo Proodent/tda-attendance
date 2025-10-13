@@ -60,3 +60,52 @@ button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+/* Loader Overlay */
+#loaderOverlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255,255,255,0.8);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 9999;
+}
+
+.loader {
+  border: 4px solid #ccc;
+  border-top: 4px solid #4CAF50;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+#loaderOverlay p {
+  margin-top: 10px;
+  font-size: 18px;
+  color: #333;
+}
+
+/* Popup icons */
+.popup-icon {
+  font-size: 32px;
+  margin-top: 10px;
+  animation: pop 0.4s ease;
+}
+.popup-icon.success { color: #4CAF50; }
+.popup-icon.error { color: #F44336; }
+
+@keyframes pop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+
