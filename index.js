@@ -172,9 +172,12 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
+      // ✅ Add Department (from Staff Sheet if not provided)
+      const deptValue = department || staffMember["Department"] || staffMember.get("Department") || "";
+
       await attendanceSheet.addRow({
         "Date": dateStr,
-        "Department": department || "",
+        "Department": deptValue,
         "Name": subjectName,
         "Time In": timeStr,
         "Clock In Location": officeName,
@@ -205,10 +208,8 @@ app.post("/api/attendance/web", async (req, res) => {
 
       await attendanceSheet.loadCells();
       const rowIndex = existing._rowNumber - 1;
-
       attendanceSheet.getCell(rowIndex, timeOutCol).value = timeStr;
       attendanceSheet.getCell(rowIndex, clockOutLocCol).value = officeName;
-
       await attendanceSheet.saveUpdatedCells();
 
       console.log(`✅ Clock-out updated for ${subjectName} on ${dateStr} (${officeName})`);
