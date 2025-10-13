@@ -13,7 +13,7 @@ const app = express();
 app.use(express.json({ limit: "12mb" }));
 app.use(cors());
 
-// Fix __dirname for ES modules
+// ----------------- Fix __dirname for ES modules -----------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -127,6 +127,7 @@ app.post("/api/attendance/web", async (req, res) => {
       locationsSheet.getRows()
     ]);
 
+    // ✅ Find staff
     const staffMember = staffRows.find(r =>
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
@@ -136,6 +137,13 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
+    // ✅ Allowed Locations Check (from Staff Sheet)
+    const allowedList = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
+      .split(",")
+      .map(x => x.trim().toLowerCase())
+      .filter(Boolean);
+
+    // ✅ Detect physical location based on coordinates
     const officeLocations = locRows.map(r => ({
       name: (r["Location Name"] || r.get("Location Name") || "").toString(),
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
@@ -153,14 +161,19 @@ app.post("/api/attendance/web", async (req, res) => {
     }
 
     if (!officeName) {
-      return res.status(403).json({ success: false, message: "Not inside any approved location." });
+      return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
 
+    // ✅ Check if location is allowed for this user
+    if (!allowedList.includes(officeName.trim().toLowerCase())) {
+      return res.status(403).json({ success: false, message: "Unapproved Location." });
+    }
+
+    // ----------------- Attendance Logic -----------------
     const dt = new Date(timestamp);
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    // ✅ Match by Name + Date
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
@@ -172,7 +185,6 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
-      // ✅ Add Department (from Staff Sheet if not provided)
       const deptValue = department || staffMember["Department"] || staffMember.get("Department") || "";
 
       await attendanceSheet.addRow({
@@ -197,7 +209,6 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // ✅ Update Time Out + Clock Out Location only
       const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
       const timeOutCol = headers.indexOf("time out");
       const clockOutLocCol = headers.indexOf("clock out location");
