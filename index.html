@@ -1,303 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Face Attendance</title>
-<style>
-/* Base Layout */
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background-color: #f0f0f0;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-.container {
-  text-align: center;
-  background: #fff;
-  padding: 30px;
-  border-radius: 16px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-  width: 90%;
-  max-width: 400px;
-  position: relative;
-}
-
-h1 {
-  color: #009245;
-  margin-bottom: 20px;
-  font-weight: 600;
-}
-
-#status, #location {
-  margin: 10px 0;
-  color: #333;
-}
-
-#phone {
-  padding: 10px;
-  margin-bottom: 15px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  width: 80%;
-  outline: none;
-}
-
-button {
-  margin: 8px;
-  padding: 10px 24px;
-  font-size: 16px;
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  transition: 0.3s ease;
-}
-
-#clockIn {
-  background-color: #009245;
-  color: #fff;
-}
-
-#clockOut {
-  background-color: #f44336;
-  color: #fff;
-}
-
-button:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: scale(1.03);
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-/* Loader Overlay */
-#loaderOverlay {
-  display: none;
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(255,255,255,0.9);
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  z-index: 9999;
-}
-
-.loader {
-  border: 4px solid #ccc;
-  border-top: 4px solid #009245;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-#loaderOverlay p {
-  margin-top: 12px;
-  font-size: 18px;
-  color: #333;
-}
-
-/* Popup Overlay */
-#popup {
-  display: none;
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-  padding: 25px 30px;
-  text-align: center;
-  z-index: 10000;
-  width: 90%;
-  max-width: 320px;
-  animation: fadeIn 0.4s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50%, -45%); }
-  to { opacity: 1; transform: translate(-50%, -50%); }
-}
-
-#popup p {
-  font-size: 16px;
-  color: #333;
-  margin-top: 10px;
-  font-weight: 500;
-}
-
-/* Success checkmark animation */
-.popup-success {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 10px auto;
-}
-
-.popup-success .checkmark {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: block;
-  stroke-width: 4;
-  stroke: #009245;
-  stroke-miterlimit: 10;
-  box-shadow: inset 0px 0px 0px #009245;
-  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
-}
-
-.popup-success .checkmark__circle {
-  stroke-dasharray: 166;
-  stroke-dashoffset: 166;
-  stroke-width: 4;
-  stroke-miterlimit: 10;
-  stroke: #009245;
-  fill: none;
-  animation: stroke 0.6s cubic-bezier(.65,0,.45,1) forwards;
-}
-
-.popup-success .checkmark__check {
-  transform-origin: 50% 50%;
-  stroke-dasharray: 48;
-  stroke-dashoffset: 48;
-  animation: stroke 0.3s cubic-bezier(.65,0,.45,1) 0.6s forwards;
-  stroke: #fff;
-}
-
-@keyframes stroke {
-  100% { stroke-dashoffset: 0; }
-}
-@keyframes scale {
-  0%, 100% { transform: none; }
-  50% { transform: scale3d(1.1, 1.1, 1); }
-}
-@keyframes fill {
-  100% { box-shadow: inset 0px 0px 0px 40px #009245; }
-}
-
-/* Error icon */
-.popup-icon.error {
-  font-size: 36px;
-  color: #f44336;
-  animation: pop 0.4s ease;
-}
-
-@keyframes pop {
-  from { transform: scale(0); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tolon District Assembly Staff Attendance Management</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
+
 <body>
+  <div class="container">
+    <h1>
+      <span style="font-size: 0.8em;">Tolon District Assembly</span><br>
+      <span style="font-size: 0.55em;">Staff Attendance Management</span>
+    </h1>
 
-<div class="container">
-  <h1>Face Attendance</h1>
-  <input type="text" id="phone" placeholder="Enter Phone Number"><br>
-  <button id="clockIn">Clock In</button>
-  <button id="clockOut">Clock Out</button>
-  <p id="status"></p>
-  <p id="location"></p>
-</div>
+    <p id="status">Checking location...</p>
+    <pre id="location">Location: Loading...</pre>
 
-<!-- Loader -->
-<div id="loaderOverlay">
-  <div class="loader"></div>
-  <p>Verifying...</p>
-</div>
+    <button id="clockIn" disabled>Clock In</button>
+    <button id="clockOut" disabled>Clock Out</button>
+    <p id="message"></p>
 
-<!-- Popup -->
-<div id="popup"></div>
+    <div id="faceRecognition">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <p id="faceMessage"></p>
+    </div>
+  </div>
 
-<script>
-const loader = document.getElementById("loaderOverlay");
-const popup = document.getElementById("popup");
+  <!-- Popup -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-icon" id="popupIcon"></div>
+      <div class="popup-header" id="popupHeader"></div>
+      <div id="popupMessage"></div>
+      <div class="popup-footer" id="popupFooter"></div>
+    </div>
+  </div>
 
-function showLoader(show) {
-  loader.style.display = show ? "flex" : "none";
-}
+  <!-- Loader Overlay -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying...</p>
+  </div>
 
-function showPopup(status, message) {
-  popup.innerHTML = ''; // Clear previous content
-  let content = '';
-
-  if (status === 'success') {
-    content = `
-      <div class="popup-success">
-        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
-          <path class="checkmark__check" fill="none" d="M14 27l7 7 16-16"/>
-        </svg>
-      </div>
-      <p>${message}</p>
-    `;
-  } else if (status === 'error') {
-    content = `
-      <div class="popup-icon error">❌</div>
-      <p>${message}</p>
-    `;
-  }
-
-  popup.innerHTML = content;
-  popup.style.display = 'block';
-  setTimeout(() => popup.style.display = 'none', 3000);
-}
-
-/* Mock verification and logic */
-document.getElementById("clockIn").addEventListener("click", () => {
-  showLoader(true);
-  setTimeout(() => {
-    showLoader(false);
-    // Example logic:
-    const faceMismatch = false;
-    const alreadyClockedIn = true;
-    const wrongLocation = false;
-
-    if (wrongLocation) {
-      showPopup('error', 'Unapproved Location');
-    } else if (alreadyClockedIn) {
-      showPopup('error', 'Clock In Denied');
-    } else if (faceMismatch) {
-      showPopup('error', 'Verification Unsuccessful');
-    } else {
-      showPopup('success', 'Clock In Successful');
-    }
-  }, 2000);
-});
-
-document.getElementById("clockOut").addEventListener("click", () => {
-  showLoader(true);
-  setTimeout(() => {
-    showLoader(false);
-    // Example logic:
-    const faceMismatch = false;
-    const alreadyClockedOut = false;
-    const wrongLocation = false;
-
-    if (wrongLocation) {
-      showPopup('error', 'Unapproved Location');
-    } else if (alreadyClockedOut) {
-      showPopup('error', 'Clock Out Denied');
-    } else if (faceMismatch) {
-      showPopup('error', 'Verification Unsuccessful');
-    } else {
-      showPopup('success', 'Clock Out Successful');
-    }
-  }, 2000);
-});
-</script>
+  <script src="script.js"></script>
 </body>
 </html>
