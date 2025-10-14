@@ -8,22 +8,28 @@
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      <span style="font-size: 0.8em;">Tolon District Assembly</span><br>
-      <span style="font-size: 0.55em;">Staff Attendance Management</span>
-    </h1>
-    <p id="status" aria-live="polite">Checking location...</p>
-    <pre id="location" aria-live="polite">Location: Loading...</pre>
-    <button id="clockIn" disabled aria-label="Clock In to record attendance">Clock In</button>
-    <button id="clockOut" disabled aria-label="Clock Out to end attendance">Clock Out</button>
-    <p id="message" aria-live="assertive"></p>
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline aria-hidden="true"></video>
-      <canvas id="canvas" aria-hidden="true"></canvas>
-      <p id="faceMessage" aria-live="assertive">Please face the camera...</p>
+  <div class="page-wrapper">
+    <div class="container">
+      <h1>
+        <span class="title-main">Tolon District Assembly</span><br>
+        <span class="subtitle">Staff Attendance Management</span>
+      </h1>
+
+      <p id="status" aria-live="polite">Checking location...</p>
+      <pre id="location" aria-live="polite">Location: Loading...</pre>
+
+      <button id="clockIn" disabled>Clock In</button>
+      <button id="clockOut" disabled>Clock Out</button>
+      <p id="message"></p>
+
+      <div id="faceRecognition">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        <p id="faceMessage"></p>
+      </div>
     </div>
   </div>
+
   <!-- Centered Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
@@ -34,11 +40,13 @@
       <div id="popupRetry"></div>
     </div>
   </div>
+
   <!-- Loader Overlay -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
