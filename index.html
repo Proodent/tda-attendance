@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tolon District Assembly Staff Attendance Management</title>
 
-  <!-- ✅ Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
   <link rel="stylesheet" href="styles.css"/>
 
   <style>
@@ -26,11 +24,9 @@
       padding: 20px;
     }
 
-    h1 {
-      color: #009245;
-    }
+    h1 { color: #009245; }
 
-    /* --- Popup overlay --- */
+    /* Popup overlay */
     .popup {
       display: none;
       position: fixed;
@@ -74,23 +70,16 @@
     .popup-footer {
       font-size: 0.8em;
       color: #777;
-      margin-top: 10px;
     }
 
-    /* --- Success / Error icons --- */
     .popup-icon {
       font-size: 56px;
       margin: 10px 0;
       animation: pop 0.4s ease-in-out;
     }
 
-    .popup-icon.success {
-      color: #00b050; /* Bright green checkmark */
-    }
-
-    .popup-icon.error {
-      color: #e74c3c; /* Red X mark */
-    }
+    .popup-icon.success { color: #00b050; }
+    .popup-icon.error { color: #e74c3c; }
 
     @keyframes pop {
       from { transform: scale(0.6); opacity: 0; }
@@ -108,9 +97,7 @@
       cursor: pointer;
     }
 
-    #clockOut {
-      background: #F44336;
-    }
+    #clockOut { background: #F44336; }
 
     button:disabled {
       background: #ccc;
@@ -130,7 +117,7 @@
       border-radius: 10px;
     }
 
-    /* --- Loader overlay --- */
+    /* Loader overlay */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -154,23 +141,6 @@
     }
 
     @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    /* --- Close Button --- */
-    #popupClose {
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 20px;
-      font-size: 15px;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: background 0.3s ease;
-    }
-
-    #popupClose:hover {
-      background: #007d37;
-    }
 
     pre {
       white-space: pre-wrap;
@@ -200,29 +170,56 @@
     </div>
   </div>
 
-  <!-- Centered Popup -->
+  <!-- Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader"></div>
       <div id="popupIcon"></div>
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
-      <button id="popupClose" onclick="closePopup()">Close</button>
+      <button id="closePopup">Close</button>
     </div>
   </div>
 
-  <!-- Loader Overlay -->
+  <!-- Loader -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
 
   <script>
-    function closePopup() {
-      document.getElementById('popup').style.display = 'none';
-    }
-  </script>
+    // === POPUP CONTROL ===
+    const popup = document.getElementById('popup');
+    const popupHeader = document.getElementById('popupHeader');
+    const popupMessage = document.getElementById('popupMessage');
+    const popupIcon = document.getElementById('popupIcon');
+    const closePopupBtn = document.getElementById('closePopup');
 
-  <script src="script.js"></script>
+    function showPopup(type, title, message) {
+      popupHeader.textContent = title;
+      popupMessage.textContent = message;
+
+      if (type === 'success') {
+        popupIcon.innerHTML = '<div class="popup-icon success">✔</div>';
+      } else {
+        popupIcon.innerHTML = '<div class="popup-icon error">✖</div>';
+      }
+
+      popup.style.display = 'flex';
+
+      // Auto close after 5 seconds
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 5000);
+    }
+
+    closePopupBtn.addEventListener('click', () => {
+      popup.style.display = 'none';
+    });
+
+    // === Example test popup ===
+    // Remove this line after verifying popup works:
+    showPopup('error', 'Unapproved Location', 'You are outside the approved attendance area.');
+  </script>
 </body>
 </html>
