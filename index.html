@@ -74,6 +74,7 @@
     .popup-footer {
       font-size: 0.8em;
       color: #777;
+      margin-top: 10px;
     }
 
     /* --- Success / Error icons --- */
@@ -154,6 +155,23 @@
 
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
+    /* --- Close Button --- */
+    #popupClose {
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s ease;
+    }
+
+    #popupClose:hover {
+      background: #007d37;
+    }
+
     pre {
       white-space: pre-wrap;
       text-align: center;
@@ -189,7 +207,7 @@
       <div id="popupIcon"></div>
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
-      <div id="popupRetry"></div>
+      <button id="popupClose" onclick="closePopup()">Close</button>
     </div>
   </div>
 
@@ -199,8 +217,12 @@
     <p>Verifying...</p>
   </div>
 
+  <script>
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+    }
+  </script>
+
   <script src="script.js"></script>
 </body>
 </html>
-
-
