@@ -3,188 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tolon District Assembly Staff Attendance Management</title>
-
-  <!-- ✅ Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
+  <title>Tolon District Assembly Staff Attendance</title>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
   <link rel="stylesheet" href="styles.css"/>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      overflow-x: hidden;
-    }
-
-    .container {
-      text-align: center;
-      padding: 20px;
-    }
-
-    h1 {
-      color: #009245;
-    }
-
-    /* --- Popup overlay --- */
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
-
-    .popup-content {
-      background: #fff;
-      padding: 25px 20px;
-      border-radius: 12px;
-      width: 85%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .popup-header {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    #popupMessage {
-      font-size: 1em;
-      color: #444;
-      margin: 10px 0 15px;
-    }
-
-    .popup-footer {
-      font-size: 0.8em;
-      color: #777;
-    }
-
-    /* --- Success / Error icons --- */
-    .popup-icon {
-      font-size: 56px;
-      margin: 10px 0;
-      animation: pop 0.4s ease-in-out;
-    }
-
-    .popup-icon.success {
-      color: #00b050; /* Bright green checkmark */
-    }
-
-    .popup-icon.error {
-      color: #e74c3c; /* Red X mark */
-    }
-
-    @keyframes pop {
-      from { transform: scale(0.6); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    #clockOut {
-      background: #F44336;
-    }
-
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
-    #faceRecognition {
-      display: none;
-      margin-top: 10px;
-    }
-
-    #video, #canvas {
-      display: block;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 480px;
-      border-radius: 10px;
-    }
-
-    /* --- Loader overlay --- */
-    #loaderOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,0.8);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-
-    .loader {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #009245;
-      border-radius: 50%;
-      width: 55px;
-      height: 55px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    pre {
-      white-space: pre-wrap;
-      text-align: center;
-      color: #333;
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Header with logo -->
+  <header class="header">
+    <img src="/favicon.png" alt="Tolon District Assembly Logo" class="logo" />
     <h1>
-      <span style="font-size: 0.8em;">Tolon District Assembly</span><br>
-      <span style="font-size: 0.55em;">Staff Attendance Management</span>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Management</span>
     </h1>
+  </header>
 
-    <p id="status">Checking location...</p>
-    <pre id="location">Location: Loading...</pre>
+  <div class="container">
+    <!-- Location and status display -->
+    <p id="status" aria-live="polite">Checking location...</p>
+    <pre id="location" aria-live="polite">Location: Loading...</pre>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
+    <!-- Clock buttons with ARIA labels -->
+    <button id="clockIn" disabled aria-label="Clock In to record attendance">Clock In</button>
+    <button id="clockOut" disabled aria-label="Clock Out to end attendance">Clock Out</button>
+    <p id="message" aria-live="assertive"></p>
 
+    <!-- Facial recognition section -->
     <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <p id="faceMessage"></p>
+      <video id="video" autoplay playsinline aria-hidden="true"></video>
+      <canvas id="canvas" aria-hidden="true"></canvas>
+      <progress id="faceProgress" value="0" max="100" aria-label="Facial recognition progress"></progress>
+      <p id="faceMessage" aria-live="assertive">Please face the camera...</p>
     </div>
   </div>
 
-  <!-- Centered Popup -->
+  <!-- Popup for success/error messages -->
   <div id="popup" class="popup">
     <div class="popup-content">
+      <button class="popup-close" aria-label="Close popup">✖</button>
       <div class="popup-header" id="popupHeader"></div>
       <div id="popupIcon"></div>
       <div id="popupMessage"></div>
@@ -193,14 +48,15 @@
     </div>
   </div>
 
-  <!-- Loader Overlay -->
+  <!-- Loader overlay -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
 
+  <!-- Dark mode toggle -->
+  <button id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+
   <script src="script.js"></script>
 </body>
 </html>
-
-
