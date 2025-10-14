@@ -1,25 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tolon District Assembly Staff Attendance Management</title>
+  <title>Tolon District Assembly Staff Attendance</title>
   <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 </head>
 
 <body>
   <div class="container">
     <h1>
-      <span style="font-size: 0.8em;">Tolon District Assembly</span><br>
-      <span style="font-size: 0.55em;">Staff Attendance Management</span>
+      <span class="org">Tolon District Assembly</span><br>
+      <span class="sys">Staff Attendance Management</span>
     </h1>
 
     <p id="status">Checking location...</p>
-    <pre id="location">Location: Loading...</pre>
+    <p id="location">Location: Loading...</p>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
+    <div class="button-group">
+      <button id="clockIn" disabled>Clock In</button>
+      <button id="clockOut" disabled>Clock Out</button>
+    </div>
 
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
@@ -28,20 +32,20 @@
     </div>
   </div>
 
-  <!-- Popup -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <div class="popup-icon" id="popupIcon"></div>
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-    </div>
-  </div>
-
-  <!-- Loader Overlay -->
+  <!-- Loader -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
+  </div>
+
+  <!-- Popup -->
+  <div id="popup" class="popup">
+    <div id="popupContent">
+      <div class="popup-header" id="popupHeader"></div>
+      <div id="popupMessage"></div>
+      <div id="popupFooter" class="popup-footer"></div>
+      <div id="popupRetry"></div>
+    </div>
   </div>
 
   <script src="script.js"></script>
