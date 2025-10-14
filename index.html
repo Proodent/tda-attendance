@@ -1,200 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tolon District Assembly Staff Attendance Management</title>
-  <link rel="stylesheet" href="styles.css"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Attendance</title>
+<style>
+/* Base Layout */
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background-color: #f0f0f0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      overflow-x: hidden;
-    }
+.container {
+  text-align: center;
+  background: #fff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+}
 
-    .container {
-      text-align: center;
-      padding: 20px;
-    }
+h1 {
+  color: #009245;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
 
-    h1 {
-      color: #009245;
-    }
+#status, #location {
+  margin: 10px 0;
+  color: #333;
+}
 
-    /* --- Popup overlay --- */
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
+#phone {
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  width: 80%;
+  outline: none;
+}
 
-    .popup-content {
-      background: #fff;
-      padding: 25px 20px;
-      border-radius: 12px;
-      width: 85%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      animation: fadeIn 0.3s ease-in-out;
-    }
+button {
+  margin: 8px;
+  padding: 10px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  transition: 0.3s ease;
+}
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+#clockIn {
+  background-color: #009245;
+  color: #fff;
+}
 
-    .popup-header {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #333;
-    }
+#clockOut {
+  background-color: #f44336;
+  color: #fff;
+}
 
-    #popupMessage {
-      font-size: 1em;
-      color: #444;
-      margin: 10px 0 15px;
-    }
+button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: scale(1.03);
+}
 
-    .popup-footer {
-      font-size: 0.8em;
-      color: #777;
-    }
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
 
-    /* --- Success / Error icons --- */
-    .popup-icon {
-      font-size: 56px;
-      margin: 10px 0;
-      animation: pop 0.4s ease-in-out;
-    }
+/* Loader Overlay */
+#loaderOverlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(255,255,255,0.9);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 9999;
+}
 
-    .popup-icon.success {
-      color: #00b050; /* Bright green checkmark */
-    }
+.loader {
+  border: 4px solid #ccc;
+  border-top: 4px solid #009245;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
 
-    .popup-icon.error {
-      color: #e74c3c; /* Red X mark */
-    }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
-    @keyframes pop {
-      from { transform: scale(0.6); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
+#loaderOverlay p {
+  margin-top: 12px;
+  font-size: 18px;
+  color: #333;
+}
 
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+/* Popup Overlay */
+#popup {
+  display: none;
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+  padding: 25px 30px;
+  text-align: center;
+  z-index: 10000;
+  width: 90%;
+  max-width: 320px;
+  animation: fadeIn 0.4s ease;
+}
 
-    #clockOut {
-      background: #F44336;
-    }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -45%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
 
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
+#popup p {
+  font-size: 16px;
+  color: #333;
+  margin-top: 10px;
+  font-weight: 500;
+}
 
-    #faceRecognition {
-      display: none;
-      margin-top: 10px;
-    }
+/* Success checkmark animation */
+.popup-success {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 10px auto;
+}
 
-    #video, #canvas {
-      display: block;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 480px;
-      border-radius: 10px;
-    }
+.popup-success .checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 4;
+  stroke: #009245;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #009245;
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
 
-    /* --- Loader overlay --- */
-    #loaderOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,0.8);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
+.popup-success .checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 4;
+  stroke-miterlimit: 10;
+  stroke: #009245;
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(.65,0,.45,1) forwards;
+}
 
-    .loader {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #009245;
-      border-radius: 50%;
-      width: 55px;
-      height: 55px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
+.popup-success .checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(.65,0,.45,1) 0.6s forwards;
+  stroke: #fff;
+}
 
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes stroke {
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes scale {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.1, 1.1, 1); }
+}
+@keyframes fill {
+  100% { box-shadow: inset 0px 0px 0px 40px #009245; }
+}
 
-    pre {
-      white-space: pre-wrap;
-      text-align: center;
-      color: #333;
-    }
-  </style>
+/* Error icon */
+.popup-icon.error {
+  font-size: 36px;
+  color: #f44336;
+  animation: pop 0.4s ease;
+}
+
+@keyframes pop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      <span style="font-size: 0.8em;">Tolon District Assembly</span><br>
-      <span style="font-size: 0.55em;">Staff Attendance Management</span>
-    </h1>
 
-    <p id="status">Checking location...</p>
-    <pre id="location">Location: Loading...</pre>
+<div class="container">
+  <h1>Face Attendance</h1>
+  <input type="text" id="phone" placeholder="Enter Phone Number"><br>
+  <button id="clockIn">Clock In</button>
+  <button id="clockOut">Clock Out</button>
+  <p id="status"></p>
+  <p id="location"></p>
+</div>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
+<!-- Loader -->
+<div id="loaderOverlay">
+  <div class="loader"></div>
+  <p>Verifying...</p>
+</div>
 
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <p id="faceMessage"></p>
-    </div>
-  </div>
+<!-- Popup -->
+<div id="popup"></div>
 
-  <!-- Centered Popup -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupIcon"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div id="popupRetry"></div>
-    </div>
-  </div>
+<script>
+const loader = document.getElementById("loaderOverlay");
+const popup = document.getElementById("popup");
 
-  <!-- Loader Overlay -->
-  <div id="loaderOverlay">
-    <div class="loader"></div>
-    <p>Verifying...</p>
-  </div>
+function showLoader(show) {
+  loader.style.display = show ? "flex" : "none";
+}
 
-  <script src="script.js"></script>
+function showPopup(status, message) {
+  popup.innerHTML = ''; // Clear previous content
+  let content = '';
+
+  if (status === 'success') {
+    content = `
+      <div class="popup-success">
+        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14 27l7 7 16-16"/>
+        </svg>
+      </div>
+      <p>${message}</p>
+    `;
+  } else if (status === 'error') {
+    content = `
+      <div class="popup-icon error">❌</div>
+      <p>${message}</p>
+    `;
+  }
+
+  popup.innerHTML = content;
+  popup.style.display = 'block';
+  setTimeout(() => popup.style.display = 'none', 3000);
+}
+
+/* Mock verification and logic */
+document.getElementById("clockIn").addEventListener("click", () => {
+  showLoader(true);
+  setTimeout(() => {
+    showLoader(false);
+    // Example logic:
+    const faceMismatch = false;
+    const alreadyClockedIn = true;
+    const wrongLocation = false;
+
+    if (wrongLocation) {
+      showPopup('error', 'Unapproved Location');
+    } else if (alreadyClockedIn) {
+      showPopup('error', 'Clock In Denied');
+    } else if (faceMismatch) {
+      showPopup('error', 'Verification Unsuccessful');
+    } else {
+      showPopup('success', 'Clock In Successful');
+    }
+  }, 2000);
+});
+
+document.getElementById("clockOut").addEventListener("click", () => {
+  showLoader(true);
+  setTimeout(() => {
+    showLoader(false);
+    // Example logic:
+    const faceMismatch = false;
+    const alreadyClockedOut = false;
+    const wrongLocation = false;
+
+    if (wrongLocation) {
+      showPopup('error', 'Unapproved Location');
+    } else if (alreadyClockedOut) {
+      showPopup('error', 'Clock Out Denied');
+    } else if (faceMismatch) {
+      showPopup('error', 'Verification Unsuccessful');
+    } else {
+      showPopup('success', 'Clock Out Successful');
+    }
+  }, 2000);
+});
+</script>
 </body>
 </html>
