@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tolon District Assembly Staff Attendance Management</title>
 
-  <!-- Favicon (make sure favicon.png is in your project's root) -->
+  <!-- ✅ Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <link rel="stylesheet" href="styles.css"/>
@@ -26,9 +26,11 @@
       padding: 20px;
     }
 
-    h1 { color: #009245; }
+    h1 {
+      color: #009245;
+    }
 
-    /* --- Popup overlay (centered) --- */
+    /* --- Popup overlay --- */
     .popup {
       display: none;
       position: fixed;
@@ -45,94 +47,116 @@
       padding: 25px 20px;
       border-radius: 12px;
       width: 85%;
-      max-width: 420px;
+      max-width: 380px;
       text-align: center;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-      animation: fadeIn 0.28s ease-in-out;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease-in-out;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-12px); }
+      from { opacity: 0; transform: translateY(-15px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     .popup-header {
       font-size: 1.2em;
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       color: #333;
     }
 
     #popupMessage {
       font-size: 1em;
       color: #444;
-      margin: 8px 0 14px;
-      min-height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      margin: 10px 0 15px;
     }
 
     .popup-footer {
       font-size: 0.8em;
       color: #777;
-      margin-top: 6px;
     }
 
-    /* icons */
+    /* --- Success / Error icons --- */
     .popup-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      margin-bottom: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    }
-    .popup-icon.success {
-      background: linear-gradient(180deg,#00b050,#009245);
-      color: #fff;
-    }
-    .popup-icon.error {
-      background: linear-gradient(180deg,#f0625f,#e74c3c);
-      color: #fff;
+      font-size: 70px;
+      margin: 10px 0;
+      animation: pop 0.4s ease-in-out;
     }
 
-    /* Close button */
+    .popup-icon.success {
+      color: #00b050; /* Solid green check */
+    }
+
+    .popup-icon.error {
+      color: #e74c3c; /* Solid red cross */
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* --- Close button --- */
     #closePopup {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 10px 18px;
-      font-size: 15px;
+      margin-top: 10px;
       background: #333;
-      color: #fff;
+      color: white;
       border: none;
+      padding: 10px 20px;
       border-radius: 8px;
       cursor: pointer;
+      font-size: 15px;
     }
-    #closePopup:hover { opacity: 0.95; }
-
-    /* Small responsiveness */
-    @media (max-width: 420px) {
-      .popup-content { padding: 18px; width: 92%; }
-      .popup-icon { width: 64px; height: 64px; font-size: 32px; }
+    #closePopup:hover {
+      background: #111;
     }
 
-    /* Loader Overlay - keep minimal here (styles likely in styles.css) */
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #clockOut {
+      background: #F44336;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    #faceRecognition {
+      display: none;
+      margin-top: 10px;
+    }
+
+    #video, #canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 10px;
+    }
+
+    /* --- Loader overlay --- */
     #loaderOverlay {
       display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.8);
       z-index: 3000;
       justify-content: center;
       align-items: center;
       flex-direction: column;
     }
+
     .loader {
       border: 6px solid #f3f3f3;
       border-top: 6px solid #009245;
@@ -140,11 +164,16 @@
       width: 55px;
       height: 55px;
       animation: spin 1s linear infinite;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
     }
+
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    pre { white-space: pre-wrap; text-align: center; color: #333; }
+    pre {
+      white-space: pre-wrap;
+      text-align: center;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -168,11 +197,11 @@
     </div>
   </div>
 
-  <!-- Centered Popup (hidden until showPopup is called) -->
-  <div id="popup" class="popup" aria-hidden="true">
-    <div class="popup-content" role="dialog" aria-modal="true" id="popupContent">
+  <!-- ✅ Popup (Success & Error) -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div id="popupIcon"></div>
       <div class="popup-header" id="popupHeader"></div>
-      <div id="popupIcon" aria-hidden="true"></div>
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
       <button id="closePopup">Close</button>
@@ -181,67 +210,42 @@
 
   <!-- Loader Overlay -->
   <div id="loaderOverlay">
-    <div class="loader" aria-hidden="true"></div>
+    <div class="loader"></div>
     <p>Verifying...</p>
   </div>
 
-  <!-- Keep your script.js file (no inline showPopup calls here) -->
   <script src="script.js"></script>
 
   <script>
-    // Small popup wiring for Close button and auto-close behavior
-    (function () {
-      const popup = document.getElementById('popup');
-      const popupHeader = document.getElementById('popupHeader');
-      const popupMessage = document.getElementById('popupMessage');
-      const popupIcon = document.getElementById('popupIcon');
-      const popupFooter = document.getElementById('popupFooter');
-      const closeBtn = document.getElementById('closePopup');
-      let autoCloseTimer = null;
+    const popup = document.getElementById("popup");
+    const popupIcon = document.getElementById("popupIcon");
+    const popupHeader = document.getElementById("popupHeader");
+    const popupMessage = document.getElementById("popupMessage");
+    const popupFooter = document.getElementById("popupFooter");
+    const closeBtn = document.getElementById("closePopup");
 
-      // Expose a simple UI helper. Your script.js may already implement its own showPopup;
-      // if so prefer calling that. If not, this global function will work:
-      window.showPopupUI = function(type, title, message, autoCloseMs = 5000) {
-        // type: "success" | "error" | "info"
-        popupHeader.textContent = title || '';
-        popupMessage.textContent = message || '';
-        popupFooter.textContent = new Date().toLocaleString();
+    // ✅ Show Popup Function
+    window.showPopup = function(type, header, message) {
+      popupIcon.innerHTML = type === "success"
+        ? '<div class="popup-icon success">✔</div>'
+        : '<div class="popup-icon error">✖</div>';
 
-        if (type === 'success') {
-          popupIcon.innerHTML = '<div class="popup-icon success">✔</div>';
-        } else if (type === 'error') {
-          popupIcon.innerHTML = '<div class="popup-icon error">✖</div>';
-        } else {
-          popupIcon.innerHTML = '';
-        }
+      popupHeader.textContent = header;
+      popupMessage.textContent = message;
+      popupFooter.textContent = new Date().toLocaleString();
 
-        // show
-        popup.style.display = 'flex';
-        popup.setAttribute('aria-hidden', 'false');
+      popup.style.display = "flex";
 
-        // clear existing timer
-        if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
+      // Auto close after 5s
+      setTimeout(() => {
+        popup.style.display = "none";
+      }, 5000);
+    };
 
-        if (autoCloseMs && autoCloseMs > 0) {
-          autoCloseTimer = setTimeout(() => {
-            popup.style.display = 'none';
-            popup.setAttribute('aria-hidden', 'true');
-            autoCloseTimer = null;
-          }, autoCloseMs);
-        }
-      };
-
-      // Close button
-      closeBtn.addEventListener('click', () => {
-        if (autoCloseTimer) { clearTimeout(autoCloseTimer); autoCloseTimer = null; }
-        popup.style.display = 'none';
-        popup.setAttribute('aria-hidden', 'true');
-      });
-
-      // If your script.js already defines showPopup, you can call:
-      // window.showPopupUI('success', 'Title', 'Message');
-      // Or modify your showPopup to call showPopupUI for consistent UI.
-    })();
+    // ✅ Close manually
+    closeBtn.addEventListener("click", () => {
+      popup.style.display = "none";
+    });
   </script>
 </body>
 </html>
