@@ -71,7 +71,7 @@ app.get("/api/locations", async (req, res) => {
       name: r["Location Name"] || r.get("Location Name") || "",
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 0)
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
     }));
 
     res.json({ success: true, locations });
@@ -244,4 +244,5 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
 );
+
 
