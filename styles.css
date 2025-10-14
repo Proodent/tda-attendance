@@ -61,15 +61,13 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* ======================= */
 /* Loader Overlay */
-/* ======================= */
 #loaderOverlay {
   display: none;
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.8);
   justify-content: center;
   align-items: center;
   flex-direction: column;
@@ -99,29 +97,35 @@ button:disabled {
 }
 
 /* ======================= */
-/* Premium Popup */
+/* Premium Popup Styling */
 /* ======================= */
 .popup {
   display: none;
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.25);
+  background: rgba(0,0,0,0.35);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  transition: opacity 0.3s ease;
+  opacity: 0;
+  animation: popupFadeIn 0.3s forwards;
+}
+
+@keyframes popupFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 #popupContent {
   background: #fff;
   padding: 25px 35px;
   border-radius: 14px;
-  box-shadow: 0 6px 25px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.25);
   text-align: center;
-  animation: slideFadeIn 0.3s ease;
+  animation: slideFadeIn 0.35s ease;
   max-width: 90%;
   width: 350px;
 }
@@ -144,21 +148,27 @@ button:disabled {
   margin-top: 10px;
 }
 
-/* ======================= */
+/* Center the popup and icons correctly */
+.popup.show {
+  display: flex !important;
+  opacity: 1;
+}
+
 /* Popup Icons */
-/* ======================= */
 .popup-icon {
-  font-size: 48px;
-  margin-top: 10px;
+  font-size: 60px;
+  margin: 15px auto 5px;
   animation: pop 0.4s ease;
 }
 
 .popup-icon.success {
   color: #4CAF50;
+  text-shadow: 0 0 10px rgba(76,175,80,0.5);
 }
 
 .popup-icon.error {
   color: #F44336;
+  text-shadow: 0 0 10px rgba(244,67,54,0.5);
 }
 
 @keyframes pop {
