@@ -3,178 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tolon District Assembly Staff Attendance Management</title>
+  <title>Tolon District Assembly Staff Attendance</title>
 
   <!-- ✅ Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
-  <link rel="stylesheet" href="styles.css"/>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      overflow-x: hidden;
-    }
-
-    .container {
-      text-align: center;
-      padding: 20px;
-    }
-
-    h1 {
-      color: #009245;
-    }
-
-    /* --- Popup overlay --- */
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
-
-    .popup-content {
-      background: #fff;
-      padding: 25px 20px;
-      border-radius: 12px;
-      width: 85%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .popup-header {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    #popupMessage {
-      font-size: 1em;
-      color: #444;
-      margin: 10px 0 15px;
-    }
-
-    .popup-footer {
-      font-size: 0.8em;
-      color: #777;
-    }
-
-    /* --- Success / Error icons --- */
-    .popup-icon {
-      font-size: 70px;
-      margin: 10px 0;
-      animation: pop 0.4s ease-in-out;
-    }
-
-    .popup-icon.success {
-      color: #00b050; /* Solid green check */
-    }
-
-    .popup-icon.error {
-      color: #e74c3c; /* Solid red cross */
-    }
-
-    @keyframes pop {
-      from { transform: scale(0.6); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    /* --- Close button --- */
-    #closePopup {
-      margin-top: 10px;
-      background: #333;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 15px;
-    }
-    #closePopup:hover {
-      background: #111;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    #clockOut {
-      background: #F44336;
-    }
-
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
-    #faceRecognition {
-      display: none;
-      margin-top: 10px;
-    }
-
-    #video, #canvas {
-      display: block;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 480px;
-      border-radius: 10px;
-    }
-
-    /* --- Loader overlay --- */
-    #loaderOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,0.8);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-
-    .loader {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #009245;
-      border-radius: 50%;
-      width: 55px;
-      height: 55px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    pre {
-      white-space: pre-wrap;
-      text-align: center;
-      color: #333;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="container">
@@ -186,18 +20,17 @@
     <p id="status">Checking location...</p>
     <pre id="location">Location: Loading...</pre>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
-
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <p id="faceMessage"></p>
-    </div>
+    <button id="clockIn">Clock In</button>
+    <button id="clockOut">Clock Out</button>
   </div>
 
-  <!-- ✅ Popup (Success & Error) -->
+  <!-- ✅ Loader Overlay -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying...</p>
+  </div>
+
+  <!-- ✅ Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div id="popupIcon"></div>
@@ -208,44 +41,6 @@
     </div>
   </div>
 
-  <!-- Loader Overlay -->
-  <div id="loaderOverlay">
-    <div class="loader"></div>
-    <p>Verifying...</p>
-  </div>
-
   <script src="script.js"></script>
-
-  <script>
-    const popup = document.getElementById("popup");
-    const popupIcon = document.getElementById("popupIcon");
-    const popupHeader = document.getElementById("popupHeader");
-    const popupMessage = document.getElementById("popupMessage");
-    const popupFooter = document.getElementById("popupFooter");
-    const closeBtn = document.getElementById("closePopup");
-
-    // ✅ Show Popup Function
-    window.showPopup = function(type, header, message) {
-      popupIcon.innerHTML = type === "success"
-        ? '<div class="popup-icon success">✔</div>'
-        : '<div class="popup-icon error">✖</div>';
-
-      popupHeader.textContent = header;
-      popupMessage.textContent = message;
-      popupFooter.textContent = new Date().toLocaleString();
-
-      popup.style.display = "flex";
-
-      // Auto close after 5s
-      setTimeout(() => {
-        popup.style.display = "none";
-      }, 5000);
-    };
-
-    // ✅ Close manually
-    closeBtn.addEventListener("click", () => {
-      popup.style.display = "none";
-    });
-  </script>
 </body>
 </html>
