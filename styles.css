@@ -1,53 +1,4 @@
-/* General styles */
-body {
-  font-family: Arial, sans-serif;
-  background: #f7f7f7;
-  color: #333;
-  text-align: center;
-  margin: 0;
-  padding: 0;
-  height: 100vh;
-  overflow-x: hidden;
-  transition: background 0.3s, color 0.3s;
-}
-
-/* Dark mode */
-body.dark-mode {
-  background: #1a1a1a;
-  color: #e0e0e0;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px;
-  background: #009245;
-  color: #fff;
-}
-
-.logo {
-  width: 50px;
-  height: 50px;
-  margin-right: 10px;
-}
-
-h1 {
-  font-size: 1.5em;
-  margin: 0;
-}
-
-.subtitle {
-  font-size: 0.7em;
-}
-
-.container {
-  text-align: center;
-  padding: 20px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
+/* Enhanced popup styling */
 .popup {
   display: none;
   position: fixed;
@@ -75,11 +26,8 @@ h1 {
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
   animation: fadeIn 0.3s ease-in-out;
   position: relative;
-}
-
-body.dark-mode .popup-content {
-  background: #2c2c2c;
-  color: #e0e0e0;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 @keyframes fadeIn {
@@ -87,46 +35,26 @@ body.dark-mode .popup-content {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.popup-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 1.2em;
-  cursor: pointer;
-  color: #333;
-}
-
-body.dark-mode .popup-close {
-  color: #e0e0e0;
-}
-
 .popup-header {
   font-size: 1.2em;
   font-weight: bold;
   margin-bottom: 10px;
-  color: #009245;
-}
-
-body.dark-mode .popup-header {
-  color: #00b050;
+  color: #333;
 }
 
 #popupMessage {
   font-size: 1em;
   margin: 10px 0 15px;
+  line-height: 1.4;
 }
 
 .popup-footer {
   font-size: 0.8em;
   color: #777;
+  margin-top: 10px;
 }
 
-body.dark-mode .popup-footer {
-  color: #aaa;
-}
-
+/* Success/Error icons */
 .popup-icon {
   font-size: 56px;
   margin: 10px 0;
@@ -134,11 +62,13 @@ body.dark-mode .popup-footer {
 }
 
 .popup-icon.success {
-  color: #00b050;
+  color: #006837; /* Dark green */
+  text-shadow: 0 0 5px rgba(0, 150, 69, 0.3);
 }
 
 .popup-icon.error {
-  color: #e74c3c;
+  color: #d32f2f; /* Dark red */
+  text-shadow: 0 0 5px rgba(211, 47, 47, 0.3);
 }
 
 @keyframes pop {
@@ -146,136 +76,35 @@ body.dark-mode .popup-footer {
   to { transform: scale(1); opacity: 1; }
 }
 
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  margin: 5px;
-  background: #009245;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background 0.3s, transform 0.2s;
+/* Close button */
+#popupCloseBtn {
+  background: #006837 !important;
+  color: white !important;
+  padding: 8px 16px !important;
+  border: none !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  margin-top: 10px !important;
+  font-size: 14px !important;
 }
 
-button:hover:not(:disabled) {
-  background: #006837;
-  transform: scale(1.05);
+#popupCloseBtn:hover {
+  background: #009245 !important;
 }
 
-#clockOut {
-  background: #F44336;
-}
-
-#clockOut:hover:not(:disabled) {
-  background: #d32f2f;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-#faceRecognition {
-  display: none;
-  margin-top: 10px;
-}
-
-#video, #canvas {
-  display: block;
-  margin: 0 auto;
-  width: 100%;
-  max-width: 480px;
-  border-radius: 10px;
-}
-
-#faceProgress {
-  width: 100%;
-  max-width: 480px;
-  margin: 10px auto;
-  height: 8px;
-}
-
-#loaderOverlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.8);
-  z-index: 3000;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-}
-
-body.dark-mode #loaderOverlay {
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.loader {
-  border: 6px solid #f3f3f3;
-  border-top: 6px solid #009245;
-  border-radius: 50%;
-  width: 55px;
-  height: 55px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-}
-
-body.dark-mode .loader {
-  border-color: #2c2c2c;
-  border-top-color: #00b050;
-}
-
-@keyframes spin {
-  100% { transform: rotate(360deg); }
-}
-
-pre {
-  white-space: pre-wrap;
-  text-align: center;
-  color: #333;
-}
-
-body.dark-mode pre {
-  color: #e0e0e0;
-}
-
-#themeToggle {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: #006837;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-}
-
-#themeToggle:hover {
-  background: #009245;
-}
-
-/* Responsive design */
+/* Responsive popup */
 @media (max-width: 480px) {
-  .container {
-    padding: 10px;
+  .popup-content {
+    width: 95%;
+    padding: 20px;
+    margin: 10px;
   }
-  h1 {
-    font-size: 1.2em;
+  
+  .popup-header {
+    font-size: 1.1em;
   }
-  .subtitle {
-    font-size: 0.6em;
-  }
-  .logo {
-    width: 40px;
-    height: 40px;
-  }
-  button {
-    padding: 8px 16px;
-    font-size: 14px;
+  
+  .popup-icon {
+    font-size: 48px;
   }
 }
