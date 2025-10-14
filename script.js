@@ -1,59 +1,64 @@
-// script.js — frontend logic for index.html
+// Global variables
 let watchId = null;
 let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRetry;
-let loaderEl;
+let loaderEl, faceProgress;
 let locations = [];
 let popupTimeout = null;
 
+// Utility functions
 function toRad(v) { return v * Math.PI / 180; }
 function getDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
+// Show popup with success/error icon and optional retry button
 function showPopup(title, message, success = null, retry = false) {
   if (!popupEl) return alert(`${title}\n\n${message}`);
   if (popupTimeout) clearTimeout(popupTimeout);
 
   popupHeader.textContent = title;
   popupMessage.innerHTML = message;
+  if (success === true) {
+    popupMessage.innerHTML += '<div class="popup-icon success">✔️</div>';
+  } else if (success === false) {
+    popupMessage.innerHTML += '<div class="popup-icon error">❌</div>';
+  }
 
-  // Add success/error icon
-  popupMessage.innerHTML += success === true
-    ? '<div class="popup-icon success">✔️</div>'
-    : success === false
-      ? '<div class="popup-icon error">❌</div>'
-      : '';
-
-  popupFooter.textContent = new Date().toLocaleString();
+  popupFooter.textContent = new Date().toLocaleString('en-US', { 
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+  });
   popupRetry.innerHTML = retry ? '<button id="popupRetryBtn">Retry</button>' : '';
   popupEl.classList.add('show');
 
-
   if (retry) {
-    const btn = document.getElementById('popupRetryBtn');
-    if (btn) btn.onclick = () => window.location.reload();
+    document.getElementById('popupRetryBtn').onclick = () => window.location.reload();
   }
 
-  popupTimeout = setTimeout(() => popupEl.style.display = 'none', 5000);
+  popupTimeout = setTimeout(() => {
+    popupEl.classList.remove('show');
+    popupEl.style.display = 'none';
+  }, 5000);
 }
 
+// Show loader during async operations
 function showLoader(text = "Verifying...") {
-  loaderEl = document.getElementById("loaderOverlay");
   if (loaderEl) {
     loaderEl.querySelector("p").textContent = text;
     loaderEl.style.display = "flex";
   }
 }
 
+// Hide loader
 function hideLoader() {
   if (loaderEl) loaderEl.style.display = "none";
 }
 
+// Fetch office locations from server
 async function fetchLocations() {
   try {
     const r = await fetch('/api/locations');
@@ -69,16 +74,28 @@ async function fetchLocations() {
     return true;
   } catch (err) {
     console.error('Error loading locations:', err);
+    showPopup('Error', 'Unable to load location data. Please reload.', false, true);
     return false;
   }
 }
 
+// Animate progress bar during facial recognition
+function animateProgressBar() {
+  faceProgress.value = 0;
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 5;
+    faceProgress.value = progress;
+    if (progress >= 100) clearInterval(interval);
+  }, 100);
+}
+
+// Start location monitoring
 async function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
-
   videoEl = document.getElementById('video');
   canvasEl = document.getElementById('canvas');
   popupEl = document.getElementById('popup');
@@ -86,9 +103,31 @@ async function startLocationWatch() {
   popupMessage = document.getElementById('popupMessage');
   popupFooter = document.getElementById('popupFooter');
   popupRetry = document.getElementById('popupRetry');
+  loaderEl = document.getElementById('loaderOverlay');
+  faceProgress = document.getElementById('faceProgress');
 
+  // Handle popup close button
+  document.querySelector('.popup-close').onclick = () => {
+    popupEl.classList.remove('show');
+    popupEl.style.display = 'none';
+  };
+
+  // Handle dark mode toggle
+  document.getElementById('themeToggle').onclick = () => {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+  };
+
+  // Load saved theme
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-mode');
+  }
+
+  // Show loader while fetching locations
+  showLoader("Loading locations...");
   const ok = await fetchLocations();
-  if (!ok) return showPopup('Error', 'Unable to load location data. Please reload.', false, true);
+  hideLoader();
+  if (!ok) return;
 
   if (!navigator.geolocation) {
     statusEl.textContent = 'Geolocation not supported in this browser.';
@@ -101,7 +140,10 @@ async function startLocationWatch() {
     let office = null;
     for (const o of locations) {
       const distKm = getDistanceKm(latitude, longitude, o.lat, o.long);
-      if (distKm <= (o.radiusMeters / 1000)) { office = o.name; break; }
+      if (distKm <= (o.radiusMeters / 1000)) {
+        office = o.name;
+        break;
+      }
     }
 
     if (office) {
@@ -128,6 +170,7 @@ async function startLocationWatch() {
   document.getElementById('clockOut').addEventListener('click', () => handleClock('clock out'));
 }
 
+// Start video for facial recognition
 async function startVideo() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -141,6 +184,7 @@ async function startVideo() {
   }
 }
 
+// Stop video stream
 function stopVideo() {
   if (videoEl && videoEl.srcObject) {
     videoEl.srcObject.getTracks().forEach(t => t.stop());
@@ -148,6 +192,7 @@ function stopVideo() {
   }
 }
 
+// Validate face via CompreFace proxy
 async function validateFaceWithProxy(base64) {
   try {
     const r = await fetch('/api/proxy/face-recognition', {
@@ -171,6 +216,7 @@ async function validateFaceWithProxy(base64) {
   }
 }
 
+// Handle clock in/out
 async function handleClock(action) {
   const locationEl = document.getElementById('location');
   const lat = Number(locationEl.dataset.lat);
@@ -181,22 +227,22 @@ async function handleClock(action) {
   const started = await startVideo();
   if (!started) return;
 
-  await new Promise(r => setTimeout(r, 1000)); // delay 1 second
+  animateProgressBar();
+  await new Promise(r => setTimeout(r, 2000)); // Delay for face capture
 
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = 640;
   tempCanvas.height = 480;
   const ctx = tempCanvas.getContext('2d');
-  ctx.translate(tempCanvas.width, 0); ctx.scale(-1, 1);
+  ctx.translate(tempCanvas.width, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
   const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
 
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
 
-  // Show verifying loader
   showLoader();
-
   const faceRes = await validateFaceWithProxy(base64);
   if (!faceRes.ok || (faceRes.similarity && faceRes.similarity < 0.55)) {
     hideLoader();
@@ -218,7 +264,7 @@ async function handleClock(action) {
     const j = await resp.json();
     hideLoader();
     if (j.success) {
-      showPopup('Verification Successful', j.message || `Dear ${faceRes.subject}, ${action} successful.`, true);
+      showPopup('Verification Successful', `Dear ${faceRes.subject}, ${j.message || `${action} successful.`}`, true);
     } else {
       showPopup('Verification Unsuccessful', j.message || 'Attendance not logged.', false, true);
     }
@@ -230,5 +276,7 @@ async function handleClock(action) {
 }
 
 window.onload = startLocationWatch;
-window.onunload = () => { if (watchId) navigator.geolocation.clearWatch(watchId); stopVideo(); };
-
+window.onunload = () => {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  stopVideo();
+};
