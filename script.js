@@ -31,7 +31,8 @@ function showPopup(title, message, success = null, retry = false) {
 
   popupFooter.textContent = new Date().toLocaleString();
   popupRetry.innerHTML = retry ? '<button id="popupRetryBtn">Retry</button>' : '';
-  popupEl.style.display = 'block';
+  popupEl.classList.add('show');
+
 
   if (retry) {
     const btn = document.getElementById('popupRetryBtn');
@@ -230,3 +231,4 @@ async function handleClock(action) {
 
 window.onload = startLocationWatch;
 window.onunload = () => { if (watchId) navigator.geolocation.clearWatch(watchId); stopVideo(); };
+
