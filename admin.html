@@ -3,327 +3,221 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard | Attendance System</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <title>Attendance Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f8f9fa;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
       color: #222;
-      padding: 20px;
-      line-height: 1.6;
+      margin: 0;
+      padding: 0;
     }
-    h1 { color: #006837; text-align: center; }
-    h2 { border-bottom: 2px solid #009245; color: #333; }
-    #log {
-      background: #111;
-      color: #0f0;
-      padding: 10px;
-      border-radius: 6px;
-      height: 200px;
-      overflow-y: auto;
-      font-family: monospace;
-      font-size: 0.9em;
-    }
-    .section {
-      margin-bottom: 30px;
-      padding: 15px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th { background: #009245; color: white; }
-    .status {
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-    .ok { background: #d4edda; color: #155724; }
-    .fail { background: #f8d7da; color: #721c24; }
-    .animated-number {
-      transition: all 0.3s ease-in-out;
-      font-weight: bold;
-      color: #006837;
-    }
-    .timestamp { font-size: 0.9em; color: gray; margin-top: 5px; }
-    .chart-container {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      margin-top: 20px;
-      gap: 20px;
-    }
-    .chart-tile {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      flex: 1 1 350px;
+    header {
+      background: #009245;
+      color: #fff;
+      padding: 1rem;
       text-align: center;
-      transition: transform 0.2s ease;
+      font-size: 1.5rem;
+      font-weight: bold;
     }
-    .chart-tile:hover {
-      transform: scale(1.02);
+    #stats-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 1rem;
+    }
+    .chart-card h3 {
+      text-align: center;
+      color: #006837;
+      margin-bottom: .5rem;
     }
     canvas {
-      width: 280px !important;
+      width: 100% !important;
       height: 280px !important;
-      margin: 0 auto;
+    }
+    #log {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 1rem;
+      height: 150px;
+      overflow-y: auto;
     }
   </style>
 </head>
 <body>
-  <h1>Admin Dashboard</h1>
+  <header>Attendance Dashboard</header>
 
-  <div class="section">
-    <h2>Attendance Stats</h2>
-    <ul>
-      <li>Clock-Ins Today: <span id="clockInsToday" class="animated-number">—</span></li>
-      <li>Clock-Outs Today: <span id="clockOutsToday" class="animated-number">—</span></li>
-      <li>Clock-Ins This Week: <span id="clockInsWeek" class="animated-number">—</span></li>
-      <li>Clock-Outs This Week: <span id="clockOutsWeek" class="animated-number">—</span></li>
-      <li>Clock-Ins This Month: <span id="clockInsMonth" class="animated-number">—</span></li>
-      <li>Clock-Outs This Month: <span id="clockOutsMonth" class="animated-number">—</span></li>
-      <li>Total Staff: <span id="totalStaff" class="animated-number">—</span></li>
-      <li>Active Staff: <span id="activeStaff" class="animated-number">—</span></li>
-      <li>Percent Clocked In Today: <span id="percentClockedIn" class="animated-number">—</span></li>
-      <li>Percent Clocked Out Today: <span id="percentClockedOut" class="animated-number">—</span></li>
-    </ul>
-    <p class="timestamp" id="lastUpdated">Last updated: —</p>
-  </div>
-
-  <div class="chart-container">
-    <div class="chart-tile">
-      <h3>Staff Overview</h3>
-      <canvas id="staffChart"></canvas>
+  <section id="stats-container">
+    <div class="chart-card">
+      <h3>Attendance Summary</h3>
+      <canvas id="summaryChart"></canvas>
     </div>
-    <div class="chart-tile">
-      <h3>Attendance Overview</h3>
-      <canvas id="clockChart"></canvas>
+    <div class="chart-card">
+      <h3>Active vs Inactive Staff</h3>
+      <canvas id="activeChart"></canvas>
     </div>
-  </div>
+    <div class="chart-card">
+      <h3>Daily Attendance Trend</h3>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Location Attendance</h3>
+      <canvas id="locationChart"></canvas>
+    </div>
+  </section>
 
-  <div class="section">
-    <h2>System Health</h2>
-    <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
-    <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
-  </div>
-
-  <div class="section">
-    <h2>Loaded Office Locations</h2>
-    <p id="locationCount">Loading...</p>
-    <table id="locationsTable">
-      <thead>
-        <tr>
-          <th>Office Name</th>
-          <th>Latitude</th>
-          <th>Longitude</th>
-          <th>Radius (m)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <h2>Logs</h2>
-    <div id="log"></div>
-  </div>
+  <div id="log"></div>
 
   <script>
-    const logBox = document.getElementById('log');
-    function log(msg) {
+    const backendURL = "https://your-backend-url/api"; // replace with your backend endpoint
+
+    const log = (msg) => {
+      const logBox = document.getElementById("log");
       const time = new Date().toLocaleTimeString();
       logBox.innerHTML += `[${time}] ${msg}<br>`;
       logBox.scrollTop = logBox.scrollHeight;
-    }
+    };
 
-    function updateText(id, val) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (typeof val === 'number' && !isNaN(val)) {
-        const current = parseFloat(el.textContent) || 0;
-        const duration = 600;
-        const start = performance.now();
-        const animate = (t) => {
-          const p = Math.min((t - start) / duration, 1);
-          el.textContent = Math.floor(current + (val - current) * p);
-          if (p < 1) requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
-      } else {
-        el.textContent = val;
-      }
-    }
+    let summaryChart, trendChart, activeChart, locationChart;
 
-    async function checkBackend() {
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      const text = await res.text();
       try {
-        const res = await fetch('/api/health');
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('backendStatus').textContent = 'Online';
-          document.getElementById('backendStatus').className = 'status ok';
-          document.getElementById('sheetsStatus').textContent = 'Connected';
-          document.getElementById('sheetsStatus').className = 'status ok';
-          log('✅ Backend reachable.');
-        } else throw new Error(data.error);
-      } catch (err) {
-        document.getElementById('backendStatus').textContent = 'Offline';
-        document.getElementById('backendStatus').className = 'status fail';
-        document.getElementById('sheetsStatus').textContent = 'Error';
-        document.getElementById('sheetsStatus').className = 'status fail';
-        log('❌ Backend offline: ' + err.message);
+        return JSON.parse(text);
+      } catch {
+        throw new Error("Response not JSON: " + text.slice(0, 60));
       }
     }
 
-    let offices = [];
-    async function loadLocations() {
+    async function loadDashboardData() {
       try {
-        const res = await fetch('/api/locations');
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-        offices = data.locations || [];
-        const tbody = document.querySelector('#locationsTable tbody');
-        tbody.innerHTML = '';
-        offices.forEach(o => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${o.name}</td><td>${o.lat}</td><td>${o.long}</td><td>${o.radiusMeters}</td>`;
-          tbody.appendChild(tr);
-        });
-        document.getElementById('locationCount').textContent = `${offices.length} office locations loaded.`;
-        log(`✅ Loaded ${offices.length} office locations.`);
+        log("⏳ Fetching data...");
+
+        // --- Load staff data ---
+        const staffData = await fetchJSON(`${backendURL}/staff`);
+        const activeCount = staffData.filter(s => s.Active?.toLowerCase() === "yes").length;
+        const inactiveCount = staffData.filter(s => s.Active?.toLowerCase() === "no").length;
+        log(`✅ Loaded ${staffData.length} staff members`);
+
+        // --- Load attendance stats ---
+        const stats = await fetchJSON(`${backendURL}/attendance`);
+        const total = stats.total || 0;
+        const present = stats.present || 0;
+        const absent = stats.absent || 0;
+
+        // --- Load location-wise data ---
+        const locationData = await fetchJSON(`${backendURL}/locations`);
+        const locLabels = locationData.map(l => l.name);
+        const locCounts = locationData.map(l => l.attendance);
+
+        // --- Update Charts ---
+        updateSummaryChart(total, present, absent);
+        updateActiveChart(activeCount, inactiveCount);
+        updateTrendChart(stats.trend);
+        updateLocationChart(locLabels, locCounts);
+
+        log("✅ Dashboard updated");
+
       } catch (err) {
-        log('❌ Error loading locations: ' + err.message);
+        log("❌ " + err.message);
       }
     }
 
-    let staffChart, clockChart;
-    function initCharts() {
-      const staffCtx = document.getElementById('staffChart').getContext('2d');
-      const clockCtx = document.getElementById('clockChart').getContext('2d');
-
-      staffChart = new Chart(staffCtx, {
-        type: 'doughnut',
+    function updateSummaryChart(total, present, absent) {
+      const ctx = document.getElementById("summaryChart");
+      if (summaryChart) summaryChart.destroy();
+      summaryChart = new Chart(ctx, {
+        type: "doughnut",
         data: {
-          labels: ['Active', 'Inactive'],
+          labels: ["Present", "Absent"],
           datasets: [{
-            data: [0, 0],
-            backgroundColor: ['#00b34a', '#dcdcdc'],
-            hoverBackgroundColor: ['#009245', '#b0b0b0'],
-            borderWidth: 2,
-            hoverOffset: 8
+            data: [present, absent],
+            backgroundColor: ["#009245", "#ccc"]
           }]
         },
-        options: {
-          cutout: '70%',
-          plugins: {
-            legend: { position: 'bottom' },
-            tooltip: {
-              callbacks: {
-                label: (context) => `${context.label}: ${context.parsed} staff`
-              }
-            }
-          }
-        }
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
       });
+    }
 
-      clockChart = new Chart(clockCtx, {
-        type: 'doughnut',
+    function updateActiveChart(active, inactive) {
+      const ctx = document.getElementById("activeChart");
+      if (activeChart) activeChart.destroy();
+      activeChart = new Chart(ctx, {
+        type: "bar",
         data: {
-          labels: ['Clocked In', 'Clocked Out'],
+          labels: ["Active", "Inactive"],
           datasets: [{
-            data: [0, 0],
-            backgroundColor: ['#006837', '#009245'],
-            hoverBackgroundColor: ['#004f2e', '#00b357'],
-            borderWidth: 2,
-            hoverOffset: 8
+            label: "Staff Count",
+            data: [active, inactive],
+            backgroundColor: ["#006837", "#ff4d4d"]
           }]
         },
         options: {
-          cutout: '70%',
-          plugins: {
-            legend: { position: 'bottom' },
-            tooltip: {
-              callbacks: {
-                label: (context) => `${context.label}: ${context.parsed}`
-              }
-            }
-          }
+          responsive: true,
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { display: false } }
         }
       });
     }
 
-    async function loadStaff() {
-      try {
-        const res = await fetch('/api/staff');
-        const data = await res.json();
-        if (!data.success || !Array.isArray(data.staff)) throw new Error('Invalid staff data format');
-
-        const staff = data.staff;
-        const total = staff.length;
-        const active = staff.filter(s => s.Active && s.Active.toLowerCase() === 'yes').length;
-        const inactive = total - active;
-
-        updateText('totalStaff', total);
-        updateText('activeStaff', active);
-
-        staffChart.data.datasets[0].data = [active, inactive];
-        staffChart.update();
-
-        log(`✅ Staff updated: ${active}/${total} active.`);
-      } catch (err) {
-        log('❌ Error loading staff: ' + err.message);
-      }
+    function updateTrendChart(trendData = []) {
+      const ctx = document.getElementById("trendChart");
+      if (trendChart) trendChart.destroy();
+      const labels = trendData.map(d => d.date);
+      const values = trendData.map(d => d.present);
+      trendChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Present",
+            data: values,
+            borderColor: "#009245",
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
     }
 
-    async function loadAttendanceStats() {
-      try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        if (!data.success) throw new Error('Invalid stats data');
-
-        updateText('clockInsToday', data.clockIns.today);
-        updateText('clockOutsToday', data.clockOuts.today);
-        updateText('clockInsWeek', data.clockIns.week);
-        updateText('clockOutsWeek', data.clockOuts.week);
-        updateText('clockInsMonth', data.clockIns.month);
-        updateText('clockOutsMonth', data.clockOuts.month);
-        updateText('percentClockedIn', data.percentClockedIn + '%');
-        updateText('percentClockedOut', data.percentClockedOut + '%');
-
-        clockChart.data.datasets[0].data = [data.clockIns.today, data.clockOuts.today];
-        clockChart.update();
-
-        document.getElementById('lastUpdated').textContent =
-          'Last updated: ' + new Date().toLocaleTimeString();
-        log('✅ Attendance stats updated.');
-      } catch (err) {
-        log('❌ Error loading attendance stats: ' + err.message);
-      }
+    function updateLocationChart(labels, values) {
+      const ctx = document.getElementById("locationChart");
+      if (locationChart) locationChart.destroy();
+      locationChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Attendance Count",
+            data: values,
+            backgroundColor: "#009245"
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { display: false } }
+        }
+      });
     }
 
-    (async () => {
-      await checkBackend();
-      await loadLocations();
-      initCharts();
-      await loadStaff();
-      await loadAttendanceStats();
-      setInterval(async () => {
-        await loadStaff();
-        await loadAttendanceStats();
-      }, 10000);
-    })();
+    // Load and refresh every 10 seconds
+    loadDashboardData();
+    setInterval(loadDashboardData, 10000);
   </script>
 </body>
 </html>
