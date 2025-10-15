@@ -27,7 +27,9 @@ const {
   PORT
 } = process.env;
 
-const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+// make private key safe if present
+const processedKey = (GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
 const serviceAccountAuth = new JWT({
   email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
   key: processedKey,
@@ -35,7 +37,14 @@ const serviceAccountAuth = new JWT({
 });
 
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
-async function loadDoc() { await doc.loadInfo(); }
+async function loadDoc() {
+  // lazily load info if not loaded
+  if (!doc || !doc.title) {
+    await doc.loadInfo();
+  } else {
+    try { await doc.loadInfo(); } catch (e) { /* still try to load each time */ }
+  }
+}
 
 // ----------------- Utility functions -----------------
 function toRad(v) { return v * Math.PI / 180; }
@@ -55,6 +64,7 @@ app.get("/api/health", async (req, res) => {
     await loadDoc();
     res.json({ success: true, message: "Google Sheets connected successfully!" });
   } catch (err) {
+    console.error("GET /api/health error:", err);
     res.json({ success: false, error: err.message });
   }
 });
@@ -64,14 +74,14 @@ app.get("/api/locations", async (req, res) => {
   try {
     await loadDoc();
     const locSheet = doc.sheetsByTitle["Locations Sheet"];
-    if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
+    if (!locSheet) return res.status(500).json({ success: false, error: "Locations Sheet not found" });
     const rows = await locSheet.getRows();
 
     const locations = rows.map(r => ({
-      name: r["Location Name"] || r.get("Location Name") || "",
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
-      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (m)") ?? r["Radius (Meters)"] ?? 150)
+      name: (r["Location Name"] || r.get?.("Location Name") || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? r.get?.("Latitude") ?? 0) || 0,
+      long: parseFloat(r["Longitude"] ?? r.get?.("Longitude") ?? 0) || 0,
+      radiusMeters: parseFloat(r["Radius"] ?? r.get?.("Radius (m)") ?? r["Radius (Meters)"] ?? 150) || 150
     }));
 
     res.json({ success: true, locations });
@@ -85,6 +95,9 @@ app.get("/api/locations", async (req, res) => {
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
+    if (!COMPREFACE_URL || !COMPREFACE_API_KEY) {
+      return res.status(500).json({ success: false, error: "CompreFace config missing" });
+    }
     const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
 
     const response = await fetch(url, {
@@ -101,6 +114,27 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   } catch (err) {
     console.error("POST /api/proxy/face-recognition error:", err);
     res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
+  }
+});
+
+// ----------------- API: Staff counts -----------------
+app.get("/api/staff", async (req, res) => {
+  try {
+    await loadDoc();
+    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
+    if (!staffSheet) return res.status(500).json({ success: false, message: "Staff Sheet not found." });
+
+    const staffRows = await staffSheet.getRows();
+    const totalStaff = staffRows.length;
+    const activeStaff = staffRows.filter(r => {
+      const v = (r["Active"] || r.get?.("Active") || "").toString().trim().toLowerCase();
+      return v === "yes" || v === "true";
+    }).length;
+
+    res.json({ success: true, totalStaff, activeStaff });
+  } catch (err) {
+    console.error("GET /api/staff error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -127,28 +161,29 @@ app.post("/api/attendance/web", async (req, res) => {
       locationsSheet.getRows()
     ]);
 
-    // ✅ Find staff
-    const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
-      (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
-    );
+    // ✅ Find staff (active required)
+    const staffMember = staffRows.find(r => {
+      const name = (r["Name"] || r.get?.("Name") || "").toString().trim().toLowerCase();
+      const activeVal = (r["Active"] || r.get?.("Active") || "").toString().trim().toLowerCase();
+      return name === subjectName.trim().toLowerCase() && (activeVal === "yes" || activeVal === "true");
+    });
 
     if (!staffMember) {
       return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
-    // ✅ Allowed Locations Check
-    const allowedList = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
+    // ✅ Allowed Locations Check (from Staff Sheet)
+    const allowedList = ((staffMember["Allowed Locations"] || staffMember.get?.("Allowed Locations") || "") + "")
       .split(",")
       .map(x => x.trim().toLowerCase())
       .filter(Boolean);
 
-    // ✅ Detect physical location
+    // ✅ Detect physical location based on coordinates
     const officeLocations = locRows.map(r => ({
-      name: (r["Location Name"] || r.get("Location Name") || "").toString(),
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
-      long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+      name: (r["Location Name"] || r.get?.("Location Name") || "").toString(),
+      lat: parseFloat(r["Latitude"] ?? r.get?.("Latitude") ?? 0) || 0,
+      long: parseFloat(r["Longitude"] ?? r.get?.("Longitude") ?? 0) || 0,
+      radiusMeters: parseFloat(r["Radius"] ?? r.get?.("Radius (m)") ?? r["Radius (Meters)"] ?? 150) || 150
     }));
 
     let officeName = null;
@@ -164,7 +199,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
 
-    if (!allowedList.includes(officeName.trim().toLowerCase())) {
+    if (allowedList.length && !allowedList.includes(officeName.trim().toLowerCase())) {
       return res.status(403).json({ success: false, message: "Unapproved Location." });
     }
 
@@ -173,18 +208,19 @@ app.post("/api/attendance/web", async (req, res) => {
     const dateStr = dt.toISOString().split("T")[0];
     const timeStr = dt.toTimeString().split(" ")[0];
 
-    const existing = attendanceRows.find(r =>
-      (r["Date"] || r.get("Date")) === dateStr &&
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
-    );
+    const existing = attendanceRows.find(r => {
+      const rDate = (r["Date"] || r.get?.("Date") || "").toString();
+      const rName = (r["Name"] || r.get?.("Name") || "").toString().trim().toLowerCase();
+      return rDate === dateStr && rName === subjectName.trim().toLowerCase();
+    });
 
     // CLOCK IN
     if (action === "clock in") {
-      if (existing && (existing["Time In"] || existing.get("Time In"))) {
+      if (existing && (existing["Time In"] || existing.get?.("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
 
-      const deptValue = department || staffMember["Department"] || staffMember.get("Department") || "";
+      const deptValue = department || staffMember["Department"] || staffMember.get?.("Department") || "";
 
       await attendanceSheet.addRow({
         "Date": dateStr,
@@ -204,7 +240,7 @@ app.post("/api/attendance/web", async (req, res) => {
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
       }
-      if (existing["Time Out"] || existing.get("Time Out")) {
+      if (existing["Time Out"] || existing.get?.("Time Out")) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
@@ -253,28 +289,51 @@ app.get("/api/stats", async (req, res) => {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const todayStr = today.toISOString().split("T")[0];
 
-    const inRange = (d, start) => {
-      const date = new Date(d);
-      return date >= start && date <= today;
-    };
+    function parseRowDate(r) {
+      // Accept string date 'YYYY-MM-DD' or Date object
+      const d = (r && (r["Date"] || r.get?.("Date"))) || "";
+      return new Date(d);
+    }
+    function inRangeRow(r, start) {
+      const d = parseRowDate(r);
+      if (isNaN(d.getTime())) return false;
+      return d >= start && d <= today;
+    }
 
-    const totalStaff = staffRows.filter(r => (r["Active"] || r.get("Active") || "").toLowerCase() === "yes").length;
-    const clockInsToday = attendanceRows.filter(r => (r["Date"] || r.get("Date")) === todayStr && (r["Time In"] || r.get("Time In"))).length;
-    const clockOutsToday = attendanceRows.filter(r => (r["Date"] || r.get("Date")) === todayStr && (r["Time Out"] || r.get("Time Out"))).length;
+    // total staff = all rows in staff sheet
+    const totalStaff = staffRows.length;
+    const activeStaff = staffRows.filter(r => {
+      const v = (r["Active"] || r.get?.("Active") || "").toString().trim().toLowerCase();
+      return v === "yes" || v === "true";
+    }).length;
 
-    const clockInsWeek = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfWeek) && (r["Time In"] || r.get("Time In"))).length;
-    const clockOutsWeek = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfWeek) && (r["Time Out"] || r.get("Time Out"))).length;
+    const clockInsToday = attendanceRows.filter(r => {
+      const rDate = (r["Date"] || r.get?.("Date") || "").toString();
+      return rDate === todayStr && (r["Time In"] || r.get?.("Time In"));
+    }).length;
 
-    const clockInsMonth = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfMonth) && (r["Time In"] || r.get("Time In"))).length;
-    const clockOutsMonth = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfMonth) && (r["Time Out"] || r.get("Time Out"))).length;
+    const clockOutsToday = attendanceRows.filter(r => {
+      const rDate = (r["Date"] || r.get?.("Date") || "").toString();
+      return rDate === todayStr && (r["Time Out"] || r.get?.("Time Out"));
+    }).length;
+
+    const clockInsWeek = attendanceRows.filter(r => inRangeRow(r, startOfWeek) && (r["Time In"] || r.get?.("Time In"))).length;
+    const clockOutsWeek = attendanceRows.filter(r => inRangeRow(r, startOfWeek) && (r["Time Out"] || r.get?.("Time Out"))).length;
+
+    const clockInsMonth = attendanceRows.filter(r => inRangeRow(r, startOfMonth) && (r["Time In"] || r.get?.("Time In"))).length;
+    const clockOutsMonth = attendanceRows.filter(r => inRangeRow(r, startOfMonth) && (r["Time Out"] || r.get?.("Time Out"))).length;
+
+    const percentClockedIn = totalStaff ? Math.round((clockInsToday / totalStaff) * 100) : 0;
+    const percentClockedOut = totalStaff ? Math.round((clockOutsToday / totalStaff) * 100) : 0;
 
     res.json({
       success: true,
       totalStaff,
+      activeStaff,
       clockIns: { today: clockInsToday, week: clockInsWeek, month: clockInsMonth },
       clockOuts: { today: clockOutsToday, week: clockOutsWeek, month: clockOutsMonth },
-      percentClockedIn: totalStaff ? Math.round((clockInsToday / totalStaff) * 100) : 0,
-      percentClockedOut: totalStaff ? Math.round((clockOutsToday / clockInsToday) * 100) : 0,
+      percentClockedIn,
+      percentClockedOut
     });
   } catch (err) {
     console.error("GET /api/stats error:", err);
@@ -285,11 +344,11 @@ app.get("/api/stats", async (req, res) => {
 // ----------------- Static Frontend -----------------
 app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/admin", (req, res) => res.sendFile(path.join(__dirname, "admin.html")));
 app.get("/dev", (req, res) => res.sendFile(path.join(__dirname, "developer.html")));
 
 // ----------------- Start Server -----------------
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
-  console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
+  console.log(`✅ Proodent Attendance API running on port ${listenPort} (PORT=${listenPort})`)
 );
-
