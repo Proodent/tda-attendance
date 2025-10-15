@@ -7,163 +7,119 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f2f5;
+      background: #f8f9fa;
       color: #222;
-      margin: 0;
       padding: 20px;
       line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
     }
-    h1 {
-      color: #006837;
-      text-align: center;
-      font-size: 2em;
-      margin-bottom: 20px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    h2 {
-      border-bottom: 3px solid #009245;
-      color: #333;
-      font-size: 1.5em;
-      margin-bottom: 15px;
-      padding-bottom: 5px;
-    }
-    .dashboard {
-      max-width: 1200px;
-      width: 100%;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
+    h1 { color: #006837; text-align: center; }
+    h2 { border-bottom: 2px solid #009245; color: #333; }
+    #log {
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 6px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.9em;
     }
     .section {
-      margin-bottom: 20px;
-      padding: 20px;
+      margin-bottom: 30px;
+      padding: 15px;
       background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .section:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
-      background: #f9f9f9;
+      margin-top: 10px;
     }
     th, td {
       border: 1px solid #ddd;
-      padding: 10px;
+      padding: 8px;
       text-align: left;
     }
-    th {
-      background: #009245;
-      color: white;
-      font-weight: 600;
-    }
+    th { background: #009245; color: white; }
     .status {
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 6px 10px;
+      border-radius: 4px;
       font-weight: bold;
-      display: inline-block;
     }
     .ok { background: #d4edda; color: #155724; }
     .fail { background: #f8d7da; color: #721c24; }
-    #log {
-      background: #1a1a1a;
-      color: #0f0;
-      padding: 15px;
-      border-radius: 8px;
-      height: 250px;
-      overflow-y: auto;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 0.95em;
-      margin-top: 10px;
-    }
     #video {
-      width: 100%;
-      max-width: 400px;
-      height: auto;
-      aspect-ratio: 4 / 3;
+      width: 320px;
+      height: 240px;
       border-radius: 10px;
-      border: 3px solid #009245;
-      transform: scaleX(-1); /* Correct inversion */
+      border: 2px solid #009245;
       display: none;
-      margin: 15px auto; /* Center the video */
-    }
-    button#startFace {
-      background: #009245;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 1em;
-      transition: background 0.3s;
-    }
-    button#startFace:hover {
-      background: #006837;
-    }
-    @media (max-width: 768px) {
-      .dashboard {
-        grid-template-columns: 1fr;
-      }
-      h1 { font-size: 1.5em; }
-      h2 { font-size: 1.2em; }
-      .section { padding: 15px; }
-      #video { max-width: 300px; }
+      transform: scaleX(-1); /* Flip to correct inversion */
+      margin: 0 auto; /* Center the video */
     }
   </style>
 </head>
 <body>
   <h1>Developer Dashboard</h1>
 
-  <div class="dashboard">
-    <div class="section">
-      <h2>System Health</h2>
-      <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
-      <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
-    </div>
+  <div class="section">
+    <h2>System Health</h2>
+    <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
+    <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
+  </div>
 
-    <div class="section">
-      <h2>Loaded Office Locations</h2>
-      <p id="locationCount">Loading...</p>
-      <table id="locationsTable">
-        <thead>
-          <tr>
-            <th>Office Name</th>
-            <th>Latitude</th>
-            <th>Longitude</th>
-            <th>Radius (m)</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+  <div class="section">
+    <h2>Loaded Office Locations</h2>
+    <p id="locationCount">Loading...</p>
+    <table id="locationsTable">
+      <thead>
+        <tr>
+          <th>Office Name</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+          <th>Radius (m)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-    <div class="section">
-      <h2>Live Location Feed</h2>
-      <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
-      <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
-      <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
-    </div>
+  <div class="section">
+    <h2>Live Location Feed</h2>
+    <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
+    <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
+    <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
+  </div>
 
-    <div class="section">
-      <h2>Face Recognition Test</h2>
-      <video id="video" autoplay muted></video><br>
-      <button id="startFace">Test Face Recognition</button>
-    </div>
+  <div class="section">
+    <h2>Face Recognition Test</h2>
+    <video id="video" autoplay muted></video><br>
+    <button id="startFace" style="background:#009245;color:white;padding:8px 15px;border:none;border-radius:5px;">Test Face Recognition</button>
+  </div>
 
-    <div class="section">
-      <h2>Logs</h2>
-      <div id="log"></div>
-    </div>
+  <div class="section">
+    <h2>Attendance Stats</h2>
+    <p><strong>Clock-Ins:</strong></p>
+    <ul>
+      <li>Today: <span id="clockInsToday">Loading...</span></li>
+      <li>This Week: <span id="clockInsWeek">Loading...</span></li>
+      <li>This Month: <span id="clockInsMonth">Loading...</span></li>
+    </ul>
+    <p><strong>Clock-Outs:</strong></p>
+    <ul>
+      <li>Today: <span id="clockOutsToday">Loading...</span></li>
+      <li>This Week: <span id="clockOutsWeek">Loading...</span></li>
+      <li>This Month: <span id="clockOutsMonth">Loading...</span></li>
+    </ul>
+    <p><strong>Active Staff:</strong> <span id="activeStaff">Loading...</span></p>
+    <p><strong>Percentage Clocked In Today:</strong> <span id="percentClockedIn">Loading...</span></p>
+    <p><strong>Percentage Clocked Out Today:</strong> <span id="percentClockedOut">Loading...</span></p>
+  </div>
+
+  <div class="section">
+    <h2>Logs</h2>
+    <div id="log"></div>
   </div>
 
   <script>
@@ -271,14 +227,45 @@
         log('🧠 Face API response: ' + JSON.stringify(data));
       } catch (err) {
         log('❌ Face recognition test failed: ' + err.message);
+      } finally {
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+          video.style.display = 'none';
+        }
       }
     });
+
+    // ------------------- ATTENDANCE STATS -------------------
+    async function loadAttendanceStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (!data.success) throw new Error('Bad stats response');
+
+        document.getElementById('clockInsToday').textContent = data.clockIns.today;
+        document.getElementById('clockInsWeek').textContent = data.clockIns.week;
+        document.getElementById('clockInsMonth').textContent = data.clockIns.month;
+
+        document.getElementById('clockOutsToday').textContent = data.clockOuts.today;
+        document.getElementById('clockOutsWeek').textContent = data.clockOuts.week;
+        document.getElementById('clockOutsMonth').textContent = data.clockOuts.month;
+
+        document.getElementById('activeStaff').textContent = data.activeStaff;
+        document.getElementById('percentClockedIn').textContent = data.percentClockedIn + '%';
+        document.getElementById('percentClockedOut').textContent = data.percentClockedOut + '%';
+
+        log('✅ Loaded attendance stats.');
+      } catch (err) {
+        log('❌ Error loading attendance stats: ' + err.message);
+      }
+    }
 
     // ------------------- INIT -------------------
     (async () => {
       await checkBackend();
       await loadLocations();
       startGPSWatch();
+      await loadAttendanceStats();
     })();
   </script>
 </body>
