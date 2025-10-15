@@ -55,8 +55,18 @@
       border-radius: 10px;
       border: 2px solid #009245;
       display: none;
-      transform: scaleX(-1); /* Flip to correct inversion */
-      margin: 0 auto; /* Center the video */
+      transform: scaleX(-1);
+      margin: 0 auto;
+    }
+    .animated-number {
+      transition: all 0.3s ease-in-out;
+      font-weight: bold;
+      color: #006837;
+    }
+    .timestamp {
+      font-size: 0.9em;
+      color: gray;
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -102,19 +112,20 @@
     <h2>Attendance Stats</h2>
     <p><strong>Clock-Ins:</strong></p>
     <ul>
-      <li>Today: <span id="clockInsToday">Loading...</span></li>
-      <li>This Week: <span id="clockInsWeek">Loading...</span></li>
-      <li>This Month: <span id="clockInsMonth">Loading...</span></li>
+      <li>Today: <span id="clockInsToday" class="animated-number">Loading...</span></li>
+      <li>This Week: <span id="clockInsWeek" class="animated-number">Loading...</span></li>
+      <li>This Month: <span id="clockInsMonth" class="animated-number">Loading...</span></li>
     </ul>
     <p><strong>Clock-Outs:</strong></p>
     <ul>
-      <li>Today: <span id="clockOutsToday">Loading...</span></li>
-      <li>This Week: <span id="clockOutsWeek">Loading...</span></li>
-      <li>This Month: <span id="clockOutsMonth">Loading...</span></li>
+      <li>Today: <span id="clockOutsToday" class="animated-number">Loading...</span></li>
+      <li>This Week: <span id="clockOutsWeek" class="animated-number">Loading...</span></li>
+      <li>This Month: <span id="clockOutsMonth" class="animated-number">Loading...</span></li>
     </ul>
-    <p><strong>Active Staff:</strong> <span id="activeStaff">Loading...</span></p>
-    <p><strong>Percentage Clocked In Today:</strong> <span id="percentClockedIn">Loading...</span></p>
-    <p><strong>Percentage Clocked Out Today:</strong> <span id="percentClockedOut">Loading...</span></p>
+    <p><strong>Active Staff:</strong> <span id="activeStaff" class="animated-number">Loading...</span></p>
+    <p><strong>Percentage Clocked In Today:</strong> <span id="percentClockedIn" class="animated-number">Loading...</span></p>
+    <p><strong>Percentage Clocked Out Today:</strong> <span id="percentClockedOut" class="animated-number">Loading...</span></p>
+    <p class="timestamp" id="lastUpdated">Last updated: —</p>
   </div>
 
   <div class="section">
@@ -124,6 +135,22 @@
 
   <script>
     const logBox = document.getElementById('log');
+    const updateText = (id, newValue) => {
+      const el = document.getElementById(id);
+      const current = parseFloat(el.textContent) || 0;
+      if (isNaN(newValue)) {
+        el.textContent = newValue;
+        return;
+      }
+      const duration = 1000;
+      const start = performance.now();
+      const animate = (time) => {
+        const progress = Math.min((time - start) / duration, 1);
+        el.textContent = Math.floor(current + (newValue - current) * progress);
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    };
     function log(msg) {
       const time = new Date().toLocaleTimeString();
       logBox.innerHTML += `[${time}] ${msg}<br>`;
@@ -216,13 +243,11 @@
         ctx.drawImage(video, 0, 0, 320, 240);
         const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
 
-        // ✅ Backend expects { file: "<base64>" }
         const res = await fetch('/api/proxy/face-recognition', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: imgData })
         });
-
         const data = await res.json();
         log('🧠 Face API response: ' + JSON.stringify(data));
       } catch (err) {
@@ -242,30 +267,30 @@
         const data = await res.json();
         if (!data.success) throw new Error('Bad stats response');
 
-        document.getElementById('clockInsToday').textContent = data.clockIns.today;
-        document.getElementById('clockInsWeek').textContent = data.clockIns.week;
-        document.getElementById('clockInsMonth').textContent = data.clockIns.month;
+        updateText('clockInsToday', data.clockIns.today);
+        updateText('clockInsWeek', data.clockIns.week);
+        updateText('clockInsMonth', data.clockIns.month);
+        updateText('clockOutsToday', data.clockOuts.today);
+        updateText('clockOutsWeek', data.clockOuts.week);
+        updateText('clockOutsMonth', data.clockOuts.month);
+        updateText('activeStaff', data.totalStaff || data.activeStaff || 0);
+        updateText('percentClockedIn', data.percentClockedIn);
+        updateText('percentClockedOut', data.percentClockedOut);
 
-        document.getElementById('clockOutsToday').textContent = data.clockOuts.today;
-        document.getElementById('clockOutsWeek').textContent = data.clockOuts.week;
-        document.getElementById('clockOutsMonth').textContent = data.clockOuts.month;
-
-        document.getElementById('activeStaff').textContent = data.activeStaff;
-        document.getElementById('percentClockedIn').textContent = data.percentClockedIn + '%';
-        document.getElementById('percentClockedOut').textContent = data.percentClockedOut + '%';
-
-        log('✅ Loaded attendance stats.');
+        document.getElementById('lastUpdated').textContent = "Last updated: " + new Date().toLocaleTimeString();
+        log('✅ Attendance stats updated.');
       } catch (err) {
         log('❌ Error loading attendance stats: ' + err.message);
       }
     }
 
-    // ------------------- INIT -------------------
+    // ------------------- INIT + AUTO REFRESH -------------------
     (async () => {
       await checkBackend();
       await loadLocations();
       startGPSWatch();
       await loadAttendanceStats();
+      setInterval(loadAttendanceStats, 10000); // refresh every 10 seconds
     })();
   </script>
 </body>
