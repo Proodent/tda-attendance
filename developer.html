@@ -7,98 +7,163 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f8f9fa;
+      background: #f0f2f5;
       color: #222;
+      margin: 0;
       padding: 20px;
       line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    h1 { color: #006837; text-align: center; }
-    h2 { border-bottom: 2px solid #009245; color: #333; }
-    #log {
-      background: #111;
-      color: #0f0;
-      padding: 10px;
-      border-radius: 6px;
-      height: 200px;
-      overflow-y: auto;
-      font-family: monospace;
-      font-size: 0.9em;
+    h1 {
+      color: #006837;
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    h2 {
+      border-bottom: 3px solid #009245;
+      color: #333;
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      padding-bottom: 5px;
+    }
+    .dashboard {
+      max-width: 1200px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
     }
     .section {
-      margin-bottom: 30px;
-      padding: 15px;
+      margin-bottom: 20px;
+      padding: 20px;
       background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .section:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 15px;
+      background: #f9f9f9;
     }
     th, td {
       border: 1px solid #ddd;
-      padding: 8px;
+      padding: 10px;
       text-align: left;
     }
-    th { background: #009245; color: white; }
+    th {
+      background: #009245;
+      color: white;
+      font-weight: 600;
+    }
     .status {
-      padding: 6px 10px;
-      border-radius: 4px;
+      padding: 8px 12px;
+      border-radius: 6px;
       font-weight: bold;
+      display: inline-block;
     }
     .ok { background: #d4edda; color: #155724; }
     .fail { background: #f8d7da; color: #721c24; }
+    #log {
+      background: #1a1a1a;
+      color: #0f0;
+      padding: 15px;
+      border-radius: 8px;
+      height: 250px;
+      overflow-y: auto;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.95em;
+      margin-top: 10px;
+    }
     #video {
-      width: 320px;
-      height: 240px;
+      width: 100%;
+      max-width: 400px;
+      height: auto;
+      aspect-ratio: 4 / 3;
       border-radius: 10px;
-      border: 2px solid #009245;
+      border: 3px solid #009245;
+      transform: scaleX(-1); /* Correct inversion */
       display: none;
+      margin: 15px auto; /* Center the video */
+    }
+    button#startFace {
+      background: #009245;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.3s;
+    }
+    button#startFace:hover {
+      background: #006837;
+    }
+    @media (max-width: 768px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+      h1 { font-size: 1.5em; }
+      h2 { font-size: 1.2em; }
+      .section { padding: 15px; }
+      #video { max-width: 300px; }
     }
   </style>
 </head>
 <body>
   <h1>Developer Dashboard</h1>
 
-  <div class="section">
-    <h2>System Health</h2>
-    <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
-    <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
-  </div>
+  <div class="dashboard">
+    <div class="section">
+      <h2>System Health</h2>
+      <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
+      <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
+    </div>
 
-  <div class="section">
-    <h2>Loaded Office Locations</h2>
-    <p id="locationCount">Loading...</p>
-    <table id="locationsTable">
-      <thead>
-        <tr>
-          <th>Office Name</th>
-          <th>Latitude</th>
-          <th>Longitude</th>
-          <th>Radius (m)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+    <div class="section">
+      <h2>Loaded Office Locations</h2>
+      <p id="locationCount">Loading...</p>
+      <table id="locationsTable">
+        <thead>
+          <tr>
+            <th>Office Name</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Radius (m)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-  <div class="section">
-    <h2>Live Location Feed</h2>
-    <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
-    <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
-    <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
-  </div>
+    <div class="section">
+      <h2>Live Location Feed</h2>
+      <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
+      <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
+      <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
+    </div>
 
-  <div class="section">
-    <h2>Face Recognition Test</h2>
-    <video id="video" autoplay muted></video><br>
-    <button id="startFace" style="background:#009245;color:white;padding:8px 15px;border:none;border-radius:5px;">Test Face Recognition</button>
-  </div>
+    <div class="section">
+      <h2>Face Recognition Test</h2>
+      <video id="video" autoplay muted></video><br>
+      <button id="startFace">Test Face Recognition</button>
+    </div>
 
-  <div class="section">
-    <h2>Logs</h2>
-    <div id="log"></div>
+    <div class="section">
+      <h2>Logs</h2>
+      <div id="log"></div>
+    </div>
   </div>
 
   <script>
