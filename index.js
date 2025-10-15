@@ -71,71 +71,13 @@ app.get("/api/locations", async (req, res) => {
       name: r["Location Name"] || r.get("Location Name") || "",
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (m)") ?? r["Radius (Meters)"] ?? 150)
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
     }));
 
     res.json({ success: true, locations });
   } catch (err) {
     console.error("GET /api/locations error:", err);
     res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ----------------- API: Stats -----------------
-app.get("/api/stats", async (req, res) => {
-  try {
-    await loadDoc();
-
-    // Load sheets
-    const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
-    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
-    if (!attendanceSheet || !staffSheet) {
-      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
-    }
-
-    // Fetch attendance data
-    const attendanceRows = await attendanceSheet.getRows();
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const weekStart = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-    const clockIns = { today: 0, week: 0, month: 0 };
-    const clockOuts = { today: 0, week: 0, month: 0 };
-    attendanceRows.forEach(row => {
-      const timestamp = new Date(row["Timestamp"] || row.get("Timestamp")).toISOString();
-      if (row["Action"] === "clock in") {
-        if (timestamp >= today) clockIns.today++;
-        if (timestamp >= weekStart) clockIns.week++;
-        if (timestamp >= monthStart) clockIns.month++;
-      } else if (row["Action"] === "clock out") {
-        if (timestamp >= today) clockOuts.today++;
-        if (timestamp >= weekStart) clockOuts.week++;
-        if (timestamp >= monthStart) clockOuts.month++;
-      }
-    });
-
-    // Fetch active staff
-    const staffRows = await staffSheet.getRows();
-    const activeStaff = staffRows.filter(row => 
-      (row["Active"] || row.get("Active") || "").toString().toLowerCase() === "yes"
-    ).length;
-
-    // Calculate percentages
-    const percentClockedIn = activeStaff > 0 ? Math.round((clockIns.today / activeStaff) * 100) : 0;
-    const percentClockedOut = clockIns.today > 0 ? Math.round((clockOuts.today / clockIns.today) * 100) : 0;
-
-    res.json({
-      success: true,
-      clockIns,
-      clockOuts,
-      activeStaff,
-      percentClockedIn,
-      percentClockedOut,
-    });
-  } catch (err) {
-    console.error("GET /api/stats error:", err);
-    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -195,13 +137,13 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
     }
 
-    // ✅ Allowed Locations Check (from Staff Sheet)
+    // ✅ Allowed Locations Check
     const allowedList = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
       .split(",")
       .map(x => x.trim().toLowerCase())
       .filter(Boolean);
 
-    // ✅ Detect physical location based on coordinates
+    // ✅ Detect physical location
     const officeLocations = locRows.map(r => ({
       name: (r["Location Name"] || r.get("Location Name") || "").toString(),
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
@@ -222,7 +164,6 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
 
-    // ✅ Check if location is allowed for this user
     if (!allowedList.includes(officeName.trim().toLowerCase())) {
       return res.status(403).json({ success: false, message: "Unapproved Location." });
     }
@@ -237,7 +178,7 @@ app.post("/api/attendance/web", async (req, res) => {
       (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
     );
 
-    // -------------------- CLOCK IN --------------------
+    // CLOCK IN
     if (action === "clock in") {
       if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
@@ -258,7 +199,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
-    // -------------------- CLOCK OUT --------------------
+    // CLOCK OUT
     if (action === "clock out") {
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
@@ -289,6 +230,55 @@ app.post("/api/attendance/web", async (req, res) => {
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+});
+
+// ----------------- API: Attendance Stats -----------------
+app.get("/api/stats", async (req, res) => {
+  try {
+    await loadDoc();
+    const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
+    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
+    if (!attendanceSheet || !staffSheet)
+      return res.status(500).json({ success: false, message: "Sheet(s) not found." });
+
+    const [attendanceRows, staffRows] = await Promise.all([
+      attendanceSheet.getRows(),
+      staffSheet.getRows()
+    ]);
+
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const todayStr = today.toISOString().split("T")[0];
+
+    const inRange = (d, start) => {
+      const date = new Date(d);
+      return date >= start && date <= today;
+    };
+
+    const totalStaff = staffRows.filter(r => (r["Active"] || r.get("Active") || "").toLowerCase() === "yes").length;
+    const clockInsToday = attendanceRows.filter(r => (r["Date"] || r.get("Date")) === todayStr && (r["Time In"] || r.get("Time In"))).length;
+    const clockOutsToday = attendanceRows.filter(r => (r["Date"] || r.get("Date")) === todayStr && (r["Time Out"] || r.get("Time Out"))).length;
+
+    const clockInsWeek = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfWeek) && (r["Time In"] || r.get("Time In"))).length;
+    const clockOutsWeek = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfWeek) && (r["Time Out"] || r.get("Time Out"))).length;
+
+    const clockInsMonth = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfMonth) && (r["Time In"] || r.get("Time In"))).length;
+    const clockOutsMonth = attendanceRows.filter(r => inRange(r["Date"] || r.get("Date"), startOfMonth) && (r["Time Out"] || r.get("Time Out"))).length;
+
+    res.json({
+      success: true,
+      totalStaff,
+      clockIns: { today: clockInsToday, week: clockInsWeek, month: clockInsMonth },
+      clockOuts: { today: clockOutsToday, week: clockOutsWeek, month: clockOutsMonth },
+      percentClockedIn: totalStaff ? Math.round((clockInsToday / totalStaff) * 100) : 0,
+      percentClockedOut: totalStaff ? Math.round((clockOutsToday / totalStaff) * 100) : 0,
+    });
+  } catch (err) {
+    console.error("GET /api/stats error:", err);
+    res.status(500).json({ success: false, message: "Error fetching stats", error: err.message });
   }
 });
 
