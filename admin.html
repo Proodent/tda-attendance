@@ -31,7 +31,7 @@
       padding: 15px;
       background: #fff;
       border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
     table {
       width: 100%;
@@ -66,15 +66,19 @@
     }
     .chart-tile {
       background: #fff;
-      border-radius: 10px;
-      padding: 15px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      flex: 1 1 300px;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      flex: 1 1 350px;
       text-align: center;
+      transition: transform 0.2s ease;
+    }
+    .chart-tile:hover {
+      transform: scale(1.02);
     }
     canvas {
-      width: 250px !important;
-      height: 250px !important;
+      width: 280px !important;
+      height: 280px !important;
       margin: 0 auto;
     }
   </style>
@@ -208,21 +212,55 @@
     function initCharts() {
       const staffCtx = document.getElementById('staffChart').getContext('2d');
       const clockCtx = document.getElementById('clockChart').getContext('2d');
+
       staffChart = new Chart(staffCtx, {
         type: 'doughnut',
         data: {
           labels: ['Active', 'Inactive'],
-          datasets: [{ data: [0, 0], backgroundColor: ['#009245', '#ccc'] }]
+          datasets: [{
+            data: [0, 0],
+            backgroundColor: ['#00b34a', '#dcdcdc'],
+            hoverBackgroundColor: ['#009245', '#b0b0b0'],
+            borderWidth: 2,
+            hoverOffset: 8
+          }]
         },
-        options: { plugins: { legend: { position: 'bottom' } } }
+        options: {
+          cutout: '70%',
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.label}: ${context.parsed} staff`
+              }
+            }
+          }
+        }
       });
+
       clockChart = new Chart(clockCtx, {
         type: 'doughnut',
         data: {
           labels: ['Clocked In', 'Clocked Out'],
-          datasets: [{ data: [0, 0], backgroundColor: ['#006837', '#009245'] }]
+          datasets: [{
+            data: [0, 0],
+            backgroundColor: ['#006837', '#009245'],
+            hoverBackgroundColor: ['#004f2e', '#00b357'],
+            borderWidth: 2,
+            hoverOffset: 8
+          }]
         },
-        options: { plugins: { legend: { position: 'bottom' } } }
+        options: {
+          cutout: '70%',
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.label}: ${context.parsed}`
+              }
+            }
+          }
+        }
       });
     }
 
@@ -234,11 +272,12 @@
 
         const staff = data.staff;
         const total = staff.length;
-        const active = staff.filter(s => s.Active?.toLowerCase() === 'yes').length;
+        const active = staff.filter(s => s.Active && s.Active.toLowerCase() === 'yes').length;
         const inactive = total - active;
 
         updateText('totalStaff', total);
         updateText('activeStaff', active);
+
         staffChart.data.datasets[0].data = [active, inactive];
         staffChart.update();
 
@@ -253,6 +292,7 @@
         const res = await fetch('/api/stats');
         const data = await res.json();
         if (!data.success) throw new Error('Invalid stats data');
+
         updateText('clockInsToday', data.clockIns.today);
         updateText('clockOutsToday', data.clockOuts.today);
         updateText('clockInsWeek', data.clockIns.week);
@@ -261,9 +301,12 @@
         updateText('clockOutsMonth', data.clockOuts.month);
         updateText('percentClockedIn', data.percentClockedIn + '%');
         updateText('percentClockedOut', data.percentClockedOut + '%');
+
         clockChart.data.datasets[0].data = [data.clockIns.today, data.clockOuts.today];
         clockChart.update();
-        document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+
+        document.getElementById('lastUpdated').textContent =
+          'Last updated: ' + new Date().toLocaleTimeString();
         log('✅ Attendance stats updated.');
       } catch (err) {
         log('❌ Error loading attendance stats: ' + err.message);
