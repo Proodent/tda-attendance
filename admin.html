@@ -50,25 +50,12 @@
     }
     .ok { background: #d4edda; color: #155724; }
     .fail { background: #f8d7da; color: #721c24; }
-    #video {
-      width: 320px;
-      height: 240px;
-      border-radius: 10px;
-      border: 2px solid #009245;
-      display: none;
-      transform: scaleX(-1);
-      margin: 0 auto;
-    }
     .animated-number {
       transition: all 0.3s ease-in-out;
       font-weight: bold;
       color: #006837;
     }
-    .timestamp {
-      font-size: 0.9em;
-      color: gray;
-      margin-top: 5px;
-    }
+    .timestamp { font-size: 0.9em; color: gray; margin-top: 5px; }
     .chart-container {
       display: flex;
       justify-content: space-around;
@@ -94,25 +81,23 @@
 <body>
   <h1>Admin Dashboard</h1>
 
-  <!-- ============= Attendance Stats First ============= -->
   <div class="section">
     <h2>Attendance Stats</h2>
     <ul>
-      <li>Clock-Ins Today: <span id="clockInsToday" class="animated-number">Loading...</span></li>
-      <li>Clock-Outs Today: <span id="clockOutsToday" class="animated-number">Loading...</span></li>
-      <li>Clock-Ins This Week: <span id="clockInsWeek" class="animated-number">Loading...</span></li>
-      <li>Clock-Outs This Week: <span id="clockOutsWeek" class="animated-number">Loading...</span></li>
-      <li>Clock-Ins This Month: <span id="clockInsMonth" class="animated-number">Loading...</span></li>
-      <li>Clock-Outs This Month: <span id="clockOutsMonth" class="animated-number">Loading...</span></li>
-      <li>Total Staff: <span id="totalStaff" class="animated-number">Loading...</span></li>
-      <li>Active Staff: <span id="activeStaff" class="animated-number">Loading...</span></li>
-      <li>Percent Clocked In Today: <span id="percentClockedIn" class="animated-number">Loading...</span></li>
-      <li>Percent Clocked Out Today: <span id="percentClockedOut" class="animated-number">Loading...</span></li>
+      <li>Clock-Ins Today: <span id="clockInsToday" class="animated-number">—</span></li>
+      <li>Clock-Outs Today: <span id="clockOutsToday" class="animated-number">—</span></li>
+      <li>Clock-Ins This Week: <span id="clockInsWeek" class="animated-number">—</span></li>
+      <li>Clock-Outs This Week: <span id="clockOutsWeek" class="animated-number">—</span></li>
+      <li>Clock-Ins This Month: <span id="clockInsMonth" class="animated-number">—</span></li>
+      <li>Clock-Outs This Month: <span id="clockOutsMonth" class="animated-number">—</span></li>
+      <li>Total Staff: <span id="totalStaff" class="animated-number">—</span></li>
+      <li>Active Staff: <span id="activeStaff" class="animated-number">—</span></li>
+      <li>Percent Clocked In Today: <span id="percentClockedIn" class="animated-number">—</span></li>
+      <li>Percent Clocked Out Today: <span id="percentClockedOut" class="animated-number">—</span></li>
     </ul>
     <p class="timestamp" id="lastUpdated">Last updated: —</p>
   </div>
 
-  <!-- ============= CHARTS ============= -->
   <div class="chart-container">
     <div class="chart-tile">
       <h3>Staff Overview</h3>
@@ -124,14 +109,12 @@
     </div>
   </div>
 
-  <!-- ============= SYSTEM HEALTH ============= -->
   <div class="section">
     <h2>System Health</h2>
     <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
     <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
   </div>
 
-  <!-- ============= LOCATIONS ============= -->
   <div class="section">
     <h2>Loaded Office Locations</h2>
     <p id="locationCount">Loading...</p>
@@ -148,22 +131,6 @@
     </table>
   </div>
 
-  <!-- ============= GEOLOCATION ============= -->
-  <div class="section">
-    <h2>Live Location Feed</h2>
-    <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
-    <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
-    <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
-  </div>
-
-  <!-- ============= FACE RECOGNITION ============= -->
-  <div class="section">
-    <h2>Face Recognition Test</h2>
-    <video id="video" autoplay muted></video><br>
-    <button id="startFace" style="background:#009245;color:white;padding:8px 15px;border:none;border-radius:5px;">Test Face Recognition</button>
-  </div>
-
-  <!-- ============= LOGS ============= -->
   <div class="section">
     <h2>Logs</h2>
     <div id="log"></div>
@@ -177,48 +144,51 @@
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    // Smooth number updates
-    function updateText(id, newValue) {
+    function updateText(id, val) {
       const el = document.getElementById(id);
-      const current = parseFloat(el.textContent) || 0;
-      if (isNaN(newValue)) {
-        el.textContent = newValue;
-        return;
+      if (!el) return;
+      if (typeof val === 'number' && !isNaN(val)) {
+        const current = parseFloat(el.textContent) || 0;
+        const duration = 600;
+        const start = performance.now();
+        const animate = (t) => {
+          const p = Math.min((t - start) / duration, 1);
+          el.textContent = Math.floor(current + (val - current) * p);
+          if (p < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+      } else {
+        el.textContent = val;
       }
-      const duration = 800;
-      const start = performance.now();
-      const animate = (time) => {
-        const progress = Math.min((time - start) / duration, 1);
-        el.textContent = Math.floor(current + (newValue - current) * progress);
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
     }
 
-    // HEALTH CHECK
     async function checkBackend() {
       try {
-        const res = await fetch('/api/locations');
-        if (res.ok) {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        if (data.success) {
           document.getElementById('backendStatus').textContent = 'Online';
           document.getElementById('backendStatus').className = 'status ok';
+          document.getElementById('sheetsStatus').textContent = 'Connected';
+          document.getElementById('sheetsStatus').className = 'status ok';
           log('✅ Backend reachable.');
-        } else throw new Error('Health endpoint failed');
+        } else throw new Error(data.error);
       } catch (err) {
         document.getElementById('backendStatus').textContent = 'Offline';
         document.getElementById('backendStatus').className = 'status fail';
-        log('❌ Backend unreachable: ' + err.message);
+        document.getElementById('sheetsStatus').textContent = 'Error';
+        document.getElementById('sheetsStatus').className = 'status fail';
+        log('❌ Backend offline: ' + err.message);
       }
     }
 
-    // LOCATIONS
     let offices = [];
     async function loadLocations() {
       try {
         const res = await fetch('/api/locations');
         const data = await res.json();
-        if (!data.success) throw new Error('Bad locations response');
-        offices = data.locations;
+        if (!data.success) throw new Error(data.error);
+        offices = data.locations || [];
         const tbody = document.querySelector('#locationsTable tbody');
         tbody.innerHTML = '';
         offices.forEach(o => {
@@ -227,60 +197,24 @@
           tbody.appendChild(tr);
         });
         document.getElementById('locationCount').textContent = `${offices.length} office locations loaded.`;
-        document.getElementById('sheetsStatus').textContent = 'Connected';
-        document.getElementById('sheetsStatus').className = 'status ok';
-        log(`✅ Loaded ${offices.length} office locations from Google Sheets.`);
+        log(`✅ Loaded ${offices.length} office locations.`);
       } catch (err) {
-        document.getElementById('sheetsStatus').textContent = 'Error';
-        document.getElementById('sheetsStatus').className = 'status fail';
-        document.getElementById('locationCount').textContent = 'Failed to load locations.';
         log('❌ Error loading locations: ' + err.message);
       }
     }
 
-    // GEOLOCATION
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371000;
-      const φ1 = lat1 * Math.PI / 180;
-      const φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    function startGPSWatch() {
-      if (!navigator.geolocation) return log('❌ Geolocation not supported');
-      navigator.geolocation.watchPosition(pos => {
-        const { latitude, longitude } = pos.coords;
-        document.getElementById('gpsCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        let detected = '—';
-        for (const o of offices) {
-          const dist = getDistance(latitude, longitude, o.lat, o.long);
-          if (dist <= o.radiusMeters) { detected = o.name; break; }
-        }
-        document.getElementById('detectedOffice').textContent = detected;
-        document.getElementById('gpsStatus').textContent = detected === '—' ? 'Outside office zone' : 'Inside office zone';
-      }, err => {
-        log('❌ GPS error: ' + err.message);
-      }, { enableHighAccuracy: true, maximumAge: 10000 });
-    }
-
-    // CHARTS
     let staffChart, clockChart;
     function initCharts() {
       const staffCtx = document.getElementById('staffChart').getContext('2d');
       const clockCtx = document.getElementById('clockChart').getContext('2d');
-
       staffChart = new Chart(staffCtx, {
         type: 'doughnut',
         data: {
-          labels: ['Active Staff', 'Inactive Staff'],
+          labels: ['Active', 'Inactive'],
           datasets: [{ data: [0, 0], backgroundColor: ['#009245', '#ccc'] }]
         },
         options: { plugins: { legend: { position: 'bottom' } } }
       });
-
       clockChart = new Chart(clockCtx, {
         type: 'doughnut',
         data: {
@@ -291,76 +225,54 @@
       });
     }
 
-    // STAFF
     async function loadStaff() {
       try {
         const res = await fetch('/api/staff');
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error('Response not JSON: ' + text.slice(0, 50));
-        }
-
-        if (!data.success) throw new Error('Bad staff response');
+        const data = await res.json();
+        if (!data.success) throw new Error('Invalid staff data');
         const total = data.totalStaff || 0;
         const active = data.activeStaff || 0;
-
         updateText('totalStaff', total);
         updateText('activeStaff', active);
-
-        if (staffChart) {
-          staffChart.data.datasets[0].data = [active, total - active];
-          staffChart.update();
-        }
-
+        staffChart.data.datasets[0].data = [active, total - active];
+        staffChart.update();
         log(`✅ Staff updated: ${active}/${total} active.`);
       } catch (err) {
         log('❌ Error loading staff: ' + err.message);
       }
     }
 
-    // ATTENDANCE STATS
     async function loadAttendanceStats() {
       try {
         const res = await fetch('/api/stats');
         const data = await res.json();
-        if (!data.success) throw new Error('Bad stats response');
-
+        if (!data.success) throw new Error('Invalid stats data');
         updateText('clockInsToday', data.clockIns.today);
-        updateText('clockInsWeek', data.clockIns.week);
-        updateText('clockInsMonth', data.clockIns.month);
         updateText('clockOutsToday', data.clockOuts.today);
+        updateText('clockInsWeek', data.clockIns.week);
         updateText('clockOutsWeek', data.clockOuts.week);
+        updateText('clockInsMonth', data.clockIns.month);
         updateText('clockOutsMonth', data.clockOuts.month);
-        updateText('percentClockedIn', data.percentClockedIn);
-        updateText('percentClockedOut', data.percentClockedOut);
-
-        if (clockChart) {
-          clockChart.data.datasets[0].data = [data.clockIns.today, data.clockOuts.today];
-          clockChart.update();
-        }
-
-        document.getElementById('lastUpdated').textContent =
-          'Last updated: ' + new Date().toLocaleTimeString();
+        updateText('percentClockedIn', data.percentClockedIn + '%');
+        updateText('percentClockedOut', data.percentClockedOut + '%');
+        clockChart.data.datasets[0].data = [data.clockIns.today, data.clockOuts.today];
+        clockChart.update();
+        document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
         log('✅ Attendance stats updated.');
       } catch (err) {
         log('❌ Error loading attendance stats: ' + err.message);
       }
     }
 
-    // INIT
     (async () => {
       await checkBackend();
       await loadLocations();
-      startGPSWatch();
       initCharts();
       await loadStaff();
       await loadAttendanceStats();
-      setInterval(() => {
-        loadStaff();
-        loadAttendanceStats();
+      setInterval(async () => {
+        await loadStaff();
+        await loadAttendanceStats();
       }, 10000);
     })();
   </script>
