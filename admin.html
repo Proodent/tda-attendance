@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard | Attendance System</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -229,13 +230,18 @@
       try {
         const res = await fetch('/api/staff');
         const data = await res.json();
-        if (!data.success) throw new Error('Invalid staff data');
-        const total = data.totalStaff || 0;
-        const active = data.activeStaff || 0;
+        if (!data.success || !Array.isArray(data.staff)) throw new Error('Invalid staff data format');
+
+        const staff = data.staff;
+        const total = staff.length;
+        const active = staff.filter(s => s.Active?.toLowerCase() === 'yes').length;
+        const inactive = total - active;
+
         updateText('totalStaff', total);
         updateText('activeStaff', active);
-        staffChart.data.datasets[0].data = [active, total - active];
+        staffChart.data.datasets[0].data = [active, inactive];
         staffChart.update();
+
         log(`✅ Staff updated: ${active}/${total} active.`);
       } catch (err) {
         log('❌ Error loading staff: ' + err.message);
