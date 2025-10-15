@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer Dashboard | Attendance System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      color: #222;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 { color: #006837; text-align: center; }
+    h2 { border-bottom: 2px solid #009245; color: #333; }
+    #log {
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 6px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th { background: #009245; color: white; }
+    .status {
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .ok { background: #d4edda; color: #155724; }
+    .fail { background: #f8d7da; color: #721c24; }
+    #video {
+      width: 320px;
+      height: 240px;
+      border-radius: 10px;
+      border: 2px solid #009245;
+      display: none;
+      transform: scaleX(-1);
+      margin: 0 auto;
+    }
+    .animated-number {
+      transition: all 0.3s ease-in-out;
+      font-weight: bold;
+      color: #006837;
+    }
+    .timestamp {
+      font-size: 0.9em;
+      color: gray;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Developer Dashboard</h1>
+
+  <div class="section">
+    <h2>System Health</h2>
+    <p>Backend: <span id="backendStatus" class="status">Checking...</span></p>
+    <p>Google Sheets: <span id="sheetsStatus" class="status">Checking...</span></p>
+  </div>
+
+  <div class="section">
+    <h2>Loaded Office Locations</h2>
+    <p id="locationCount">Loading...</p>
+    <table id="locationsTable">
+      <thead>
+        <tr>
+          <th>Office Name</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+          <th>Radius (m)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Live Location Feed</h2>
+    <p><strong>Current Coordinates:</strong> <span id="gpsCoords">—</span></p>
+    <p><strong>Detected Office:</strong> <span id="detectedOffice">—</span></p>
+    <p><strong>Status:</strong> <span id="gpsStatus">Initializing...</span></p>
+  </div>
+
+  <div class="section">
+    <h2>Face Recognition Test</h2>
+    <video id="video" autoplay muted></video><br>
+    <button id="startFace" style="background:#009245;color:white;padding:8px 15px;border:none;border-radius:5px;">Test Face Recognition</button>
+  </div>
+
+  <div class="section">
+    <h2>Attendance Stats</h2>
+    <p><strong>Clock-Ins:</strong></p>
+    <ul>
+      <li>Today: <span id="clockInsToday" class="animated-number">Loading...</span></li>
+      <li>This Week: <span id="clockInsWeek" class="animated-number">Loading...</span></li>
+      <li>This Month: <span id="clockInsMonth" class="animated-number">Loading...</span></li>
+    </ul>
+    <p><strong>Clock-Outs:</strong></p>
+    <ul>
+      <li>Today: <span id="clockOutsToday" class="animated-number">Loading...</span></li>
+      <li>This Week: <span id="clockOutsWeek" class="animated-number">Loading...</span></li>
+      <li>This Month: <span id="clockOutsMonth" class="animated-number">Loading...</span></li>
+    </ul>
+    <p><strong>Active Staff:</strong> <span id="activeStaff" class="animated-number">Loading...</span></p>
+    <p><strong>Percentage Clocked In Today:</strong> <span id="percentClockedIn" class="animated-number">Loading...</span></p>
+    <p><strong>Percentage Clocked Out Today:</strong> <span id="percentClockedOut" class="animated-number">Loading...</span></p>
+    <p class="timestamp" id="lastUpdated">Last updated: —</p>
+  </div>
+
+  <div class="section">
+    <h2>Logs</h2>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const logBox = document.getElementById('log');
+    const updateText = (id, newValue) => {
+      const el = document.getElementById(id);
+      const current = parseFloat(el.textContent) || 0;
+      if (isNaN(newValue)) {
+        el.textContent = newValue;
+        return;
+      }
+      const duration = 1000;
+      const start = performance.now();
+      const animate = (time) => {
+        const progress = Math.min((time - start) / duration, 1);
+        el.textContent = Math.floor(current + (newValue - current) * progress);
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    };
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `[${time}] ${msg}<br>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // ------------------- HEALTH CHECK -------------------
+    async function checkBackend() {
+      try {
+        const res = await fetch('/api/locations');
+        if (res.ok) {
+          document.getElementById('backendStatus').textContent = 'Online';
+          document.getElementById('backendStatus').className = 'status ok';
+          log('✅ Backend reachable.');
+        } else throw new Error('Health endpoint failed');
+      } catch (err) {
+        document.getElementById('backendStatus').textContent = 'Offline';
+        document.getElementById('backendStatus').className = 'status fail';
+        log('❌ Backend unreachable: ' + err.message);
+      }
+    }
+
+    // ------------------- LOAD LOCATIONS -------------------
+    let offices = [];
+    async function loadLocations() {
+      try {
+        const res = await fetch('/api/locations');
+        const data = await res.json();
+        if (!data.success) throw new Error('Bad locations response');
+        offices = data.locations;
+        const tbody = document.querySelector('#locationsTable tbody');
+        tbody.innerHTML = '';
+        offices.forEach(o => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${o.name}</td><td>${o.lat}</td><td>${o.long}</td><td>${o.radiusMeters}</td>`;
+          tbody.appendChild(tr);
+        });
+        document.getElementById('locationCount').textContent = `${offices.length} office locations loaded.`;
+        document.getElementById('sheetsStatus').textContent = 'Connected';
+        document.getElementById('sheetsStatus').className = 'status ok';
+        log(`✅ Loaded ${offices.length} office locations from Google Sheets.`);
+      } catch (err) {
+        document.getElementById('sheetsStatus').textContent = 'Error';
+        document.getElementById('sheetsStatus').className = 'status fail';
+        document.getElementById('locationCount').textContent = 'Failed to load locations.';
+        log('❌ Error loading locations: ' + err.message);
+      }
+    }
+
+    // ------------------- GEOLOCATION -------------------
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function startGPSWatch() {
+      if (!navigator.geolocation) return log('❌ Geolocation not supported');
+      navigator.geolocation.watchPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        document.getElementById('gpsCoords').textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        let detected = '—';
+        for (const o of offices) {
+          const dist = getDistance(latitude, longitude, o.lat, o.long);
+          if (dist <= o.radiusMeters) { detected = o.name; break; }
+        }
+        document.getElementById('detectedOffice').textContent = detected;
+        document.getElementById('gpsStatus').textContent = detected === '—' ? 'Outside office zone' : 'Inside office zone';
+      }, err => {
+        log('❌ GPS error: ' + err.message);
+      }, { enableHighAccuracy: true, maximumAge: 10000 });
+    }
+
+    // ------------------- FACE RECOGNITION TEST -------------------
+    const video = document.getElementById('video');
+    document.getElementById('startFace').addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        video.srcObject = stream;
+        video.style.display = 'block';
+        await new Promise(r => setTimeout(r, 2000));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 320; canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 320, 240);
+        const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
+
+        const res = await fetch('/api/proxy/face-recognition', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: imgData })
+        });
+        const data = await res.json();
+        log('🧠 Face API response: ' + JSON.stringify(data));
+      } catch (err) {
+        log('❌ Face recognition test failed: ' + err.message);
+      } finally {
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+          video.style.display = 'none';
+        }
+      }
+    });
+
+    // ------------------- ATTENDANCE STATS -------------------
+    async function loadAttendanceStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (!data.success) throw new Error('Bad stats response');
+
+        updateText('clockInsToday', data.clockIns.today);
+        updateText('clockInsWeek', data.clockIns.week);
+        updateText('clockInsMonth', data.clockIns.month);
+        updateText('clockOutsToday', data.clockOuts.today);
+        updateText('clockOutsWeek', data.clockOuts.week);
+        updateText('clockOutsMonth', data.clockOuts.month);
+        updateText('activeStaff', data.totalStaff || data.activeStaff || 0);
+        updateText('percentClockedIn', data.percentClockedIn);
+        updateText('percentClockedOut', data.percentClockedOut);
+
+        document.getElementById('lastUpdated').textContent = "Last updated: " + new Date().toLocaleTimeString();
+        log('✅ Attendance stats updated.');
+      } catch (err) {
+        log('❌ Error loading attendance stats: ' + err.message);
+      }
+    }
+
+    // ------------------- INIT + AUTO REFRESH -------------------
+    (async () => {
+      await checkBackend();
+      await loadLocations();
+      startGPSWatch();
+      await loadAttendanceStats();
+      setInterval(loadAttendanceStats, 10000); // refresh every 10 seconds
+    })();
+  </script>
+</body>
+</html>
