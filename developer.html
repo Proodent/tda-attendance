@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Developer Dashboard | Attendance System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -68,6 +69,16 @@
       color: gray;
       margin-top: 5px;
     }
+    .chart-container {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    canvas {
+      width: 300px !important;
+      height: 300px !important;
+    }
   </style>
 </head>
 <body>
@@ -122,10 +133,20 @@
       <li>This Week: <span id="clockOutsWeek" class="animated-number">Loading...</span></li>
       <li>This Month: <span id="clockOutsMonth" class="animated-number">Loading...</span></li>
     </ul>
+    <p><strong>Total Staff:</strong> <span id="totalStaff" class="animated-number">Loading...</span></p>
     <p><strong>Active Staff:</strong> <span id="activeStaff" class="animated-number">Loading...</span></p>
     <p><strong>Percentage Clocked In Today:</strong> <span id="percentClockedIn" class="animated-number">Loading...</span></p>
     <p><strong>Percentage Clocked Out Today:</strong> <span id="percentClockedOut" class="animated-number">Loading...</span></p>
     <p class="timestamp" id="lastUpdated">Last updated: —</p>
+
+    <div class="chart-container">
+      <div>
+        <canvas id="staffChart"></canvas>
+      </div>
+      <div>
+        <canvas id="clockChart"></canvas>
+      </div>
+    </div>
   </div>
 
   <div class="section">
@@ -142,7 +163,7 @@
         el.textContent = newValue;
         return;
       }
-      const duration = 1000;
+      const duration = 800;
       const start = performance.now();
       const animate = (time) => {
         const progress = Math.min((time - start) / duration, 1);
@@ -228,37 +249,30 @@
       }, { enableHighAccuracy: true, maximumAge: 10000 });
     }
 
-    // ------------------- FACE RECOGNITION TEST -------------------
-    const video = document.getElementById('video');
-    document.getElementById('startFace').addEventListener('click', async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        video.srcObject = stream;
-        video.style.display = 'block';
-        await new Promise(r => setTimeout(r, 2000));
+    // ------------------- CHARTS -------------------
+    let staffChart, clockChart;
+    function initCharts() {
+      const staffCtx = document.getElementById('staffChart').getContext('2d');
+      const clockCtx = document.getElementById('clockChart').getContext('2d');
 
-        const canvas = document.createElement('canvas');
-        canvas.width = 320; canvas.height = 240;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, 320, 240);
-        const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
+      staffChart = new Chart(staffCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Active Staff', 'Inactive Staff'],
+          datasets: [{ data: [0, 0], backgroundColor: ['#009245', '#ccc'] }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      });
 
-        const res = await fetch('/api/proxy/face-recognition', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: imgData })
-        });
-        const data = await res.json();
-        log('🧠 Face API response: ' + JSON.stringify(data));
-      } catch (err) {
-        log('❌ Face recognition test failed: ' + err.message);
-      } finally {
-        if (video.srcObject) {
-          video.srcObject.getTracks().forEach(track => track.stop());
-          video.style.display = 'none';
-        }
-      }
-    });
+      clockChart = new Chart(clockCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Clocked In Today', 'Clocked Out Today'],
+          datasets: [{ data: [0, 0], backgroundColor: ['#006837', '#009245'] }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      });
+    }
 
     // ------------------- ATTENDANCE STATS -------------------
     async function loadAttendanceStats() {
@@ -273,9 +287,18 @@
         updateText('clockOutsToday', data.clockOuts.today);
         updateText('clockOutsWeek', data.clockOuts.week);
         updateText('clockOutsMonth', data.clockOuts.month);
-        updateText('activeStaff', data.totalStaff || data.activeStaff || 0);
+        updateText('totalStaff', data.totalStaff);
+        updateText('activeStaff', data.activeStaff);
         updateText('percentClockedIn', data.percentClockedIn);
         updateText('percentClockedOut', data.percentClockedOut);
+
+        // ✅ Update Charts
+        if (staffChart && clockChart) {
+          staffChart.data.datasets[0].data = [data.activeStaff, data.totalStaff - data.activeStaff];
+          staffChart.update();
+          clockChart.data.datasets[0].data = [data.clockIns.today, data.clockOuts.today];
+          clockChart.update();
+        }
 
         document.getElementById('lastUpdated').textContent = "Last updated: " + new Date().toLocaleTimeString();
         log('✅ Attendance stats updated.');
@@ -284,11 +307,12 @@
       }
     }
 
-    // ------------------- INIT + AUTO REFRESH -------------------
+    // ------------------- INIT -------------------
     (async () => {
       await checkBackend();
       await loadLocations();
       startGPSWatch();
+      initCharts();
       await loadAttendanceStats();
       setInterval(loadAttendanceStats, 10000); // refresh every 10 seconds
     })();
