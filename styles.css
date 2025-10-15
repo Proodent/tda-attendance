@@ -17,8 +17,8 @@ body {
   padding: 30px;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); /* Drop shadow */
-  max-width: 400px;
-  width: 100%;
+  max-width: 600px;
+  width: 90%;
   text-align: center;
 }
 
@@ -254,16 +254,16 @@ button:disabled {
 @media (max-width: 480px) {
   .container {
     padding: 15px;
-    width: 95%;
+    width: 80%;
   }
   h1 {
     font-size: 1.2em; /* Slightly increased for mobile */
   }
   h1 span {
-    font-size: 0.8em; /* Slightly increased from 0.7em */
+    font-size: 1.4em; /* Slightly increased from 0.7em */
   }
   h1 .subtitle {
-    font-size: 0.55em; /* Slightly increased from 0.5em */
+    font-size: 0.90em; /* Slightly increased from 0.5em */
   }
   button {
     padding: 8px 16px;
