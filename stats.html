@@ -21,6 +21,34 @@
       font-size: 1.5rem;
       font-weight: bold;
     }
+
+    /* Summary Tiles */
+    #summary-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 1rem;
+      text-align: center;
+    }
+    .tile h3 {
+      color: #006837;
+      font-size: 1.1rem;
+      margin-bottom: .5rem;
+    }
+    .tile p {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin: 0;
+      color: #009245;
+    }
+
+    /* Chart Section */
     #stats-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -42,6 +70,8 @@
       width: 100% !important;
       height: 280px !important;
     }
+
+    /* Log Box */
     #log {
       background: #000;
       color: #0f0;
@@ -55,6 +85,27 @@
 <body>
   <header>Attendance Dashboard</header>
 
+  <!-- Summary Tiles -->
+  <section id="summary-tiles">
+    <div class="tile">
+      <h3>Total Staff</h3>
+      <p id="totalStaff">--</p>
+    </div>
+    <div class="tile">
+      <h3>Active Staff</h3>
+      <p id="activeStaff">--</p>
+    </div>
+    <div class="tile">
+      <h3>Present Today</h3>
+      <p id="presentToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Absent Today</h3>
+      <p id="absentToday">--</p>
+    </div>
+  </section>
+
+  <!-- Charts -->
   <section id="stats-container">
     <div class="chart-card">
       <h3>Attendance Summary</h3>
@@ -77,147 +128,126 @@
   <div id="log"></div>
 
   <script>
-    const backendURL = "https://your-backend-url/api"; // replace with your backend endpoint
-
     const log = (msg) => {
-      const logBox = document.getElementById("log");
-      const time = new Date().toLocaleTimeString();
-      logBox.innerHTML += `[${time}] ${msg}<br>`;
-      logBox.scrollTop = logBox.scrollHeight;
+      const box = document.getElementById("log");
+      const t = new Date().toLocaleTimeString();
+      box.innerHTML += `[${t}] ${msg}<br>`;
+      box.scrollTop = box.scrollHeight;
     };
 
     let summaryChart, trendChart, activeChart, locationChart;
 
-    async function fetchJSON(url) {
-      const res = await fetch(url);
-      const text = await res.text();
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error("Response not JSON: " + text.slice(0, 60));
-      }
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    async function loadDashboardData() {
-      try {
-        log("⏳ Fetching data...");
+    // --- Simulated Backend Data ---
+    function getDemoData() {
+      const totalStaff = 50;
+      const activeStaff = randomInt(35, 45);
+      const present = randomInt(30, 40);
+      const absent = totalStaff - present;
 
-        // --- Load staff data ---
-        const staffData = await fetchJSON(`${backendURL}/staff`);
-        const activeCount = staffData.filter(s => s.Active?.toLowerCase() === "yes").length;
-        const inactiveCount = staffData.filter(s => s.Active?.toLowerCase() === "no").length;
-        log(`✅ Loaded ${staffData.length} staff members`);
+      const trend = Array.from({ length: 7 }).map((_, i) => ({
+        date: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
+        present: randomInt(25, 45)
+      }));
 
-        // --- Load attendance stats ---
-        const stats = await fetchJSON(`${backendURL}/attendance`);
-        const total = stats.total || 0;
-        const present = stats.present || 0;
-        const absent = stats.absent || 0;
+      const locations = [
+        { name: "Head Office", attendance: randomInt(10, 20) },
+        { name: "Branch A", attendance: randomInt(5, 15) },
+        { name: "Branch B", attendance: randomInt(8, 18) },
+        { name: "Branch C", attendance: randomInt(5, 10) }
+      ];
 
-        // --- Load location-wise data ---
-        const locationData = await fetchJSON(`${backendURL}/locations`);
-        const locLabels = locationData.map(l => l.name);
-        const locCounts = locationData.map(l => l.attendance);
-
-        // --- Update Charts ---
-        updateSummaryChart(total, present, absent);
-        updateActiveChart(activeCount, inactiveCount);
-        updateTrendChart(stats.trend);
-        updateLocationChart(locLabels, locCounts);
-
-        log("✅ Dashboard updated");
-
-      } catch (err) {
-        log("❌ " + err.message);
-      }
+      return { totalStaff, activeStaff, present, absent, trend, locations };
     }
 
-    function updateSummaryChart(total, present, absent) {
-      const ctx = document.getElementById("summaryChart");
+    function updateDashboard() {
+      const data = getDemoData();
+      log("✅ Data refreshed");
+
+      // Update Tiles
+      document.getElementById("totalStaff").innerText = data.totalStaff;
+      document.getElementById("activeStaff").innerText = data.activeStaff;
+      document.getElementById("presentToday").innerText = data.present;
+      document.getElementById("absentToday").innerText = data.absent;
+
+      // Summary Chart (Doughnut)
+      const sCtx = document.getElementById("summaryChart");
       if (summaryChart) summaryChart.destroy();
-      summaryChart = new Chart(ctx, {
+      summaryChart = new Chart(sCtx, {
         type: "doughnut",
         data: {
           labels: ["Present", "Absent"],
           datasets: [{
-            data: [present, absent],
+            data: [data.present, data.absent],
             backgroundColor: ["#009245", "#ccc"]
           }]
         },
-        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+        options: { plugins: { legend: { position: "bottom" } } }
       });
-    }
 
-    function updateActiveChart(active, inactive) {
-      const ctx = document.getElementById("activeChart");
+      // Active Staff Chart (Bar)
+      const aCtx = document.getElementById("activeChart");
       if (activeChart) activeChart.destroy();
-      activeChart = new Chart(ctx, {
+      activeChart = new Chart(aCtx, {
         type: "bar",
         data: {
           labels: ["Active", "Inactive"],
           datasets: [{
-            label: "Staff Count",
-            data: [active, inactive],
+            data: [data.activeStaff, data.totalStaff - data.activeStaff],
             backgroundColor: ["#006837", "#ff4d4d"]
           }]
         },
         options: {
-          responsive: true,
           scales: { y: { beginAtZero: true } },
           plugins: { legend: { display: false } }
         }
       });
-    }
 
-    function updateTrendChart(trendData = []) {
-      const ctx = document.getElementById("trendChart");
+      // Trend Chart (Line)
+      const tCtx = document.getElementById("trendChart");
       if (trendChart) trendChart.destroy();
-      const labels = trendData.map(d => d.date);
-      const values = trendData.map(d => d.present);
-      trendChart = new Chart(ctx, {
+      trendChart = new Chart(tCtx, {
         type: "line",
         data: {
-          labels,
+          labels: data.trend.map(d => d.date),
           datasets: [{
             label: "Present",
-            data: values,
+            data: data.trend.map(d => d.present),
             borderColor: "#009245",
             tension: 0.3,
             fill: false
           }]
         },
         options: {
-          responsive: true,
-          plugins: { legend: { position: "bottom" } },
-          scales: { y: { beginAtZero: true } }
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { position: "bottom" } }
         }
       });
-    }
 
-    function updateLocationChart(labels, values) {
-      const ctx = document.getElementById("locationChart");
+      // Location Chart (Bar)
+      const lCtx = document.getElementById("locationChart");
       if (locationChart) locationChart.destroy();
-      locationChart = new Chart(ctx, {
+      locationChart = new Chart(lCtx, {
         type: "bar",
         data: {
-          labels,
+          labels: data.locations.map(l => l.name),
           datasets: [{
-            label: "Attendance Count",
-            data: values,
+            data: data.locations.map(l => l.attendance),
             backgroundColor: "#009245"
           }]
         },
         options: {
-          responsive: true,
           scales: { y: { beginAtZero: true } },
           plugins: { legend: { display: false } }
         }
       });
     }
 
-    // Load and refresh every 10 seconds
-    loadDashboardData();
-    setInterval(loadDashboardData, 10000);
+    updateDashboard();
+    setInterval(updateDashboard, 10000);
   </script>
 </body>
 </html>
