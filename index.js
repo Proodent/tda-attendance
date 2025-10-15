@@ -81,6 +81,64 @@ app.get("/api/locations", async (req, res) => {
   }
 });
 
+// ----------------- API: Stats -----------------
+app.get("/api/stats", async (req, res) => {
+  try {
+    await loadDoc();
+
+    // Load sheets
+    const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
+    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
+    if (!attendanceSheet || !staffSheet) {
+      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
+    }
+
+    // Fetch attendance data
+    const attendanceRows = await attendanceSheet.getRows();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    const clockIns = { today: 0, week: 0, month: 0 };
+    const clockOuts = { today: 0, week: 0, month: 0 };
+    attendanceRows.forEach(row => {
+      const timestamp = new Date(row["Timestamp"] || row.get("Timestamp")).toISOString();
+      if (row["Action"] === "clock in") {
+        if (timestamp >= today) clockIns.today++;
+        if (timestamp >= weekStart) clockIns.week++;
+        if (timestamp >= monthStart) clockIns.month++;
+      } else if (row["Action"] === "clock out") {
+        if (timestamp >= today) clockOuts.today++;
+        if (timestamp >= weekStart) clockOuts.week++;
+        if (timestamp >= monthStart) clockOuts.month++;
+      }
+    });
+
+    // Fetch active staff
+    const staffRows = await staffSheet.getRows();
+    const activeStaff = staffRows.filter(row => 
+      (row["Active"] || row.get("Active") || "").toString().toLowerCase() === "yes"
+    ).length;
+
+    // Calculate percentages
+    const percentClockedIn = activeStaff > 0 ? Math.round((clockIns.today / activeStaff) * 100) : 0;
+    const percentClockedOut = clockIns.today > 0 ? Math.round((clockOuts.today / clockIns.today) * 100) : 0;
+
+    res.json({
+      success: true,
+      clockIns,
+      clockOuts,
+      activeStaff,
+      percentClockedIn,
+      percentClockedOut,
+    });
+  } catch (err) {
+    console.error("GET /api/stats error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // ----------------- Proxy: CompreFace -----------------
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
@@ -244,6 +302,3 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
 );
-
-
-
