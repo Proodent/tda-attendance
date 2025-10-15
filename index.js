@@ -71,7 +71,7 @@ app.get("/api/locations", async (req, res) => {
       name: r["Location Name"] || r.get("Location Name") || "",
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
-      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius") ?? r["Radius (Meters)"] ?? 150)
+      radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (m)") ?? r["Radius (Meters)"] ?? 150)
     }));
 
     res.json({ success: true, locations });
@@ -274,7 +274,7 @@ app.get("/api/stats", async (req, res) => {
       clockIns: { today: clockInsToday, week: clockInsWeek, month: clockInsMonth },
       clockOuts: { today: clockOutsToday, week: clockOutsWeek, month: clockOutsMonth },
       percentClockedIn: totalStaff ? Math.round((clockInsToday / totalStaff) * 100) : 0,
-      percentClockedOut: totalStaff ? Math.round((clockOutsToday / totalStaff) * 100) : 0,
+      percentClockedOut: totalStaff ? Math.round((clockOutsToday / clockInsToday) * 100) : 0,
     });
   } catch (err) {
     console.error("GET /api/stats error:", err);
@@ -292,3 +292,4 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
 );
+
