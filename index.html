@@ -8,28 +8,22 @@
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <div class="page-wrapper">
-    <div class="container">
-      <h1>
-        <span class="title-main">Tolon District Assembly</span><br>
-        <span class="subtitle">Staff Attendance Management</span>
-      </h1>
-
-      <p id="status" aria-live="polite">Checking location...</p>
-      <pre id="location" aria-live="polite">Location: Loading...</pre>
-
-      <button id="clockIn" disabled>Clock In</button>
-      <button id="clockOut" disabled>Clock Out</button>
-      <p id="message"></p>
-
-      <div id="faceRecognition">
-        <video id="video" autoplay playsinline></video>
-        <canvas id="canvas"></canvas>
-        <p id="faceMessage"></p>
-      </div>
+  <div class="container">
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Management</span>
+    </h1>
+    <p id="status">Checking location...</p>
+    <pre id="location">Location: Loading...</pre>
+    <button id="clockIn" disabled>Clock In</button>
+    <button id="clockOut" disabled>Clock Out</button>
+    <p id="message"></p>
+    <div id="faceRecognition">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <p id="faceMessage">Please face the camera...</p>
     </div>
   </div>
-
   <!-- Centered Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
@@ -40,13 +34,11 @@
       <div id="popupRetry"></div>
     </div>
   </div>
-
   <!-- Loader Overlay -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
-
   <script src="script.js"></script>
 </body>
 </html>
