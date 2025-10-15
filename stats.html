@@ -137,43 +137,65 @@
 
     let summaryChart, trendChart, activeChart, locationChart;
 
-    function randomInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    // --- Simulated Backend Data ---
+    // --- DEMO fallback data ---
     function getDemoData() {
       const totalStaff = 50;
-      const activeStaff = randomInt(35, 45);
-      const present = randomInt(30, 40);
+      const activeStaff = 42;
+      const present = Math.floor(Math.random() * 30) + 20;
       const absent = totalStaff - present;
-
-      const trend = Array.from({ length: 7 }).map((_, i) => ({
-        date: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-        present: randomInt(25, 45)
+      const trend = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => ({
+        date: d,
+        present: Math.floor(Math.random() * 40) + 10
       }));
-
       const locations = [
-        { name: "Head Office", attendance: randomInt(10, 20) },
-        { name: "Branch A", attendance: randomInt(5, 15) },
-        { name: "Branch B", attendance: randomInt(8, 18) },
-        { name: "Branch C", attendance: randomInt(5, 10) }
+        { name: "Head Office", attendance: Math.floor(Math.random() * 20) + 10 },
+        { name: "Branch A", attendance: Math.floor(Math.random() * 20) + 5 },
+        { name: "Branch B", attendance: Math.floor(Math.random() * 20) + 5 },
+        { name: "Branch C", attendance: Math.floor(Math.random() * 15) + 5 }
       ];
-
       return { totalStaff, activeStaff, present, absent, trend, locations };
     }
 
-    function updateDashboard() {
-      const data = getDemoData();
-      log("✅ Data refreshed");
+    async function fetchBackendData() {
+      try {
+        const [staffRes, attendanceRes, locRes] = await Promise.all([
+          fetch("/api/staff"),
+          fetch("/api/attendance"),
+          fetch("/api/locations")
+        ]);
 
-      // Update Tiles
+        if (!staffRes.ok || !attendanceRes.ok || !locRes.ok)
+          throw new Error("Some endpoints failed");
+
+        const staff = await staffRes.json();
+        const attendance = await attendanceRes.json();
+        const locations = await locRes.json();
+
+        // Safeguards
+        const totalStaff = staff.length;
+        const activeStaff = staff.filter(s => s.Active?.toLowerCase() === "yes").length;
+        const present = attendance?.today?.present ?? 0;
+        const absent = totalStaff - present;
+
+        const trend = attendance?.weekly ?? [];
+        return { totalStaff, activeStaff, present, absent, trend, locations };
+      } catch (err) {
+        log("⚠️ Backend unavailable, using demo data");
+        return getDemoData();
+      }
+    }
+
+    async function updateDashboard() {
+      const data = await fetchBackendData();
+      log("✅ Data updated");
+
+      // --- Tiles ---
       document.getElementById("totalStaff").innerText = data.totalStaff;
       document.getElementById("activeStaff").innerText = data.activeStaff;
       document.getElementById("presentToday").innerText = data.present;
       document.getElementById("absentToday").innerText = data.absent;
 
-      // Summary Chart (Doughnut)
+      // --- Summary Chart ---
       const sCtx = document.getElementById("summaryChart");
       if (summaryChart) summaryChart.destroy();
       summaryChart = new Chart(sCtx, {
@@ -188,7 +210,7 @@
         options: { plugins: { legend: { position: "bottom" } } }
       });
 
-      // Active Staff Chart (Bar)
+      // --- Active Staff Chart ---
       const aCtx = document.getElementById("activeChart");
       if (activeChart) activeChart.destroy();
       activeChart = new Chart(aCtx, {
@@ -206,16 +228,16 @@
         }
       });
 
-      // Trend Chart (Line)
+      // --- Trend Chart ---
       const tCtx = document.getElementById("trendChart");
       if (trendChart) trendChart.destroy();
       trendChart = new Chart(tCtx, {
         type: "line",
         data: {
-          labels: data.trend.map(d => d.date),
+          labels: data.trend.map(d => d.date || d.day || "Day"),
           datasets: [{
             label: "Present",
-            data: data.trend.map(d => d.present),
+            data: data.trend.map(d => d.present || d.count || 0),
             borderColor: "#009245",
             tension: 0.3,
             fill: false
@@ -227,7 +249,7 @@
         }
       });
 
-      // Location Chart (Bar)
+      // --- Location Chart ---
       const lCtx = document.getElementById("locationChart");
       if (locationChart) locationChart.destroy();
       locationChart = new Chart(lCtx, {
