@@ -159,15 +159,15 @@
 
         // --- Load staff data ---
         const staffData = await fetchJSON(`${backendURL}/staff`);
-        const activeCount = staffData.staffCount || 0;
-        const totalStaff = staffData.staff ? staffData.staff.length + (staffData.staff.filter(s => s.active === false).length || 0) : 0;
+        const totalStaff = staffData.totalStaff || 0; // All staff from Staff Sheet
+        const activeCount = staffData.staffCount || 0; // Only those with "Yes" in Active
         const inactiveCount = totalStaff - activeCount;
         log(`✅ Loaded ${totalStaff} staff members`);
 
         // --- Load attendance stats ---
         const stats = await fetchJSON(`${backendURL}/stats`);
         const presentToday = stats.clockIns.today || 0;
-        const absentToday = stats.activeStaff > 0 ? Math.max(0, stats.activeStaff - presentToday) : 0;
+        const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
 
         // --- Load location-wise data ---
         const locationData = await fetchJSON(`${backendURL}/locations`);
@@ -288,3 +288,16 @@
   </script>
 </body>
 </html>
+</xaiArtifact>
+
+### Changes in `index.html`
+- **Staff Data**: Updated to use `staffData.totalStaff` for "Total Staff" (all staff in "Staff Sheet") and `staffData.staffCount` for "Active Staff" (only "Yes" in "Active").
+- **Inactive Count**: Calculated as `totalStaff - activeCount` for the active chart.
+
+### Notes
+- The backend (`index.js`) already provides `totalStaff` as `rows.length`, which counts every staff member in the "Staff Sheet".
+- If you have a "Status" column instead of "Active", update the `index.js` filter accordingly (e.g., `r["Status"] === "Yes"`).
+
+If the values still don’t match, please share a screenshot of your "Staff Sheet" (columns and sample rows) or the `/api/staff` response from the Network tab (F12 > Network).
+
+Let me know if you need further changes!
