@@ -25,7 +25,7 @@
     /* ---- Summary Tiles ---- */
     #summary-tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1.5fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 1rem;
       padding: 1rem;
     }
@@ -70,7 +70,7 @@
       margin-bottom: .5rem;
     }
     canvas {
-      width: 100 !important;
+      width: 100% !important;
       height: 280px !important;
     }
 
@@ -125,13 +125,37 @@
       content: " ▼";
     }
 
-    /* ---- Date Dropdown ---- */
-    #date-select {
+    /* ---- Filters ---- */
+    #filters {
+      display: flex;
+      gap: 1rem;
       margin: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #filters label {
+      font-weight: bold;
+      color: #006837;
+    }
+    #date-select, #department-select {
       padding: 0.5rem;
-      font-size: 1rem;
       border-radius: 4px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+    }
+    #export-btn {
+      background: #009245;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    #export-btn:hover {
+      background: #006837;
     }
   </style>
 </head>
@@ -178,20 +202,18 @@
     </div>
   </section>
 
-  <!-- Date Selection -->
-  <div style="margin: 1rem;">
-    <label for="date-select">Select Date: </label>
-    <select id="date-select" onchange="loadDashboardData()">
-      <option value="">Select a date</option>
-      <option value="2025-10-09">October 9, 2025</option>
-      <option value="2025-10-10">October 10, 2025</option>
-      <option value="2025-10-11">October 11, 2025</option>
-      <option value="2025-10-12">October 12, 2025</option>
-      <option value="2025-10-13">October 13, 2025</option>
-      <option value="2025-10-14">October 14, 2025</option>
-      <option value="2025-10-15" selected>October 15, 2025</option>
+  <!-- Filters -->
+  <section id="filters">
+    <label for="date-select">Select Date:</label>
+    <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-15">
+
+    <label for="department-select">Filter Department:</label>
+    <select id="department-select" onchange="filterTable()">
+      <option value="">All Departments</option>
     </select>
-  </div>
+
+    <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
+  </section>
 
   <!-- Staff Attendance Details -->
   <section id="attendance-table">
@@ -203,6 +225,7 @@
           <th class="sortable" data-sort="department">Department</th>
           <th class="sortable" data-sort="timeIn">Time In</th>
           <th class="sortable" data-sort="timeOut">Time Out</th>
+          <th class="sortable" data-sort="workTime">Work Time</th>
           <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
         </tr>
       </thead>
@@ -214,6 +237,7 @@
 
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api"; // Updated to match your domain
+    const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-16"
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -224,6 +248,8 @@
 
     let summaryChart, trendChart, activeChart, locationChart;
     let sortConfig = { key: null, direction: "asc" };
+    let departments = [];
+    let staffAttendanceData = [];
 
     async function fetchJSON(url) {
       const res = await fetch(url);
@@ -235,47 +261,56 @@
       }
     }
 
-    function sortData(data, key, direction) {
-      return [...data].sort((a, b) => {
-        let aValue = a[key] || "";
-        let bValue = b[key] || "";
-        if (key === "timeIn" || key === "timeOut") {
-          aValue = aValue ? new Date(`1970-01-01 ${aValue}`) : null;
-          bValue = bValue ? new Date(`1970-01-01 ${bValue}`) : null;
-        }
-        if (aValue < bValue) return direction === "asc" ? -1 : 1;
-        if (aValue > bValue) return direction === "asc" ? 1 : -1;
-        return 0;
-      });
+    function calculateWorkTime(timeIn, timeOut) {
+      if (!timeIn || !timeOut) return "N/A";
+      const [inH, inM] = timeIn.split(":").map(Number);
+      const [outH, outM] = timeOut.split(":").map(Number);
+      const inMinutes = inH * 60 + inM;
+      const outMinutes = outH * 60 + outM;
+      const workMinutes = outMinutes - inMinutes;
+      const hours = Math.floor(workMinutes / 60);
+      const minutes = workMinutes % 60;
+      return `${hours}h ${minutes}m`;
     }
 
     function updateTable(data) {
       const attendanceBody = document.getElementById("attendance-body");
       attendanceBody.innerHTML = "";
-      const sortedData = sortConfig.key ? sortData(data, sortConfig.key, sortConfig.direction) : data;
+      const departmentFilter = document.getElementById("department-select").value;
+      const filteredData = departmentFilter ? data.filter(entry => entry.department === departmentFilter) : data;
+      const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
       sortedData.forEach(entry => {
+        const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${entry.name}</td>
           <td>${entry.department}</td>
           <td>${entry.timeIn}</td>
           <td>${entry.timeOut}</td>
+          <td>${workTime}</td>
           <td>${entry.clockInLocation}</td>
         `;
         attendanceBody.appendChild(row);
       });
     }
 
-    function handleSort(key) {
-      if (sortConfig.key === key) {
-        sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
-      } else {
-        sortConfig.key = key;
-        sortConfig.direction = "asc";
-      }
-      document.querySelectorAll(".sortable").forEach(th => th.classList.remove("asc", "desc"));
-      const th = document.querySelector(`th[data-sort="${key}"]`);
-      th.classList.add(sortConfig.direction);
+    function filterTable() {
+      updateTable(staffAttendanceData);
+    }
+
+    function exportToCSV() {
+      const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
+        staffAttendanceData.map(entry => {
+          const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+          return `${entry.name},${entry.department},${entry.timeIn},${entry.timeOut},${workTime},${entry.clockInLocation}`;
+        }).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "staff_attendance.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     async function loadDashboardData() {
@@ -291,23 +326,37 @@
         const inactiveCount = totalStaff - activeCount;
         log(`✅ Loaded ${totalStaff} staff members`);
 
-        // --- Load attendance stats ---
+        // --- Load today's attendance stats (independent of selected date) ---
+        const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
+        const presentToday = todayStats.clockIns.today || 0;
+        const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
+
+        // --- Load attendance stats for selected date ---
         const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
         const stats = await fetchJSON(statsUrl);
-        const presentToday = stats.clockIns.today || 0;
-        const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
-        const staffAttendance = stats.staffAttendance || [];
+        staffAttendanceData = stats.staffAttendance || [];
 
         // --- Load location-wise data ---
         const locationData = await fetchJSON(`${backendURL}/locations`);
         const locLabels = locationData.locations.map(l => l.name);
         // Calculate real location attendance counts based on staff attendance
         const locAttendance = {};
-        staffAttendance.forEach(entry => {
+        staffAttendanceData.forEach(entry => {
           const loc = entry.clockInLocation || "Unknown";
           locAttendance[loc] = (locAttendance[loc] || 0) + 1;
         });
         const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
+
+        // --- Populate department filter (unique departments from staff attendance) ---
+        departments = [...new Set(staffAttendanceData.map(entry => entry.department))];
+        const departmentSelect = document.getElementById("department-select");
+        departmentSelect.innerHTML = '<option value="">All Departments</option>';
+        departments.forEach(dept => {
+          const option = document.createElement("option");
+          option.value = dept;
+          option.textContent = dept;
+          departmentSelect.appendChild(option);
+        });
 
         // --- Update summary tiles ---
         document.getElementById("totalStaff").innerText = totalStaff;
@@ -317,8 +366,8 @@
 
         // --- Update attendance title and table ---
         const attendanceTitle = document.getElementById("attendance-title");
-        attendanceTitle.textContent = `Staff Attendance Details (${new Date(stats.selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
-        updateTable(staffAttendance);
+        attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
+        updateTable(staffAttendanceData);
 
         // --- Update Charts ---
         updateSummaryChart(presentToday, absentToday);
@@ -426,7 +475,7 @@
       th.addEventListener("click", () => {
         const key = th.getAttribute("data-sort");
         handleSort(key);
-        updateTable(stats.staffAttendance || []);
+        updateTable(staffAttendanceData);
       });
     });
 
@@ -436,3 +485,35 @@
   </script>
 </body>
 </html>
+</xaiArtifact>
+
+### Changes in `index.html`
+- **Present and Absent Today**: Now fetched using the current date (`currentDate`) from `new Date().toISOString().split("T")[0]`, ensuring they reflect today's clock-in/out data regardless of the selected date or department filter.
+- **Data Fetching**: Separated today's stats (`todayStats`) from the selected date stats (`stats`), with `presentToday` and `absentToday` calculated from `todayStats.clockIns.today`.
+
+### Notes
+- **Current Date**: Set to "2025-10-16" based on the provided time (05:54 AM GMT, October 16, 2025).
+- **Consistency**: "Present Today" and "Absent Today" tiles update with today's data every 10 seconds, independent of the datepicker or department filter.
+- **Charts**: The `updateSummaryChart` still uses today's `presentToday` and `absentToday` for consistency.
+
+### Deployment Steps
+1. **Update Frontend**:
+   - Save the updated `index.html` to `/client/index.html`.
+
+2. **Commit and Push**:
+   ```
+   cd C:\Users\amoni\TDA_ATT
+   git add client/index.html
+   git commit -m "Fix present/absent today to reflect current day's data"
+   git push origin main
+   ```
+
+3. **Redeploy in Coolify**:
+   - Go to `http://145.223.33.154:8000` > Projects > `tolon-attendance-project` > Redeploy.
+
+4. **Testing**:
+   - Select a different date (e.g., "2025-10-15"); verify "Present Today" and "Absent Today" reflect October 16, 2025 data.
+   - Filter by department; ensure "Present Today" and "Absent Today" remain unchanged.
+   - Check logs for successful data fetching.
+
+Let me know if you need further adjustments!
