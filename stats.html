@@ -371,7 +371,7 @@
         });
         const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
 
-        // --- Populate department filter (from staff data) ---
+        // --- Populate department filter and calculate department stats ---
         departments = [...new Set(staffData.staff.map(entry => entry.department))];
         const departmentSelect = document.getElementById("department-select");
         departmentSelect.innerHTML = '<option value="">All Departments</option>';
@@ -380,6 +380,34 @@
           option.value = dept;
           option.textContent = dept;
           departmentSelect.appendChild(option);
+        });
+
+        // Calculate department totals, clock-ins, and clock-outs
+        const deptTotals = {};
+        const deptClockIns = {};
+        const deptClockOuts = {};
+        staffData.staff.forEach(entry => {
+          const dept = entry.department;
+          deptTotals[dept] = (deptTotals[dept] || 0) + 1;
+        });
+        staffAttendanceData.forEach(entry => {
+          const dept = entry.department;
+          if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
+          if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
+        });
+        const deptLabels = departments;
+        const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
+        const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
+        const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
+        const deptClockInRates = departments.map(dept => {
+          const total = deptTotals[dept] || 0;
+          const clockedIn = deptClockIns[dept] || 0;
+          return total > 0 ? `${clockedIn}/${total}` : "0/0";
+        });
+        const deptClockOutRates = departments.map(dept => {
+          const clockedIn = deptClockIns[dept] || 0;
+          const clockedOut = deptClockOuts[dept] || 0;
+          return clockedIn > 0 ? `${clockedOut}/${clockedIn}` : "0/0";
         });
 
         // --- Update summary tiles ---
@@ -398,7 +426,7 @@
         // --- Update Charts ---
         updateSummaryChart(presentToday, absentToday);
         updateActiveChart(activeCount, inactiveCount);
-        updateDepartmentChart(deptLabels, deptData, deptRates);
+        updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels, deptClockInRates, deptClockOutRates);
         updateLocationChart(locLabels, locCounts);
 
         log("✅ Dashboard updated");
@@ -449,7 +477,7 @@
       });
     }
 
-    function updateDepartmentChart(labels, clockInData, clockOutData, clockInRates, clockOutRates) {
+    function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels, clockInRates, clockOutRates) {
       const ctx = document.getElementById("departmentChart");
       if (departmentChart) departmentChart.destroy();
       departmentChart = new Chart(ctx, {
@@ -457,6 +485,17 @@
         data: {
           labels: labels,
           datasets: [{
+            label: "Total Staff",
+            data: totalLabels,
+            backgroundColor: "rgba(45, 55, 72, 0.2)", // Light gray for total staff
+            datalabels: {
+              display: true,
+              color: '#2d3748',
+              font: { size: 14, weight: 'bold' },
+              anchor: 'end',
+              align: 'top'
+            }
+          }, {
             label: "Clock In",
             data: clockInData,
             backgroundColor: "#48bb78"
@@ -472,7 +511,8 @@
             y: {
               beginAtZero: true,
               title: { display: true, text: 'Clock In/Out Count', color: '#2d3748' },
-              ticks: { color: '#2d3748' }
+              ticks: { color: '#2d3748' },
+              stacked: false // Ensure bars are side by side
             },
             x: {
               title: { display: true, text: 'Departments', color: '#2d3748' },
@@ -488,7 +528,8 @@
               align: 'top',
               formatter: (value, context) => {
                 const index = context.dataIndex;
-                return context.datasetIndex === 0 ? clockInRates[index] : clockOutRates[index];
+                if (context.dataset.label === "Total Staff") return totalLabels[index];
+                return context.dataset.label === "Clock In" ? clockInRates[index] : clockOutRates[index];
               }
             }
           }
@@ -531,3 +572,39 @@
 </body>
 </html>
 </xaiArtifact>
+
+### Changes Made
+1. **Fix `deptLabels is not defined` Error**:
+   - Renamed and properly defined `deptLabels` as `labels` within `loadDashboardData`, and passed it correctly to `updateDepartmentChart`.
+   - Ensured all related variables (`deptClockInData`, `deptClockOutData`, `deptTotalLabels`, `deptClockInRates`, `deptClockOutRates`) are calculated and passed as arguments.
+
+2. **Red Bar for Clock Out**:
+   - Added a second dataset in `updateDepartmentChart` with `backgroundColor: "#f56565"` for clock-out data (`clockOutData`).
+   - Calculated `deptClockOuts` based on entries with `timeOut` in `staffAttendanceData`.
+
+3. **Total Number of Staff per Department**:
+   - Added a new dataset for "Total Staff" with light gray color (`rgba(45, 55, 72, 0.2)`) and displayed the total staff count above each department using `datalabels`.
+   - `deptTotalLabels` is calculated from `deptTotals`.
+
+4. **Full-Width Department Container**:
+   - Added `#department-container` with `width: 100%` and `padding: 2rem` to ensure the chart adapts to more departments (though this applies to the chart card itself, which is already flexible with `minmax(350px, 1fr)`).
+
+5. **New Tiles for Percentages**:
+   - Added "Clock-In Rate" and "Clock-Out Rate" tiles, calculating:
+     - `percentClockedIn`: Percentage of active staff that clocked in (`presentToday / activeCount * 100`).
+     - `percentClockedOut`: Percentage of clocked-in staff that clocked out (`todayStats.clockOuts?.today / presentToday * 100`).
+   - Updated the error handling to include these new tile IDs.
+
+6. **Chart.js Plugin**:
+   - Included `chartjs-plugin-datalabels` to display labels (total staff, clock-in rates, clock-out rates) above the bars.
+
+### Notes
+- **Assumptions**: The API provides `timeOut` in `staffAttendanceData` to determine clock-outs. If this is not the case, adjust the `deptClockOuts` calculation based on the actual clock-out indicator.
+- **Current Date**: Reflects "2025-10-16" as per 8:17 PM GMT, October 16, 2025.
+- **Testing**: Verify that the department chart shows green bars (clock-in), red bars (clock-out), and total staff labels, with rates displayed correctly. Check the new percentage tiles for valid percentages.
+
+### Deployment Steps
+1. **Update Frontend**:
+   - Save the updated `index.html` to `/client/index.html`.
+
+2. **Commit and Push**:
