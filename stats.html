@@ -338,7 +338,7 @@
 
         // --- Load today's attendance stats (independent of selected date) ---
         const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
-        const presentToday = todayStats.clockIns.today || 0;
+        const presentToday = todayStats.clockIns?.today || 0; // Safely access 'today' with fallback
         const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
 
         // --- Load attendance stats for selected date ---
@@ -530,36 +530,3 @@
 </html>
 </xaiArtifact>
 
-### Changes in `index.html`
-- **Color Restoration**: Reverted to the previous color scheme (#48bb78, #2d3748, #f56565, etc.) using the provided reference, maintaining the modern gradient background and Tailwind styling.
-- **Monthly Attendance Trend Replacement**: Replaced the "Monthly Attendance Trend" chart (`trendChart`) with "Department Attendance" (`departmentChart`), using a bar graph to show daily clock-in rates for each department.
-- **Department Clock-in Rates**: Added logic to calculate and display "clockedIn/totalStaff" (e.g., "4/12" for MIS) above each bar using Chart.js annotations. This is based on department totals from `staffData.staff` and clock-ins from `staffAttendanceData`.
-- **Responsiveness**: Retained the original responsive design with Tailwind and custom media query support from the reference.
-
-### Notes
-- **Department Data**: Assumes `staffData.staff` contains all staff with `department` fields, and `staffAttendanceData` includes clock-in records with `department`. The backend should provide these consistently.
-- **Annotation Positioning**: The `yValue` in annotations is set to `data[index] + 1` to position labels above bars, adjustable if needed based on data range.
-- **Current Date**: Reflects "2025-10-16" as per 11:41 AM GMT, October 16, 2025.
-
-### Deployment Steps
-1. **Update Frontend**:
-   - Save the updated `index.html` to `/client/index.html`.
-
-2. **Commit and Push**:
-   ```
-   cd C:\Users\amoni\TDA_ATT
-   git add client/index.html
-   git commit -m "Restore colors, replace monthly trend with department attendance bar graph"
-   git push origin main
-   ```
-
-3. **Redeploy in Coolify**:
-   - Go to `http://145.223.33.154:8000` > Projects > `tolon-attendance-project` > Redeploy.
-
-4. **Testing**:
-   - Verify the department dropdown lists all departments from the staff sheet.
-   - Check the "Department Attendance" chart for bars with "clockedIn/totalStaff" labels (e.g., "4/12" for MIS).
-   - Ensure the UI retains the modern look with the original colors and responsiveness.
-   - Confirm "Present Today" and "Absent Today" reflect October 16, 2025 data.
-
-Let me know if you need further adjustments!
