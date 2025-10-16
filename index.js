@@ -273,9 +273,9 @@ app.get("/api/stats", async (req, res) => {
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split("T")[0];
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Reflects October 15, 2025
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setDate(now.getDate() - now.getDay() - 1);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const parseDate = str => new Date(str + "T00:00:00");
@@ -288,14 +288,14 @@ app.get("/api/stats", async (req, res) => {
 
     const clockIns = {
       today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === today && (r["Time In"] || r.get("Time In"))).length,
-      week: filterByRange(attendanceRows, startOfWeek, now).filter(r => r["Time In"] || r.get("Time In")).length,
-      month: filterByRange(attendanceRows, startOfMonth, now).filter(r => r["Time In"] || r.get("Time In")).length
+      week: filterByRange(attendanceRows, startOfWeek, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time In"] || r.get("Time In")).length,
+      month: filterByRange(attendanceRows, startOfMonth, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time In"] || r.get("Time In")).length
     };
 
     const clockOuts = {
       today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === today && (r["Time Out"] || r.get("Time Out"))).length,
-      week: filterByRange(attendanceRows, startOfWeek, now).filter(r => r["Time Out"] || r.get("Time Out")).length,
-      month: filterByRange(attendanceRows, startOfMonth, now).filter(r => r["Time Out"] || r.get("Time Out")).length
+      week: filterByRange(attendanceRows, startOfWeek, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time Out"] || r.get("Time Out")).length,
+      month: filterByRange(attendanceRows, startOfMonth, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time Out"] || r.get("Time Out")).length
     };
 
     const activeStaff = staffRows.filter(r =>
@@ -308,15 +308,25 @@ app.get("/api/stats", async (req, res) => {
     const percentClockedIn = activeStaff > 0 ? Math.round((presentToday / activeStaff) * 100) : 0;
     const percentClockedOut = presentToday > 0 ? Math.round((clockOuts.today / presentToday) * 100) : 0;
 
+    // Staff attendance details for today
+    const staffAttendance = attendanceRows
+      .filter(r => (r["Date"] || r.get("Date")) === today)
+      .map(r => ({
+        name: r["Name"] || r.get("Name") || "",
+        department: r["Department"] || r.get("Department") || "",
+        timeIn: r["Time In"] || r.get("Time In") || "",
+        timeOut: r["Time Out"] || r.get("Time Out") || ""
+      }));
+
     // Optional trend data (if needed for the chart)
     const trend = [
+      { date: new Date(now.setDate(now.getDate() - 7)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 6)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 5)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 4)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 3)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 2)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
-      { date: new Date(now.setDate(now.getDate() - 1)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
-      { date: now.toLocaleDateString(), present: presentToday }
+      { date: new Date(now.setDate(now.getDate() - 1)).toLocaleDateString(), present: presentToday }
     ];
 
     res.json({
@@ -329,7 +339,8 @@ app.get("/api/stats", async (req, res) => {
       absentToday,
       percentClockedIn,
       percentClockedOut,
-      trend // Added for trend chart
+      trend,
+      staffAttendance
     });
   } catch (err) {
     console.error("GET /api/stats error:", err);
