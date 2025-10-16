@@ -272,8 +272,8 @@ app.get("/api/stats", async (req, res) => {
 
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Reflects October 15, 2025
+    const now = new Date("2025-10-16T05:00:00Z"); // Current date and time
+    const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Default to yesterday (Oct 15, 2025)
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() - 1);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -287,13 +287,13 @@ app.get("/api/stats", async (req, res) => {
       });
 
     const clockIns = {
-      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === today && (r["Time In"] || r.get("Time In"))).length,
+      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time In"] || r.get("Time In"))).length,
       week: filterByRange(attendanceRows, startOfWeek, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time In"] || r.get("Time In")).length,
       month: filterByRange(attendanceRows, startOfMonth, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time In"] || r.get("Time In")).length
     };
 
     const clockOuts = {
-      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === today && (r["Time Out"] || r.get("Time Out"))).length,
+      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time Out"] || r.get("Time Out"))).length,
       week: filterByRange(attendanceRows, startOfWeek, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time Out"] || r.get("Time Out")).length,
       month: filterByRange(attendanceRows, startOfMonth, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)).filter(r => r["Time Out"] || r.get("Time Out")).length
     };
@@ -308,14 +308,15 @@ app.get("/api/stats", async (req, res) => {
     const percentClockedIn = activeStaff > 0 ? Math.round((presentToday / activeStaff) * 100) : 0;
     const percentClockedOut = presentToday > 0 ? Math.round((clockOuts.today / presentToday) * 100) : 0;
 
-    // Staff attendance details for today
+    // Staff attendance details for the requested date
     const staffAttendance = attendanceRows
-      .filter(r => (r["Date"] || r.get("Date")) === today)
+      .filter(r => (r["Date"] || r.get("Date")) === requestedDate)
       .map(r => ({
         name: r["Name"] || r.get("Name") || "",
         department: r["Department"] || r.get("Department") || "",
         timeIn: r["Time In"] || r.get("Time In") || "",
-        timeOut: r["Time Out"] || r.get("Time Out") || ""
+        timeOut: r["Time Out"] || r.get("Time Out") || "",
+        clockInLocation: r["Clock In Location"] || r.get("Clock In Location") || "Unknown"
       }));
 
     // Optional trend data (if needed for the chart)
@@ -340,7 +341,8 @@ app.get("/api/stats", async (req, res) => {
       percentClockedIn,
       percentClockedOut,
       trend,
-      staffAttendance
+      staffAttendance,
+      selectedDate: requestedDate
     });
   } catch (err) {
     console.error("GET /api/stats error:", err);
