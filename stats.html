@@ -5,93 +5,99 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      color: #222;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      color: #1a202c;
       margin: 0;
       padding: 0;
+      min-height: 100vh;
     }
     header {
-      background: #009245;
+      background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
       color: #fff;
-      padding: 1rem;
+      padding: 1.5rem;
       text-align: center;
-      font-size: 1.5rem;
-      font-weight: bold;
+      font-size: 2rem;
+      font-weight: 700;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-
-    /* ---- Summary Tiles ---- */
     #summary-tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
     }
     .tile {
       background: white;
       border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      padding: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
       text-align: center;
+      transition: transform 0.2s;
+    }
+    .tile:hover {
+      transform: translateY(-5px);
     }
     .tile h3 {
-      color: #006837;
-      font-size: 1.1rem;
-      margin-bottom: .5rem;
+      color: #2d3748;
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
     }
     .tile p {
-      font-size: 1.8rem;
-      font-weight: bold;
+      font-size: 2rem;
+      font-weight: 700;
       margin: 0;
-      color: #009245;
+      color: #48bb78;
     }
     .tile.error p {
-      color: #ff4d4d;
+      color: #f56565;
     }
-
-    /* ---- Chart Cards ---- */
     #stats-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
     }
     .chart-card {
       background: white;
       border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      padding: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      transition: transform 0.2s;
+    }
+    .chart-card:hover {
+      transform: translateY(-5px);
     }
     .chart-card h3 {
       text-align: center;
-      color: #006837;
-      margin-bottom: .5rem;
+      color: #2d3748;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
     }
     canvas {
       width: 100% !important;
-      height: 280px !important;
+      height: 300px !important;
     }
-
-    /* ---- Log Console ---- */
     #log {
-      background: #000;
-      color: #0f0;
-      font-family: monospace;
-      padding: 1rem;
-      height: 150px;
+      background: #1a202c;
+      color: #48bb78;
+      font-family: 'Courier New', monospace;
+      padding: 1.5rem;
+      height: 200px;
       overflow-y: auto;
-      margin: 1rem;
+      margin: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-
-    /* ---- Attendance Table ---- */
     #attendance-table {
-      margin: 1rem;
-      padding: 1rem;
+      margin: 2rem;
+      padding: 1.5rem;
       background: white;
       border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     #attendance-table table {
       width: 100%;
@@ -99,20 +105,20 @@
     }
     #attendance-table th,
     #attendance-table td {
-      padding: 0.5rem;
+      padding: 1rem;
       text-align: left;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #e2e8f0;
     }
     #attendance-table th {
-      background: #009245;
-      color: white;
+      background: #2d3748;
+      color: #fff;
       cursor: pointer;
     }
     #attendance-table th:hover {
-      background: #006837;
+      background: #4a5568;
     }
     #attendance-table tr:nth-child(even) {
-      background: #f9f9f9;
+      background: #f7fafc;
     }
     .sort-arrow {
       display: inline-block;
@@ -124,38 +130,42 @@
     .desc::after {
       content: " ▼";
     }
-
-    /* ---- Filters ---- */
     #filters {
       display: flex;
-      gap: 1rem;
-      margin: 1rem;
-      padding: 1rem;
+      gap: 1.5rem;
+      margin: 2rem;
+      padding: 1.5rem;
       background: white;
       border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     #filters label {
-      font-weight: bold;
-      color: #006837;
+      font-weight: 600;
+      color: #2d3748;
     }
     #date-select, #department-select {
-      padding: 0.5rem;
-      border-radius: 4px;
-      border: 1px solid #ddd;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
       font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    #date-select:focus, #department-select:focus {
+      border-color: #48bb78;
+      outline: none;
     }
     #export-btn {
-      background: #009245;
+      background: #48bb78;
       color: white;
-      padding: 0.5rem 1rem;
+      padding: 0.75rem 1.5rem;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 1rem;
+      transition: background-color 0.2s;
     }
     #export-btn:hover {
-      background: #006837;
+      background: #38a169;
     }
   </style>
 </head>
@@ -193,7 +203,7 @@
       <canvas id="activeChart"></canvas>
     </div>
     <div class="chart-card">
-      <h3>Daily Attendance Trend</h3>
+      <h3>Monthly Attendance Trend</h3>
       <canvas id="trendChart"></canvas>
     </div>
     <div class="chart-card">
@@ -217,7 +227,7 @@
 
   <!-- Staff Attendance Details -->
   <section id="attendance-table">
-    <h3 id="attendance-title">Staff Attendance Details (October 15, 2025)</h3>
+    <h3 id="attendance-title" class="text-xl font-semibold text-gray-800">Staff Attendance Details (October 15, 2025)</h3>
     <table>
       <thead>
         <tr>
@@ -236,7 +246,7 @@
   <div id="log"></div>
 
   <script>
-    const backendURL = "https://tolon-attendance.proodentit.com/api"; // Updated to match your domain
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
     const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-16"
 
     const log = (msg) => {
@@ -321,8 +331,8 @@
 
         // --- Load staff data ---
         const staffData = await fetchJSON(`${backendURL}/staff`);
-        const totalStaff = staffData.totalStaff || 0; // All staff from Staff Sheet
-        const activeCount = staffData.staffCount || 0; // Only those with "Yes" in Active
+        const totalStaff = staffData.totalStaff || 0;
+        const activeCount = staffData.staffCount || 0;
         const inactiveCount = totalStaff - activeCount;
         log(`✅ Loaded ${totalStaff} staff members`);
 
@@ -339,7 +349,6 @@
         // --- Load location-wise data ---
         const locationData = await fetchJSON(`${backendURL}/locations`);
         const locLabels = locationData.locations.map(l => l.name);
-        // Calculate real location attendance counts based on staff attendance
         const locAttendance = {};
         staffAttendanceData.forEach(entry => {
           const loc = entry.clockInLocation || "Unknown";
@@ -347,8 +356,8 @@
         });
         const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
 
-        // --- Populate department filter (unique departments from staff attendance) ---
-        departments = [...new Set(staffAttendanceData.map(entry => entry.department))];
+        // --- Populate department filter (from staff data) ---
+        departments = [...new Set(staffData.staff.map(entry => entry.department))];
         const departmentSelect = document.getElementById("department-select");
         departmentSelect.innerHTML = '<option value="">All Departments</option>';
         departments.forEach(dept => {
@@ -379,7 +388,6 @@
 
       } catch (err) {
         log("❌ " + err.message);
-        // Mark tiles as error
         ["totalStaff", "activeStaff", "presentToday", "absentToday"].forEach(id => {
           const tile = document.querySelector(`#${id}`).closest(".tile");
           if (tile) tile.classList.add("error");
@@ -396,10 +404,10 @@
           labels: ["Present", "Absent"],
           datasets: [{
             data: [present, absent],
-            backgroundColor: ["#009245", "#ccc"]
+            backgroundColor: ["#48bb78", "#e2e8f0"]
           }]
         },
-        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+        options: { responsive: true, plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } } }
       });
     }
 
@@ -413,12 +421,12 @@
           datasets: [{
             label: "Staff Count",
             data: [active, inactive],
-            backgroundColor: ["#006837", "#ff4d4d"]
+            backgroundColor: ["#2d3748", "#f56565"]
           }]
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true } },
+          scales: { y: { beginAtZero: true, ticks: { color: '#2d3748' } } },
           plugins: { legend: { display: false } }
         }
       });
@@ -427,24 +435,35 @@
     function updateTrendChart(trendData = []) {
       const ctx = document.getElementById("trendChart");
       if (trendChart) trendChart.destroy();
-      const labels = trendData.map(d => d.date);
-      const values = trendData.map(d => d.present || 0);
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, i) => `${month + 1}/${i + 1}/${year}`);
+      const presentData = labels.map(date => {
+        const trendEntry = trendData.find(d => d.date === date);
+        return trendEntry ? trendEntry.present || 0 : 0;
+      });
       trendChart = new Chart(ctx, {
         type: "line",
         data: {
           labels,
           datasets: [{
-            label: "Present",
-            data: values,
-            borderColor: "#009245",
-            tension: 0.3,
-            fill: false
+            label: "Staff Present",
+            data: presentData,
+            borderColor: "#48bb78",
+            backgroundColor: "rgba(72, 187, 120, 0.2)",
+            tension: 0.4,
+            fill: true
           }]
         },
         options: {
           responsive: true,
-          plugins: { legend: { position: "bottom" } },
-          scales: { y: { beginAtZero: true } }
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748' } },
+            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748' } }
+          },
+          plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } }
         }
       });
     }
@@ -459,18 +478,17 @@
           datasets: [{
             label: "Attendance Count",
             data: values,
-            backgroundColor: "#009245"
+            backgroundColor: "#48bb78"
           }]
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748' }, ticks: { color: '#2d3748' } } },
           plugins: { legend: { display: false } }
         }
       });
     }
 
-    // Add event listeners for sorting
     document.querySelectorAll(".sortable").forEach(th => {
       th.addEventListener("click", () => {
         const key = th.getAttribute("data-sort");
@@ -479,7 +497,6 @@
       });
     });
 
-    // Load and refresh every 10 seconds
     loadDashboardData();
     setInterval(loadDashboardData, 10000);
   </script>
@@ -487,33 +504,6 @@
 </html>
 </xaiArtifact>
 
-### Changes in `index.html`
-- **Present and Absent Today**: Now fetched using the current date (`currentDate`) from `new Date().toISOString().split("T")[0]`, ensuring they reflect today's clock-in/out data regardless of the selected date or department filter.
-- **Data Fetching**: Separated today's stats (`todayStats`) from the selected date stats (`stats`), with `presentToday` and `absentToday` calculated from `todayStats.clockIns.today`.
 
-### Notes
-- **Current Date**: Set to "2025-10-16" based on the provided time (05:54 AM GMT, October 16, 2025).
-- **Consistency**: "Present Today" and "Absent Today" tiles update with today's data every 10 seconds, independent of the datepicker or department filter.
-- **Charts**: The `updateSummaryChart` still uses today's `presentToday` and `absentToday` for consistency.
 
-### Deployment Steps
-1. **Update Frontend**:
-   - Save the updated `index.html` to `/client/index.html`.
-
-2. **Commit and Push**:
-   ```
-   cd C:\Users\amoni\TDA_ATT
-   git add client/index.html
-   git commit -m "Fix present/absent today to reflect current day's data"
-   git push origin main
-   ```
-
-3. **Redeploy in Coolify**:
-   - Go to `http://145.223.33.154:8000` > Projects > `tolon-attendance-project` > Redeploy.
-
-4. **Testing**:
-   - Select a different date (e.g., "2025-10-15"); verify "Present Today" and "Absent Today" reflect October 16, 2025 data.
-   - Filter by department; ensure "Present Today" and "Absent Today" remain unchanged.
-   - Check logs for successful data fetching.
-
-Let me know if you need further adjustments!
+Let me know if you need further refinements!
