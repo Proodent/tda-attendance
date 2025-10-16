@@ -25,7 +25,7 @@
     /* ---- Summary Tiles ---- */
     #summary-tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1.5fr));
       gap: 1rem;
       padding: 1rem;
     }
@@ -106,9 +106,32 @@
     #attendance-table th {
       background: #009245;
       color: white;
+      cursor: pointer;
+    }
+    #attendance-table th:hover {
+      background: #006837;
     }
     #attendance-table tr:nth-child(even) {
       background: #f9f9f9;
+    }
+    .sort-arrow {
+      display: inline-block;
+      margin-left: 5px;
+    }
+    .asc::after {
+      content: " ▲";
+    }
+    .desc::after {
+      content: " ▼";
+    }
+
+    /* ---- Date Dropdown ---- */
+    #date-select {
+      margin: 1rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
   </style>
 </head>
@@ -155,17 +178,32 @@
     </div>
   </section>
 
+  <!-- Date Selection -->
+  <div style="margin: 1rem;">
+    <label for="date-select">Select Date: </label>
+    <select id="date-select" onchange="loadDashboardData()">
+      <option value="">Select a date</option>
+      <option value="2025-10-09">October 9, 2025</option>
+      <option value="2025-10-10">October 10, 2025</option>
+      <option value="2025-10-11">October 11, 2025</option>
+      <option value="2025-10-12">October 12, 2025</option>
+      <option value="2025-10-13">October 13, 2025</option>
+      <option value="2025-10-14">October 14, 2025</option>
+      <option value="2025-10-15" selected>October 15, 2025</option>
+    </select>
+  </div>
+
   <!-- Staff Attendance Details -->
   <section id="attendance-table">
-    <h3>Staff Attendance Details (October 15, 2025)</h3>
+    <h3 id="attendance-title">Staff Attendance Details (October 15, 2025)</h3>
     <table>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Department</th>
-          <th>Time In</th>
-          <th>Time Out</th>
-          <th>Clock In Location</th>
+          <th class="sortable" data-sort="name">Name</th>
+          <th class="sortable" data-sort="department">Department</th>
+          <th class="sortable" data-sort="timeIn">Time In</th>
+          <th class="sortable" data-sort="timeOut">Time Out</th>
+          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
         </tr>
       </thead>
       <tbody id="attendance-body"></tbody>
@@ -185,6 +223,7 @@
     };
 
     let summaryChart, trendChart, activeChart, locationChart;
+    let sortConfig = { key: null, direction: "asc" };
 
     async function fetchJSON(url) {
       const res = await fetch(url);
@@ -196,7 +235,52 @@
       }
     }
 
+    function sortData(data, key, direction) {
+      return [...data].sort((a, b) => {
+        let aValue = a[key] || "";
+        let bValue = b[key] || "";
+        if (key === "timeIn" || key === "timeOut") {
+          aValue = aValue ? new Date(`1970-01-01 ${aValue}`) : null;
+          bValue = bValue ? new Date(`1970-01-01 ${bValue}`) : null;
+        }
+        if (aValue < bValue) return direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function updateTable(data) {
+      const attendanceBody = document.getElementById("attendance-body");
+      attendanceBody.innerHTML = "";
+      const sortedData = sortConfig.key ? sortData(data, sortConfig.key, sortConfig.direction) : data;
+      sortedData.forEach(entry => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.name}</td>
+          <td>${entry.department}</td>
+          <td>${entry.timeIn}</td>
+          <td>${entry.timeOut}</td>
+          <td>${entry.clockInLocation}</td>
+        `;
+        attendanceBody.appendChild(row);
+      });
+    }
+
+    function handleSort(key) {
+      if (sortConfig.key === key) {
+        sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortConfig.key = key;
+        sortConfig.direction = "asc";
+      }
+      document.querySelectorAll(".sortable").forEach(th => th.classList.remove("asc", "desc"));
+      const th = document.querySelector(`th[data-sort="${key}"]`);
+      th.classList.add(sortConfig.direction);
+    }
+
     async function loadDashboardData() {
+      const dateSelect = document.getElementById("date-select");
+      const selectedDate = dateSelect.value;
       try {
         log("⏳ Fetching data...");
 
@@ -208,7 +292,8 @@
         log(`✅ Loaded ${totalStaff} staff members`);
 
         // --- Load attendance stats ---
-        const stats = await fetchJSON(`${backendURL}/stats`);
+        const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
+        const stats = await fetchJSON(statsUrl);
         const presentToday = stats.clockIns.today || 0;
         const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
         const staffAttendance = stats.staffAttendance || [];
@@ -230,20 +315,10 @@
         document.getElementById("presentToday").innerText = presentToday;
         document.getElementById("absentToday").innerText = absentToday;
 
-        // --- Update attendance table ---
-        const attendanceBody = document.getElementById("attendance-body");
-        attendanceBody.innerHTML = "";
-        staffAttendance.forEach(entry => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${entry.name}</td>
-            <td>${entry.department}</td>
-            <td>${entry.timeIn}</td>
-            <td>${entry.timeOut}</td>
-            <td>${entry.clockInLocation}</td>
-          `;
-          attendanceBody.appendChild(row);
-        });
+        // --- Update attendance title and table ---
+        const attendanceTitle = document.getElementById("attendance-title");
+        attendanceTitle.textContent = `Staff Attendance Details (${new Date(stats.selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
+        updateTable(staffAttendance);
 
         // --- Update Charts ---
         updateSummaryChart(presentToday, absentToday);
@@ -345,6 +420,15 @@
         }
       });
     }
+
+    // Add event listeners for sorting
+    document.querySelectorAll(".sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort");
+        handleSort(key);
+        updateTable(stats.staffAttendance || []);
+      });
+    });
 
     // Load and refresh every 10 seconds
     loadDashboardData();
