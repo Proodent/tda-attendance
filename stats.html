@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
@@ -167,6 +168,10 @@
     #export-btn:hover {
       background: #38a169;
     }
+    #department-container {
+      width: 100%;
+      padding: 2rem;
+    }
   </style>
 </head>
 <body>
@@ -189,6 +194,14 @@
     <div class="tile">
       <h3>Absent Today</h3>
       <p id="absentToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-In Rate</h3>
+      <p id="percentClockedIn">--%</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Out Rate</h3>
+      <p id="percentClockedOut">--%</p>
     </div>
   </section>
 
@@ -338,8 +351,10 @@
 
         // --- Load today's attendance stats (independent of selected date) ---
         const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
-        const presentToday = todayStats.clockIns?.today || 0; // Safely access 'today' with fallback
+        const presentToday = todayStats.clockIns?.today || 0;
         const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
+        const percentClockedIn = activeCount > 0 ? Math.round((presentToday / activeCount) * 100) : 0;
+        const percentClockedOut = presentToday > 0 ? Math.round((todayStats.clockOuts?.today || 0) / presentToday * 100) : 0;
 
         // --- Load attendance stats for selected date ---
         const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
@@ -356,7 +371,7 @@
         });
         const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
 
-        // --- Populate department filter and calculate department stats ---
+        // --- Populate department filter (from staff data) ---
         departments = [...new Set(staffData.staff.map(entry => entry.department))];
         const departmentSelect = document.getElementById("department-select");
         departmentSelect.innerHTML = '<option value="">All Departments</option>';
@@ -367,30 +382,13 @@
           departmentSelect.appendChild(option);
         });
 
-        // Calculate department clock-in rates
-        const deptTotals = {};
-        const deptClockIns = {};
-        staffData.staff.forEach(entry => {
-          const dept = entry.department;
-          deptTotals[dept] = (deptTotals[dept] || 0) + 1;
-        });
-        staffAttendanceData.forEach(entry => {
-          const dept = entry.department;
-          deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
-        });
-        const deptLabels = departments;
-        const deptData = departments.map(dept => deptClockIns[dept] || 0);
-        const deptRates = departments.map(dept => {
-          const total = deptTotals[dept] || 0;
-          const clockedIn = deptClockIns[dept] || 0;
-          return total > 0 ? `${clockedIn}/${total}` : "0/0";
-        });
-
         // --- Update summary tiles ---
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
         document.getElementById("presentToday").innerText = presentToday;
         document.getElementById("absentToday").innerText = absentToday;
+        document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
+        document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
 
         // --- Update attendance title and table ---
         const attendanceTitle = document.getElementById("attendance-title");
@@ -407,7 +405,7 @@
 
       } catch (err) {
         log("❌ " + err.message);
-        ["totalStaff", "activeStaff", "presentToday", "absentToday"].forEach(id => {
+        ["totalStaff", "activeStaff", "presentToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
           const tile = document.querySelector(`#${id}`).closest(".tile");
           if (tile) tile.classList.add("error");
         });
@@ -451,7 +449,7 @@
       });
     }
 
-    function updateDepartmentChart(labels, data, rates) {
+    function updateDepartmentChart(labels, clockInData, clockOutData, clockInRates, clockOutRates) {
       const ctx = document.getElementById("departmentChart");
       if (departmentChart) departmentChart.destroy();
       departmentChart = new Chart(ctx, {
@@ -459,9 +457,13 @@
         data: {
           labels: labels,
           datasets: [{
-            label: "Clocked In",
-            data: data,
+            label: "Clock In",
+            data: clockInData,
             backgroundColor: "#48bb78"
+          }, {
+            label: "Clock Out",
+            data: clockOutData,
+            backgroundColor: "#f56565"
           }]
         },
         options: {
@@ -469,7 +471,7 @@
           scales: {
             y: {
               beginAtZero: true,
-              title: { display: true, text: 'Clocked In', color: '#2d3748' },
+              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748' },
               ticks: { color: '#2d3748' }
             },
             x: {
@@ -479,15 +481,15 @@
           },
           plugins: {
             legend: { position: "bottom", labels: { color: '#2d3748' } },
-            annotation: {
-              annotations: rates.map((rate, index) => ({
-                type: 'label',
-                xValue: index,
-                yValue: data[index] + 1, // Position above the bar
-                content: rate,
-                color: '#2d3748',
-                font: { size: 14, weight: 'bold' }
-              }))
+            datalabels: {
+              color: '#2d3748',
+              font: { size: 14, weight: 'bold' },
+              anchor: 'end',
+              align: 'top',
+              formatter: (value, context) => {
+                const index = context.dataIndex;
+                return context.datasetIndex === 0 ? clockInRates[index] : clockOutRates[index];
+              }
             }
           }
         }
@@ -529,4 +531,3 @@
 </body>
 </html>
 </xaiArtifact>
-
