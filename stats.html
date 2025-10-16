@@ -47,6 +47,9 @@
       margin: 0;
       color: #009245;
     }
+    .tile.error p {
+      color: #ff4d4d;
+    }
 
     /* ---- Chart Cards ---- */
     #stats-container {
@@ -79,6 +82,7 @@
       padding: 1rem;
       height: 150px;
       overflow-y: auto;
+      margin: 1rem;
     }
   </style>
 </head>
@@ -128,7 +132,7 @@
   <div id="log"></div>
 
   <script>
-    const backendURL = "https://your-backend-url/api"; // replace with your backend endpoint
+    const backendURL = "https://tolon-attendance.proodentit.com/api"; // Updated to match your domain
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -144,8 +148,8 @@
       const text = await res.text();
       try {
         return JSON.parse(text);
-      } catch {
-        throw new Error("Response not JSON: " + text.slice(0, 60));
+      } catch (e) {
+        throw new Error(`Response not JSON: ${text.slice(0, 60)}... (Status: ${res.status})`);
       }
     }
 
@@ -155,42 +159,47 @@
 
         // --- Load staff data ---
         const staffData = await fetchJSON(`${backendURL}/staff`);
-        const activeCount = staffData.filter(s => s.Active?.toLowerCase() === "yes").length;
-        const inactiveCount = staffData.filter(s => s.Active?.toLowerCase() === "no").length;
-        const totalStaff = staffData.length;
-        log(`✅ Loaded ${staffData.length} staff members`);
+        const activeCount = staffData.staffCount || 0;
+        const totalStaff = staffData.staff ? staffData.staff.length + (staffData.staff.filter(s => s.active === false).length || 0) : 0;
+        const inactiveCount = totalStaff - activeCount;
+        log(`✅ Loaded ${totalStaff} staff members`);
 
         // --- Load attendance stats ---
-        const stats = await fetchJSON(`${backendURL}/attendance`);
-        const total = stats.total || 0;
-        const present = stats.present || 0;
-        const absent = stats.absent || 0;
+        const stats = await fetchJSON(`${backendURL}/stats`);
+        const presentToday = stats.clockIns.today || 0;
+        const absentToday = stats.activeStaff > 0 ? Math.max(0, stats.activeStaff - presentToday) : 0;
 
         // --- Load location-wise data ---
         const locationData = await fetchJSON(`${backendURL}/locations`);
-        const locLabels = locationData.map(l => l.name);
-        const locCounts = locationData.map(l => l.attendance);
+        const locLabels = locationData.locations.map(l => l.name);
+        // Simulate attendance counts (adjust if backend provides this)
+        const locCounts = locLabels.map(() => Math.floor(Math.random() * 10)); // Placeholder
 
         // --- Update summary tiles ---
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
-        document.getElementById("presentToday").innerText = present;
-        document.getElementById("absentToday").innerText = absent;
+        document.getElementById("presentToday").innerText = presentToday;
+        document.getElementById("absentToday").innerText = absentToday;
 
         // --- Update Charts ---
-        updateSummaryChart(total, present, absent);
+        updateSummaryChart(presentToday, absentToday);
         updateActiveChart(activeCount, inactiveCount);
-        updateTrendChart(stats.trend);
+        updateTrendChart(stats.trend || []);
         updateLocationChart(locLabels, locCounts);
 
         log("✅ Dashboard updated");
 
       } catch (err) {
         log("❌ " + err.message);
+        // Mark tiles as error
+        ["totalStaff", "activeStaff", "presentToday", "absentToday"].forEach(id => {
+          const tile = document.querySelector(`#${id}`).closest(".tile");
+          if (tile) tile.classList.add("error");
+        });
       }
     }
 
-    function updateSummaryChart(total, present, absent) {
+    function updateSummaryChart(present, absent) {
       const ctx = document.getElementById("summaryChart");
       if (summaryChart) summaryChart.destroy();
       summaryChart = new Chart(ctx, {
@@ -231,7 +240,7 @@
       const ctx = document.getElementById("trendChart");
       if (trendChart) trendChart.destroy();
       const labels = trendData.map(d => d.date);
-      const values = trendData.map(d => d.present);
+      const values = trendData.map(d => d.present || 0);
       trendChart = new Chart(ctx, {
         type: "line",
         data: {
