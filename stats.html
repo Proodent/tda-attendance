@@ -4,25 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Dashboard</title>
+  <link rel="icon" href="favicon.ico" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
   <style>
     body {
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      background: linear-gradient(135deg, #f0f4f8 0%, #e9f7ef 100%);
       color: #1a202c;
       margin: 0;
       padding: 0;
       min-height: 100vh;
     }
     header {
-      background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
-      color: #fff;
+      background: linear-gradient(90deg, #009245, #006837);
+      color: white;
       padding: 1.5rem;
       text-align: center;
       font-size: 2rem;
       font-weight: 700;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
     #summary-tiles {
       display: grid;
@@ -38,23 +40,11 @@
       text-align: center;
       transition: transform 0.2s;
     }
-    .tile:hover {
-      transform: translateY(-5px);
-    }
-    .tile h3 {
-      color: #2d3748;
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
-    }
-    .tile p {
-      font-size: 2rem;
-      font-weight: 700;
-      margin: 0;
-      color: #48bb78;
-    }
-    .tile.error p {
-      color: #f56565;
-    }
+    .tile:hover { transform: translateY(-5px); }
+    .tile h3 { color: #006837; font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .tile p { font-size: 2rem; font-weight: 700; margin: 0; color: #009245; }
+    .tile.error p { color: #f56565; }
+
     #stats-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -66,177 +56,116 @@
       border-radius: 12px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       padding: 1.5rem;
-      transition: transform 0.2s;
-    }
-    .chart-card:hover {
-      transform: translateY(-5px);
     }
     .chart-card h3 {
       text-align: center;
-      color: #2d3748;
+      color: #006837;
       margin-bottom: 1rem;
-      font-size: 1.5rem;
+      font-size: 1.3rem;
+      font-weight: 600;
     }
-    canvas {
-      width: 100% !important;
-      height: 300px !important;
-    }
+
+    canvas { width: 100% !important; height: 300px !important; }
+
     #log {
       background: #1a202c;
       color: #48bb78;
       font-family: 'Courier New', monospace;
-      padding: 1.5rem;
-      height: 200px;
+      padding: 1rem;
+      height: 180px;
       overflow-y: auto;
       margin: 2rem;
-      border-radius: 12px;
+      border-radius: 8px;
+    }
+
+    #filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin: 2rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 8px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
+
     #attendance-table {
       margin: 2rem;
-      padding: 1.5rem;
       background: white;
       border-radius: 12px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
     }
+
     #attendance-table table {
       width: 100%;
       border-collapse: collapse;
     }
-    #attendance-table th,
-    #attendance-table td {
+
+    th, td {
       padding: 1rem;
       text-align: left;
       border-bottom: 1px solid #e2e8f0;
     }
-    #attendance-table th {
-      background: #2d3748;
-      color: #fff;
-      cursor: pointer;
-    }
-    #attendance-table th:hover {
-      background: #4a5568;
-    }
-    #attendance-table tr:nth-child(even) {
-      background: #f7fafc;
-    }
-    .sort-arrow {
-      display: inline-block;
-      margin-left: 5px;
-    }
-    .asc::after {
-      content: " ▲";
-    }
-    .desc::after {
-      content: " ▼";
-    }
-    #filters {
-      display: flex;
-      gap: 1.5rem;
-      margin: 2rem;
-      padding: 1.5rem;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    #filters label {
-      font-weight: 600;
-      color: #2d3748;
-    }
-    #date-select, #department-select {
-      padding: 0.75rem;
-      border-radius: 8px;
-      border: 2px solid #e2e8f0;
-      font-size: 1rem;
-      transition: border-color 0.2s;
-    }
-    #date-select:focus, #department-select:focus {
-      border-color: #48bb78;
-      outline: none;
-    }
-    #export-btn {
-      background: #48bb78;
+
+    th {
+      background: #009245;
       color: white;
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: 8px;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.2s;
     }
-    #export-btn:hover {
-      background: #38a169;
+
+    tr:nth-child(even) { background: #f7fafc; }
+
+    #export-btn {
+      background: #009245;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
     }
+    #export-btn:hover { background: #006837; }
   </style>
 </head>
+
 <body>
   <header>Attendance Dashboard</header>
 
   <!-- Summary Tiles -->
   <section id="summary-tiles">
-    <div class="tile">
-      <h3>Total Staff</h3>
-      <p id="totalStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Active Staff</h3>
-      <p id="activeStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Present Today</h3>
-      <p id="presentToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Absent Today</h3>
-      <p id="absentToday">--</p>
-    </div>
+    <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
+    <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
+    <div class="tile"><h3>Present Today</h3><p id="presentToday">--</p></div>
+    <div class="tile"><h3>Absent Today</h3><p id="absentToday">--</p></div>
   </section>
 
   <!-- Charts -->
   <section id="stats-container">
-    <div class="chart-card">
-      <h3>Attendance Summary</h3>
-      <canvas id="summaryChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Active vs Inactive Staff</h3>
-      <canvas id="activeChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Monthly Attendance Trend</h3>
-      <canvas id="trendChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Location Attendance</h3>
-      <canvas id="locationChart"></canvas>
-    </div>
+    <div class="chart-card"><h3>Attendance Summary</h3><canvas id="summaryChart"></canvas></div>
+    <div class="chart-card"><h3>Active vs Inactive</h3><canvas id="activeChart"></canvas></div>
+    <div class="chart-card"><h3>Monthly Trend</h3><canvas id="trendChart"></canvas></div>
+    <div class="chart-card"><h3>Location Attendance</h3><canvas id="locationChart"></canvas></div>
   </section>
 
   <!-- Filters -->
   <section id="filters">
-    <label for="date-select">Select Date:</label>
-    <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-15">
-
-    <label for="department-select">Filter Department:</label>
+    <label>Date:</label>
+    <input type="date" id="date-select" onchange="loadDashboardData()" />
+    <label>Department:</label>
     <select id="department-select" onchange="filterTable()">
-      <option value="">All Departments</option>
+      <option value="">All</option>
     </select>
-
-    <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
+    <button id="export-btn" onclick="exportToCSV()">Export CSV</button>
   </section>
 
-  <!-- Staff Attendance Details -->
+  <!-- Attendance Table -->
   <section id="attendance-table">
-    <h3 id="attendance-title" class="text-xl font-semibold text-gray-800">Staff Attendance Details (October 15, 2025)</h3>
+    <h3 id="attendance-title" class="text-xl font-semibold text-gray-800">Staff Attendance Details</h3>
     <table>
       <thead>
         <tr>
-          <th class="sortable" data-sort="name">Name</th>
-          <th class="sortable" data-sort="department">Department</th>
-          <th class="sortable" data-sort="timeIn">Time In</th>
-          <th class="sortable" data-sort="timeOut">Time Out</th>
-          <th class="sortable" data-sort="workTime">Work Time</th>
-          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
+          <th>Name</th><th>Department</th><th>Time In</th><th>Time Out</th><th>Work Time</th><th>Clock In Location</th>
         </tr>
       </thead>
       <tbody id="attendance-body"></tbody>
@@ -247,152 +176,90 @@
 
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-16"
-
+    const logBox = document.getElementById("log");
     const log = (msg) => {
-      const logBox = document.getElementById("log");
       const time = new Date().toLocaleTimeString();
       logBox.innerHTML += `[${time}] ${msg}<br>`;
       logBox.scrollTop = logBox.scrollHeight;
     };
 
-    let summaryChart, trendChart, activeChart, locationChart;
-    let sortConfig = { key: null, direction: "asc" };
-    let departments = [];
-    let staffAttendanceData = [];
+    let summaryChart, activeChart, trendChart, locationChart;
+    let staffData = [], staffAttendanceData = [];
 
-    async function fetchJSON(url) {
+    const calculateWorkTime = (inT, outT) => {
+      if (!inT || !outT) return "N/A";
+      const [ih, im] = inT.split(":").map(Number);
+      const [oh, om] = outT.split(":").map(Number);
+      const diff = (oh * 60 + om) - (ih * 60 + im);
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return `${h}h ${m}m`;
+    };
+
+    const fetchJSON = async (url) => {
       const res = await fetch(url);
-      const text = await res.text();
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        throw new Error(`Response not JSON: ${text.slice(0, 60)}... (Status: ${res.status})`);
-      }
-    }
+      const txt = await res.text();
+      try { return JSON.parse(txt); }
+      catch { throw new Error("Response not JSON: " + txt.slice(0, 80)); }
+    };
 
-    function calculateWorkTime(timeIn, timeOut) {
-      if (!timeIn || !timeOut) return "N/A";
-      const [inH, inM] = timeIn.split(":").map(Number);
-      const [outH, outM] = timeOut.split(":").map(Number);
-      const inMinutes = inH * 60 + inM;
-      const outMinutes = outH * 60 + outM;
-      const workMinutes = outMinutes - inMinutes;
-      const hours = Math.floor(workMinutes / 60);
-      const minutes = workMinutes % 60;
-      return `${hours}h ${minutes}m`;
+    async function loadDashboardData() {
+      const date = document.getElementById("date-select").value || new Date().toISOString().split("T")[0];
+      try {
+        log("⏳ Loading dashboard...");
+
+        const staff = await fetchJSON(`${backendURL}/staff`);
+        staffData = staff.staff || [];
+        const totalStaff = staffData.length;
+        const activeStaff = staffData.filter(s => s.Active === "Yes").length;
+        const inactiveStaff = totalStaff - activeStaff;
+
+        const stats = await fetchJSON(`${backendURL}/stats?date=${date}`);
+        staffAttendanceData = stats.staffAttendance || [];
+
+        const present = stats.clockIns?.today || 0;
+        const absent = Math.max(0, activeStaff - present);
+
+        const locations = await fetchJSON(`${backendURL}/locations`);
+        const locLabels = locations.locations.map(l => l.name);
+        const locCounts = locLabels.map(name => staffAttendanceData.filter(a => a.clockInLocation === name).length);
+
+        document.getElementById("totalStaff").textContent = totalStaff;
+        document.getElementById("activeStaff").textContent = activeStaff;
+        document.getElementById("presentToday").textContent = present;
+        document.getElementById("absentToday").textContent = absent;
+
+        updateSummaryChart(present, absent);
+        updateActiveChart(activeStaff, inactiveStaff);
+        updateTrendChart(stats.trend || []);
+        updateLocationChart(locLabels, locCounts);
+        updateTable(staffAttendanceData);
+
+        const departments = [...new Set(staffData.map(s => s.department))];
+        const sel = document.getElementById("department-select");
+        sel.innerHTML = '<option value="">All</option>' + departments.map(d => `<option>${d}</option>`).join("");
+
+        log("✅ Dashboard updated successfully.");
+      } catch (err) {
+        log("❌ " + err.message);
+      }
     }
 
     function updateTable(data) {
-      const attendanceBody = document.getElementById("attendance-body");
-      attendanceBody.innerHTML = "";
-      const departmentFilter = document.getElementById("department-select").value;
-      const filteredData = departmentFilter ? data.filter(entry => entry.department === departmentFilter) : data;
-      const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
-      sortedData.forEach(entry => {
-        const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${entry.name}</td>
-          <td>${entry.department}</td>
-          <td>${entry.timeIn}</td>
-          <td>${entry.timeOut}</td>
-          <td>${workTime}</td>
-          <td>${entry.clockInLocation}</td>
-        `;
-        attendanceBody.appendChild(row);
+      const body = document.getElementById("attendance-body");
+      const dept = document.getElementById("department-select").value;
+      body.innerHTML = "";
+      const filtered = dept ? data.filter(d => d.department === dept) : data;
+      filtered.forEach(r => {
+        body.innerHTML += `<tr>
+          <td>${r.name}</td>
+          <td>${r.department}</td>
+          <td>${r.timeIn || "--"}</td>
+          <td>${r.timeOut || "--"}</td>
+          <td>${calculateWorkTime(r.timeIn, r.timeOut)}</td>
+          <td>${r.clockInLocation || "--"}</td>
+        </tr>`;
       });
-    }
-
-    function filterTable() {
-      updateTable(staffAttendanceData);
-    }
-
-    function exportToCSV() {
-      const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
-        staffAttendanceData.map(entry => {
-          const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
-          return `${entry.name},${entry.department},${entry.timeIn},${entry.timeOut},${workTime},${entry.clockInLocation}`;
-        }).join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "staff_attendance.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    async function loadDashboardData() {
-      const dateSelect = document.getElementById("date-select");
-      const selectedDate = dateSelect.value;
-      try {
-        log("⏳ Fetching data...");
-
-        // --- Load staff data ---
-        const staffData = await fetchJSON(`${backendURL}/staff`);
-        const totalStaff = staffData.totalStaff || 0;
-        const activeCount = staffData.staffCount || 0;
-        const inactiveCount = totalStaff - activeCount;
-        log(`✅ Loaded ${totalStaff} staff members`);
-
-        // --- Load today's attendance stats (independent of selected date) ---
-        const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
-        const presentToday = todayStats.clockIns.today || 0;
-        const absentToday = activeCount > 0 ? Math.max(0, activeCount - presentToday) : 0;
-
-        // --- Load attendance stats for selected date ---
-        const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
-        const stats = await fetchJSON(statsUrl);
-        staffAttendanceData = stats.staffAttendance || [];
-
-        // --- Load location-wise data ---
-        const locationData = await fetchJSON(`${backendURL}/locations`);
-        const locLabels = locationData.locations.map(l => l.name);
-        const locAttendance = {};
-        staffAttendanceData.forEach(entry => {
-          const loc = entry.clockInLocation || "Unknown";
-          locAttendance[loc] = (locAttendance[loc] || 0) + 1;
-        });
-        const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
-
-        // --- Populate department filter (from staff data) ---
-        departments = [...new Set(staffData.staff.map(entry => entry.department))];
-        const departmentSelect = document.getElementById("department-select");
-        departmentSelect.innerHTML = '<option value="">All Departments</option>';
-        departments.forEach(dept => {
-          const option = document.createElement("option");
-          option.value = dept;
-          option.textContent = dept;
-          departmentSelect.appendChild(option);
-        });
-
-        // --- Update summary tiles ---
-        document.getElementById("totalStaff").innerText = totalStaff;
-        document.getElementById("activeStaff").innerText = activeCount;
-        document.getElementById("presentToday").innerText = presentToday;
-        document.getElementById("absentToday").innerText = absentToday;
-
-        // --- Update attendance title and table ---
-        const attendanceTitle = document.getElementById("attendance-title");
-        attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
-        updateTable(staffAttendanceData);
-
-        // --- Update Charts ---
-        updateSummaryChart(presentToday, absentToday);
-        updateActiveChart(activeCount, inactiveCount);
-        updateTrendChart(stats.trend || []);
-        updateLocationChart(locLabels, locCounts);
-
-        log("✅ Dashboard updated");
-
-      } catch (err) {
-        log("❌ " + err.message);
-        ["totalStaff", "activeStaff", "presentToday", "absentToday"].forEach(id => {
-          const tile = document.querySelector(`#${id}`).closest(".tile");
-          if (tile) tile.classList.add("error");
-        });
-      }
     }
 
     function updateSummaryChart(present, absent) {
@@ -402,12 +269,9 @@
         type: "doughnut",
         data: {
           labels: ["Present", "Absent"],
-          datasets: [{
-            data: [present, absent],
-            backgroundColor: ["#48bb78", "#e2e8f0"]
-          }]
+          datasets: [{ data: [present, absent], backgroundColor: ["#009245", "#e2e8f0"] }]
         },
-        options: { responsive: true, plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } } }
+        options: { plugins: { legend: { position: "bottom" } } }
       });
     }
 
@@ -418,92 +282,48 @@
         type: "bar",
         data: {
           labels: ["Active", "Inactive"],
-          datasets: [{
-            label: "Staff Count",
-            data: [active, inactive],
-            backgroundColor: ["#2d3748", "#f56565"]
-          }]
+          datasets: [{ label: "Staff", data: [active, inactive], backgroundColor: ["#009245", "#f56565"] }]
         },
-        options: {
-          responsive: true,
-          scales: { y: { beginAtZero: true, ticks: { color: '#2d3748' } } },
-          plugins: { legend: { display: false } }
-        }
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
-    function updateTrendChart(trendData = []) {
+    function updateTrendChart(trend) {
       const ctx = document.getElementById("trendChart");
       if (trendChart) trendChart.destroy();
-      const currentDate = new Date();
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const labels = Array.from({ length: daysInMonth }, (_, i) => `${month + 1}/${i + 1}/${year}`);
-      const presentData = labels.map(date => {
-        const trendEntry = trendData.find(d => d.date === date);
-        return trendEntry ? trendEntry.present || 0 : 0;
-      });
+      const labels = trend.map(t => t.date);
+      const values = trend.map(t => t.present);
       trendChart = new Chart(ctx, {
         type: "line",
-        data: {
-          labels,
-          datasets: [{
-            label: "Staff Present",
-            data: presentData,
-            borderColor: "#48bb78",
-            backgroundColor: "rgba(72, 187, 120, 0.2)",
-            tension: 0.4,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748' } },
-            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748' } }
-          },
-          plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } }
-        }
+        data: { labels, datasets: [{ label: "Daily Present", data: values, borderColor: "#009245", fill: false }] },
+        options: { plugins: { legend: { position: "bottom" } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
-    function updateLocationChart(labels, values) {
+    function updateLocationChart(labels, counts) {
       const ctx = document.getElementById("locationChart");
       if (locationChart) locationChart.destroy();
       locationChart = new Chart(ctx, {
         type: "bar",
-        data: {
-          labels,
-          datasets: [{
-            label: "Attendance Count",
-            data: values,
-            backgroundColor: "#48bb78"
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748' }, ticks: { color: '#2d3748' } } },
-          plugins: { legend: { display: false } }
-        }
+        data: { labels, datasets: [{ label: "Attendance Count", data: counts, backgroundColor: "#006837" }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
-    document.querySelectorAll(".sortable").forEach(th => {
-      th.addEventListener("click", () => {
-        const key = th.getAttribute("data-sort");
-        handleSort(key);
-        updateTable(staffAttendanceData);
-      });
-    });
+    function exportToCSV() {
+      const csv = "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
+        staffAttendanceData.map(a => `${a.name},${a.department},${a.timeIn},${a.timeOut},${calculateWorkTime(a.timeIn, a.timeOut)},${a.clockInLocation}`).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "attendance.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
 
     loadDashboardData();
     setInterval(loadDashboardData, 10000);
   </script>
 </body>
 </html>
-</xaiArtifact>
-
-
-
-Let me know if you need further refinements!
