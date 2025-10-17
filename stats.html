@@ -58,7 +58,6 @@
     }
     #stats-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
       gap: 1.5rem;
       padding: 2rem;
     }
@@ -170,7 +169,11 @@
     }
     #department-container {
       width: 100%;
-      padding: 2rem;
+      grid-column: 1 / -1;
+    }
+    #trend-container {
+      width: 100%;
+      grid-column: 1 / -1;
     }
   </style>
 </head>
@@ -188,8 +191,12 @@
       <p id="activeStaff">--</p>
     </div>
     <div class="tile">
-      <h3>Present Today</h3>
-      <p id="presentToday">--</p>
+      <h3>Clock-Ins Today</h3>
+      <p id="clockInsToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Outs Today</h3>
+      <p id="clockOutsToday">--</p>
     </div>
     <div class="tile">
       <h3>Absent Today</h3>
@@ -219,7 +226,7 @@
       <h3>Location Attendance</h3>
       <canvas id="locationChart"></canvas>
     </div>
-    <div class="chart-card">
+    <div class="chart-card" id="trend-container">
       <h3>Staff Attendance Trend</h3>
       <canvas id="trendChart"></canvas>
     </div>
@@ -260,7 +267,7 @@
 
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-16"
+    const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-17"
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -413,7 +420,8 @@
         // --- Update summary tiles ---
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
-        document.getElementById("presentToday").innerText = `Clocked In: ${clockedInToday}, Clocked Out: ${clockedOutToday}`; // Show both
+        document.getElementById("clockInsToday").innerText = clockedInToday;
+        document.getElementById("clockOutsToday").innerText = clockedOutToday;
         document.getElementById("absentToday").innerText = absentToday;
         document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
         document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
@@ -433,7 +441,7 @@
 
       } catch (err) {
         log("❌ " + err.message);
-        ["totalStaff", "activeStaff", "presentToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
+        ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
           const tile = document.querySelector(`#${id}`).closest(".tile");
           if (tile) tile.classList.add("error");
         });
@@ -590,29 +598,28 @@
 
 ### Changes Made
 
-1. **Remove Active vs Inactive Staff Tile/Container**:
-   - Removed the `<div class="chart-card">` containing "Active vs Inactive Staff" from the `#stats-container` in the HTML.
-   - Removed the `updateActiveChart` function from the JavaScript.
+1. **Separate "Clock-Ins Today" and "Clock-Outs Today" Tiles**:
+   - Removed the "Present Today" tile.
+   - Added new tiles: "Clock-Ins Today" with `id="clockInsToday"` and "Clock-Outs Today" with `id="clockOutsToday"`.
+   - Updated `loadDashboardData` to set `document.getElementById("clockInsToday").innerText = clockedInToday;` and `document.getElementById("clockOutsToday").innerText = clockedOutToday;`.
 
-2. **Extend the Department Attendance Tile**:
-   - Added `id="department-container"` to the "Department Attendance" chart card, utilizing the existing CSS rule `width: 100%;` and `padding: 2rem;` to extend its width and ensure it takes up more space.
+2. **Extend the Width of Department Attendance to Full Width on a New Row**:
+   - Added `id="department-container"` to the "Department Attendance" chart card with CSS `grid-column: 1 / -1;` to span the full width.
+   - Adjusted `#stats-container` to use a grid layout with `gap` but without fixed columns, allowing the full-width tiles to stack naturally.
 
-3. **Fix Location Attendance**:
-   - The "Location Attendance" chart was not working, likely due to a mismatch in data aggregation or display. Ensured `locCounts` is correctly calculated from `staffAttendanceData` based on `clockInLocation`. The `updateLocationChart` function now properly maps `locLabels` to `locCounts`. If the API (`/locations`) returns valid data, this should resolve the issue. Tested the logic to confirm it aggregates correctly.
+3. **Extend Staff Attendance Trend Tile to Full Width**:
+   - Added `id="trend-container"` to the "Staff Attendance Trend" chart card with CSS `grid-column: 1 / -1;` to span the full width.
+   - Ensured it appears on a new row by relying on the grid's natural flow after the full-width "Department Attendance" tile.
 
-4. **Add Staff Attendance Trends**:
-   - Added a new `<div class="chart-card">` for "Staff Attendance Trend" with a `trendChart` canvas.
-   - Implemented `updateTrendChart` to display a line graph of staff presence over the current month (October 2025), using `stats.trend` data. It defaults to 0 if no trend data is available, creating a flat line.
-
-5. **Add Number of Clock Outs Today Next to Clock Ins Today (Present Today)**:
-   - Modified the "Present Today" tile to display both clock-ins and clock-outs by setting `document.getElementById("presentToday").innerText = `Clocked In: ${clockedInToday}, Clocked Out: ${clockedOutToday}`;` in `loadDashboardData`.
-   - This combines both metrics in a single tile for clarity. If you prefer separate tiles, let me know, and I can adjust accordingly.
+4. **Maintain Existing Functionality**:
+   - Kept the "Location Attendance" fix (aggregating `locCounts` from `clockInLocation`) and "Staff Attendance Trend" implementation intact.
+   - Updated the error handling in `loadDashboardData` to include the new tile IDs.
 
 ### Notes
-- **Current Date**: Reflects "2025-10-16" at 09:19 PM GMT.
-- **API Assumptions**: Assumes `todayStats.clockIns?.today` and `todayStats.clockOuts?.today` provide clock-in and clock-out counts, and `stats.trend` provides historical data with `date` and `present` properties. Adjust if the API structure differs.
-- **Location Attendance Fix**: If the chart still doesn't display, verify the `locationData.locations` array from the API and ensure `staffAttendanceData` includes `clockInLocation` values. The current code should handle "Unknown" locations if data is missing.
-- **Testing**: Confirm the "Present Today" tile shows both clock-ins and clock-outs, the department attendance chart extends, the location chart displays bars, and the trend chart shows a monthly trend.
+- **Current Date**: Reflects "2025-10-17" at 07:28 AM GMT.
+- **API Assumptions**: Assumes `todayStats.clockIns?.today` and `todayStats.clockOuts?.today` provide clock-in and clock-out counts, and `stats.trend` provides historical data with `date` and `present` properties.
+- **Layout**: The full-width tiles ("Department Attendance" and "Staff Attendance Trend") will stack vertically due to the grid layout. If you need them side by side on larger screens, additional CSS adjustments (e.g., media queries) can be added.
+- **Testing**: Verify the new "Clock-Ins Today" and "Clock-Outs Today" tiles display correctly, the "Department Attendance" and "Staff Attendance Trend" tiles span the full width, and all charts function as expected.
 
 ### Deployment Steps
 1. **Update Frontend**:
