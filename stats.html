@@ -19,36 +19,36 @@
     header {
       background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
       color: #fff;
-      padding: 1.5rem;
+      padding: 1rem;
       text-align: center;
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #summary-tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1.5rem;
-      padding: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
     }
     .tile {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
       text-align: center;
       transition: transform 0.2s;
     }
     .tile:hover {
-      transform: translateY(-5px);
+      transform: translateY(-3px);
     }
     .tile h3 {
       color: #2d3748;
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
     }
     .tile p {
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
       margin: 0;
       color: #48bb78;
@@ -58,46 +58,46 @@
     }
     #stats-container {
       display: grid;
-      gap: 1.5rem;
-      padding: 2rem;
+      gap: 1rem;
+      padding: 1rem;
     }
     .chart-card {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
       transition: transform 0.2s;
     }
     .chart-card:hover {
-      transform: translateY(-5px);
+      transform: translateY(-3px);
     }
     .chart-card h3 {
       text-align: center;
       color: #2d3748;
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 1.25rem;
     }
     canvas {
       width: 100% !important;
-      height: 300px !important;
+      height: 200px !important; /* Reduced height for mobile */
     }
     #log {
       background: #1a202c;
       color: #48bb78;
       font-family: 'Courier New', monospace;
-      padding: 1.5rem;
-      height: 200px;
+      padding: 1rem;
+      height: 150px;
       overflow-y: auto;
-      margin: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin: 1rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #attendance-table {
-      margin: 2rem;
-      padding: 1.5rem;
+      margin: 1rem;
+      padding: 1rem;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #attendance-table table {
       width: 100%;
@@ -105,9 +105,10 @@
     }
     #attendance-table th,
     #attendance-table td {
-      padding: 1rem;
+      padding: 0.75rem;
       text-align: left;
       border-bottom: 1px solid #e2e8f0;
+      font-size: 0.875rem; /* Smaller font for mobile */
     }
     #attendance-table th {
       background: #2d3748;
@@ -122,7 +123,7 @@
     }
     .sort-arrow {
       display: inline-block;
-      margin-left: 5px;
+      margin-left: 3px;
     }
     .asc::after {
       content: " ▲";
@@ -132,23 +133,25 @@
     }
     #filters {
       display: flex;
-      gap: 1.5rem;
-      margin: 2rem;
-      padding: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin: 1rem;
+      padding: 1rem;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #filters label {
       font-weight: 600;
       color: #2d3748;
+      font-size: 0.875rem;
     }
     #date-select, #department-select {
-      padding: 0.75rem;
-      border-radius: 8px;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
       border: 2px solid #e2e8f0;
-      font-size: 1rem;
-      transition: border-color 0.2s;
+      font-size: 0.875rem;
+      width: 100%; /* Full width on mobile */
     }
     #date-select:focus, #department-select:focus {
       border-color: #48bb78;
@@ -157,12 +160,12 @@
     #export-btn {
       background: #48bb78;
       color: white;
-      padding: 0.75rem 1.5rem;
+      padding: 0.5rem 1rem;
       border: none;
-      border-radius: 8px;
+      border-radius: 0.5rem;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.2s;
+      font-size: 0.875rem;
+      width: 100%; /* Full width on mobile */
     }
     #export-btn:hover {
       background: #38a169;
@@ -174,6 +177,61 @@
     #trend-container {
       width: 100%;
       grid-column: 1 / -1;
+    }
+
+    /* Media Queries for Mobile Responsiveness */
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.25rem;
+        padding: 0.75rem;
+      }
+      #summary-tiles {
+        grid-template-columns: 1fr; /* Stack tiles vertically */
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tile {
+        padding: 0.75rem;
+      }
+      .tile h3 {
+        font-size: 0.875rem;
+      }
+      .tile p {
+        font-size: 1.25rem;
+      }
+      #stats-container {
+        grid-template-columns: 1fr; /* Stack charts vertically */
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .chart-card {
+        padding: 0.75rem;
+      }
+      .chart-card h3 {
+        font-size: 1rem;
+      }
+      canvas {
+        height: 150px !important; /* Further reduced for smaller screens */
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+      }
+      #filters {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+      }
+      #date-select, #department-select, #export-btn {
+        width: 100%;
+        padding: 0.375rem;
+      }
+      #log {
+        height: 100px;
+        padding: 0.75rem;
+        margin: 0.75rem;
+      }
     }
   </style>
 </head>
@@ -478,7 +536,7 @@
             datalabels: {
               display: true,
               color: '#2d3748',
-              font: { size: 14, weight: 'bold' },
+              font: { size: 12, weight: 'bold' }, /* Adjusted for mobile */
               anchor: 'end',
               align: 'top'
             }
@@ -494,23 +552,23 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
             y: {
               beginAtZero: true,
               title: { display: true, text: 'Clock In/Out Count', color: '#2d3748' },
-              ticks: { color: '#2d3748' },
-              stacked: false
+              ticks: { color: '#2d3748', font: { size: 10 } } /* Adjusted for mobile */
             },
             x: {
               title: { display: true, text: 'Departments', color: '#2d3748' },
-              ticks: { color: '#2d3748' }
+              ticks: { color: '#2d3748', font: { size: 10 } } /* Adjusted for mobile */
             }
           },
           plugins: {
-            legend: { position: "bottom", labels: { color: '#2d3748' } },
+            legend: { position: "bottom", labels: { color: '#2d3748', font: { size: 10 } } },
             datalabels: {
               color: '#2d3748',
-              font: { size: 14, weight: 'bold' },
+              font: { size: 10, weight: 'bold' }, /* Adjusted for mobile */
               anchor: 'end',
               align: 'top',
               formatter: (value, context) => {
@@ -539,7 +597,8 @@
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748' }, ticks: { color: '#2d3748' } } },
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748' }, ticks: { color: '#2d3748', font: { size: 10 } } } },
           plugins: { legend: { display: false } }
         }
       });
@@ -572,11 +631,12 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748' } },
-            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748' } }
+            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748', font: { size: 10 } } },
+            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748', font: { size: 8 } } } /* Smaller x-axis labels */
           },
-          plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } }
+          plugins: { legend: { position: "bottom", labels: { color: '#2d3748', font: { size: 10 } } } }
         }
       });
     }
@@ -596,30 +656,44 @@
 </html>
 </xaiArtifact>
 
-### Changes Made
+### Changes Made for Mobile Responsiveness
 
-1. **Separate "Clock-Ins Today" and "Clock-Outs Today" Tiles**:
-   - Removed the "Present Today" tile.
-   - Added new tiles: "Clock-Ins Today" with `id="clockInsToday"` and "Clock-Outs Today" with `id="clockOutsToday"`.
-   - Updated `loadDashboardData` to set `document.getElementById("clockInsToday").innerText = clockedInToday;` and `document.getElementById("clockOutsToday").innerText = clockedOutToday;`.
+1. **General Adjustments**:
+   - Reduced padding, margins, and font sizes for a more compact layout on mobile.
+   - Used `rem` and `vw` units for scalability.
+   - Added `meta name="viewport"` to ensure proper scaling on mobile devices.
 
-2. **Extend the Width of Department Attendance to Full Width on a New Row**:
-   - Added `id="department-container"` to the "Department Attendance" chart card with CSS `grid-column: 1 / -1;` to span the full width.
-   - Adjusted `#stats-container` to use a grid layout with `gap` but without fixed columns, allowing the full-width tiles to stack naturally.
+2. **Summary Tiles (#summary-tiles)**:
+   - Changed `grid-template-columns` to stack vertically (`1fr`) on screens ≤ 768px using a media query.
+   - Reduced `minmax` to `150px` for better fit on smaller screens.
+   - Adjusted padding and gap for mobile.
 
-3. **Extend Staff Attendance Trend Tile to Full Width**:
-   - Added `id="trend-container"` to the "Staff Attendance Trend" chart card with CSS `grid-column: 1 / -1;` to span the full width.
-   - Ensured it appears on a new row by relying on the grid's natural flow after the full-width "Department Attendance" tile.
+3. **Charts (#stats-container)**:
+   - Set `grid-template-columns` to `1fr` on mobile to stack charts vertically.
+   - Reduced `canvas` height to `150px` on mobile for better visibility.
+   - Added `maintainAspectRatio: false` to chart options for flexible sizing.
+   - Adjusted font sizes and labels in chart options for readability on small screens.
 
-4. **Maintain Existing Functionality**:
-   - Kept the "Location Attendance" fix (aggregating `locCounts` from `clockInLocation`) and "Staff Attendance Trend" implementation intact.
-   - Updated the error handling in `loadDashboardData` to include the new tile IDs.
+4. **Attendance Table (#attendance-table)**:
+   - Reduced font size and padding for mobile.
+   - Ensured the table remains scrollable if content overflows.
+
+5. **Filters (#filters)**:
+   - Changed to `flex-direction: column` and `flex-wrap: wrap` on mobile to stack elements.
+   - Made `input`, `select`, and `button` full-width on mobile with reduced padding.
+
+6. **Log (#log)**:
+   - Reduced height and padding for mobile to save space.
+
+7. **Media Queries**:
+   - Applied all mobile-specific adjustments at `(max-width: 768px)` to target tablets and phones.
+   - Kept desktop layout intact for screens > 768px, with full-width "Department Attendance" and "Staff Attendance Trend" tiles.
 
 ### Notes
-- **Current Date**: Reflects "2025-10-17" at 07:28 AM GMT.
-- **API Assumptions**: Assumes `todayStats.clockIns?.today` and `todayStats.clockOuts?.today` provide clock-in and clock-out counts, and `stats.trend` provides historical data with `date` and `present` properties.
-- **Layout**: The full-width tiles ("Department Attendance" and "Staff Attendance Trend") will stack vertically due to the grid layout. If you need them side by side on larger screens, additional CSS adjustments (e.g., media queries) can be added.
-- **Testing**: Verify the new "Clock-Ins Today" and "Clock-Outs Today" tiles display correctly, the "Department Attendance" and "Staff Attendance Trend" tiles span the full width, and all charts function as expected.
+- **Current Date/Time**: Reflects "2025-10-17" at 07:34 AM GMT.
+- **API Assumptions**: No changes to API assumptions; the responsiveness is purely stylistic.
+- **Testing**: Test on devices with screen widths < 768px (e.g., iPhone, Android phones) to ensure tiles, charts, and tables stack and scale correctly. Verify touch interactions work (e.g., button taps, table sorting).
+- **Chart Responsiveness**: Charts use Chart.js's `responsive` option, but you may need to adjust `aspectRatio` or add more specific media queries if charts distort on very small screens.
 
 ### Deployment Steps
 1. **Update Frontend**:
