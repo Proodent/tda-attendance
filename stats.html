@@ -1,276 +1,1029 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Dashboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      color: #1a202c;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+      color: #fff;
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #summary-tiles {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .tile:hover {
+      transform: translateY(-5px);
+    }
+    .tile h3 {
+      color: #2d3748;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tile p {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+      color: #48bb78;
+    }
+    .tile.error p {
+      color: #f56565;
+    }
+    #stats-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .chart-tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      transition: transform 0.2s;
+      height: 350px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-tile:hover {
+      transform: translateY(-5px);
+    }
+    .chart-tile h3 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      height: 40px; /* Fixed height for title */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chart-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 0; /* Important for flex children */
+    }
+    .chart-container canvas {
+      max-width: 100% !important;
+      max-height: 100% !important;
+      width: auto !important;
+      height: auto !important;
+    }
+    .full-width-chart {
+      grid-column: 1 / -1;
+      height: 400px;
+    }
+    .full-width-chart .chart-container {
+      height: 300px;
+    }
+    #log {
+      background: #1a202c;
+      color: #48bb78;
+      font-family: 'Courier New', monospace;
+      padding: 1.5rem;
+      height: 200px;
+      overflow-y: auto;
+      margin: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #attendance-table {
+      margin: 2rem;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #attendance-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #attendance-table th,
+    #attendance-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    #attendance-table th {
+      background: #2d3748;
+      color: #fff;
+      cursor: pointer;
+    }
+    #attendance-table th:hover {
+      background: #4a5568;
+    }
+    #attendance-table tr:nth-child(even) {
+      background: #f7fafc;
+    }
+    .sort-arrow {
+      display: inline-block;
+      margin-left: 5px;
+    }
+    .asc::after {
+      content: " ▲";
+    }
+    .desc::after {
+      content: " ▼";
+    }
+    #filters {
+      display: flex;
+      gap: 1rem;
+      margin: 2rem;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    #filters label {
+      font-weight: 600;
+      color: #2d3748;
+      white-space: nowrap;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    #date-select, #department-select, #name-search {
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 2px solid #e2e8f0;
+      font-size: 0.9rem;
+      width: 100%;
+      height: 38px;
+    }
+    #date-select:focus, #department-select:focus, #name-search:focus {
+      border-color: #48bb78;
+      outline: none;
+    }
+    #export-btn, #clear-filter-btn {
+      background: #48bb78;
+      color: white;
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      height: 38px;
+      transition: background-color 0.2s;
+      white-space: nowrap;
+    }
+    #export-btn:hover, #clear-filter-btn:hover {
+      background: #38a169;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 18.75%;
+    }
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    .button-group .filter-group {
+      min-width: auto;
+      width: auto;
+    }
 
-        body {
-            background: #f8f9fa;
-            padding: 15px;
-        }
+    /* Media Queries for Mobile Responsiveness */
+    @media (max-width: 1200px) {
+      #stats-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .full-width-chart {
+        grid-column: 1 / -1;
+      }
+    }
 
-        .dashboard-container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.25rem;
+        padding: 0.75rem;
+      }
+      #summary-tiles {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tile {
+        padding: 0.75rem;
+      }
+      .tile h3 {
+        font-size: 0.75rem;
+      }
+      .tile p {
+        font-size: 1.25rem;
+      }
+      #stats-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .chart-tile {
+        padding: 1rem;
+        height: 300px;
+      }
+      .chart-tile h3 {
+        font-size: 1.1rem;
+        height: 35px;
+      }
+      .full-width-chart {
+        height: 350px;
+      }
+      .full-width-chart .chart-container {
+        height: 250px;
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+      }
+      #filters {
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        align-items: stretch;
+      }
+      .filter-group {
+        min-width: 100%;
+      }
+      .button-group {
+        width: 100%;
+        justify-content: stretch;
+        margin-top: 0.5rem;
+      }
+      .button-group .filter-group {
+        width: 100%;
+      }
+      #export-btn, #clear-filter-btn {
+        flex: 1;
+        text-align: center;
+        height: 38px;
+      }
+      #log {
+        height: 150px;
+        padding: 1rem;
+        margin: 1rem;
+      }
+    }
 
-        .tile-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-            margin-top: 15px;
-        }
-
-        .department-header {
-            grid-column: 1 / -1;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-        }
-
-        .department-header h2 {
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
-
-        .tile {
-            background: white;
-            border-radius: 8px;
-            padding: 12px 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
-            transition: all 0.3s ease;
-            border: 1px solid #eaeaea;
-        }
-
-        .tile:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-
-        .tile h3 {
-            font-size: 0.85rem;
-            color: #555;
-            margin-bottom: 8px;
-            font-weight: 500;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .chart-container {
-            height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mini-chart {
-            width: 60px;
-            height: 40px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            padding: 5px;
-            border: 1px solid #e9ecef;
-        }
-
-        .chart-bar {
-            width: 6px;
-            background: linear-gradient(to top, #4facfe 0%, #00f2fe 100%);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .chart-bar:nth-child(1) { height: 25px; }
-        .chart-bar:nth-child(2) { height: 35px; }
-        .chart-bar:nth-child(3) { height: 20px; }
-        .chart-bar:nth-child(4) { height: 30px; }
-
-        .attendance-metric {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: #2c3e50;
-            margin: 5px 0;
-        }
-
-        .metric-label {
-            font-size: 0.7rem;
-            color: #7f8c8d;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Different color schemes for different tile types */
-        .tile.present { border-top: 3px solid #2ecc71; }
-        .tile.absent { border-top: 3px solid #e74c3c; }
-        .tile.reporting { border-top: 3px solid #3498db; }
-        .tile.departure { border-top: 3px solid #9b59b6; }
-        .tile.time-based { border-top: 3px solid #f39c12; }
-    </style>
+    @media (max-width: 480px) {
+      #summary-tiles {
+        grid-template-columns: 1fr;
+      }
+      .chart-tile {
+        height: 250px;
+      }
+      .chart-tile h3 {
+        height: 30px;
+        font-size: 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <div class="department-header">
-            <h2>Department Attendance</h2>
-        </div>
+  <header>Attendance Dashboard</header>
 
-        <div class="tile-grid">
-            <!-- Main Attendance Tiles -->
-            <div class="tile">
-                <h3>General Attendance</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">87%</div>
-                <div class="metric-label">This Week</div>
-            </div>
-
-            <div class="tile reporting">
-                <h3>Reporting</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">42</div>
-                <div class="metric-label">Today</div>
-            </div>
-
-            <div class="tile departure">
-                <h3>Departure</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">38</div>
-                <div class="metric-label">Today</div>
-            </div>
-
-            <!-- Status Tiles -->
-            <div class="tile present">
-                <h3>Present</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">156</div>
-                <div class="metric-label">Employees</div>
-            </div>
-
-            <div class="tile absent">
-                <h3>Absent</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">12</div>
-                <div class="metric-label">Employees</div>
-            </div>
-
-            <!-- Time-based Tiles -->
-            <div class="tile time-based">
-                <h3>Before 10 AM</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">89%</div>
-                <div class="metric-label">On Time</div>
-            </div>
-
-            <div class="tile time-based">
-                <h3>After 10 AM</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">11%</div>
-                <div class="metric-label">Late Arrivals</div>
-            </div>
-
-            <div class="tile time-based">
-                <h3>Before 4 PM</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">15%</div>
-                <div class="metric-label">Early Leave</div>
-            </div>
-
-            <div class="tile time-based">
-                <h3>After 4 PM</h3>
-                <div class="chart-container">
-                    <div class="mini-chart">
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                        <div class="chart-bar"></div>
-                    </div>
-                </div>
-                <div class="attendance-metric">85%</div>
-                <div class="metric-label">On Schedule</div>
-            </div>
-        </div>
+  <!-- Summary Tiles -->
+  <section id="summary-tiles">
+    <div class="tile">
+      <h3>Total Staff</h3>
+      <p id="totalStaff">--</p>
     </div>
+    <div class="tile">
+      <h3>Active Staff</h3>
+      <p id="activeStaff">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Ins Today</h3>
+      <p id="clockInsToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Outs Today</h3>
+      <p id="clockOutsToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Absent Today</h3>
+      <p id="absentToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-In Rate</h3>
+      <p id="percentClockedIn">--%</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Out Rate</h3>
+      <p id="percentClockedOut">--%</p>
+    </div>
+  </section>
 
-    <script>
-        // Add some dynamic animation to chart bars
-        document.addEventListener('DOMContentLoaded', function() {
-            const bars = document.querySelectorAll('.chart-bar');
-            bars.forEach(bar => {
-                const randomHeight = 15 + Math.random() * 25;
-                bar.style.height = `${randomHeight}px`;
-            });
+  <!-- Charts -->
+  <section id="stats-container">
+    <!-- Three individual chart tiles -->
+    <div class="chart-tile">
+      <h3>General Attendance</h3>
+      <div class="chart-container">
+        <canvas id="generalAttendanceChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile">
+      <h3>Reporting</h3>
+      <div class="chart-container">
+        <canvas id="reportingChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile">
+      <h3>Departure</h3>
+      <div class="chart-container">
+        <canvas id="departureChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Full width charts -->
+    <div class="chart-tile full-width-chart" id="department-container">
+      <h3>Department Attendance</h3>
+      <div class="chart-container">
+        <canvas id="departmentChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart">
+      <h3>Location Attendance</h3>
+      <div class="chart-container">
+        <canvas id="locationChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart" id="trend-container">
+      <h3>Staff Attendance Trend</h3>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filters -->
+  <section id="filters">
+    <div class="filter-group">
+      <label for="date-select">Select Date:</label>
+      <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-17">
+    </div>
+    
+    <div class="filter-group">
+      <label for="department-select">Filter Department:</label>
+      <select id="department-select" onchange="filterTable()">
+        <option value="">All Departments</option>
+      </select>
+    </div>
+    
+    <div class="filter-group">
+      <label for="name-search">Search Name:</label>
+      <input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">
+    </div>
+    
+    <div class="button-group">
+      <div class="filter-group">
+        <label style="visibility: hidden;">Actions</label>
+        <button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>
+      </div>
+      <div class="filter-group">
+        <label style="visibility: hidden;">Export</label>
+        <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Staff Attendance Details -->
+  <section id="attendance-table">
+    <p id="attendance-count">Showing 0 of 0 entries</p>
+    <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 17, 2025)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="name">Name</th>
+          <th class="sortable" data-sort="department">Department</th>
+          <th class="sortable" data-sort="timeIn">Time In</th>
+          <th class="sortable" data-sort="timeOut">Time Out</th>
+          <th class="sortable" data-sort="workTime">Work Time</th>
+          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-body"></tbody>
+    </table>
+  </section>
+
+  <div id="log"></div>
+
+  <script>
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    const log = (msg) => {
+      const logBox = document.getElementById("log");
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `[${time}] ${msg}<br>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart;
+    let sortConfig = { key: null, direction: "asc" };
+    let departments = [];
+    let staffAttendanceData = [];
+
+    async function fetchJSON(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const text = await res.text();
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to fetch: ${e.message}`);
+      }
+    }
+
+    function calculateWorkTime(timeIn, timeOut) {
+      if (!timeIn || !timeOut) return "N/A";
+      const [inH, inM] = timeIn.split(":").map(Number);
+      const [outH, outM] = timeOut.split(":").map(Number);
+      const inMinutes = inH * 60 + inM;
+      const outMinutes = outH * 60 + outM;
+      const workMinutes = outMinutes - inMinutes;
+      const hours = Math.floor(workMinutes / 60);
+      const minutes = workMinutes % 60;
+      return `${hours}h ${minutes}m`;
+    }
+
+    function updateTable(data) {
+      const attendanceBody = document.getElementById("attendance-body");
+      attendanceBody.innerHTML = "";
+      const departmentFilter = document.getElementById("department-select").value;
+      const nameSearch = document.getElementById("name-search").value.toLowerCase();
+      const filteredData = data.filter(entry => {
+        const nameMatch = entry.name.toLowerCase().includes(nameSearch);
+        const deptMatch = departmentFilter ? entry.department === departmentFilter : true;
+        return nameMatch && deptMatch;
+      });
+      const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
+      sortedData.forEach(entry => {
+        const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.name}</td>
+          <td>${entry.department}</td>
+          <td>${entry.timeIn}</td>
+          <td>${entry.timeOut}</td>
+          <td>${workTime}</td>
+          <td>${entry.clockInLocation}</td>
+        `;
+        attendanceBody.appendChild(row);
+      });
+      document.getElementById("attendance-count").textContent = `Showing ${sortedData.length} of ${data.length} entries`;
+    }
+
+    function filterTable() {
+      updateTable(staffAttendanceData);
+    }
+
+    function clearFilters() {
+      document.getElementById("date-select").value = currentDate;
+      document.getElementById("department-select").value = "";
+      document.getElementById("name-search").value = "";
+      loadDashboardData();
+    }
+
+    function exportToCSV() {
+      const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
+        staffAttendanceData.map(entry => {
+          const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+          return `${entry.name},${entry.department},${entry.timeIn},${entry.timeOut},${workTime},${entry.clockInLocation}`;
+        }).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "staff_attendance.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    async function loadDashboardData() {
+      const dateSelect = document.getElementById("date-select");
+      const selectedDate = dateSelect.value;
+      try {
+        log("⏳ Fetching data...");
+
+        // Load staff data
+        const staffData = await fetchJSON(`${backendURL}/staff`);
+        const totalStaff = staffData.totalStaff || 0;
+        const activeCount = staffData.staffCount || 0;
+        log(`✅ Loaded ${totalStaff} staff members`);
+
+        // Load today's attendance stats
+        const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
+        const clockedInToday = todayStats.clockIns?.today || 0;
+        const clockedOutToday = todayStats.clockOuts?.today || 0;
+        const absentToday = activeCount > 0 ? Math.max(0, activeCount - clockedInToday) : 0;
+        const percentClockedIn = activeCount > 0 ? Math.round((clockedInToday / activeCount) * 100) : 0;
+        const percentClockedOut = clockedInToday > 0 ? Math.round((clockedOutToday / clockedInToday) * 100) : 0;
+
+        // Load attendance stats for selected date
+        const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
+        const stats = await fetchJSON(statsUrl);
+        staffAttendanceData = stats.staffAttendance || [];
+
+        // Calculate clock-in and clock-out time splits
+        const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
+        const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
+        const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
+        const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
+
+        // Load location-wise data
+        const locationData = await fetchJSON(`${backendURL}/locations`);
+        const locLabels = locationData.locations?.map(l => l.name) || [];
+        const locAttendance = {};
+        staffAttendanceData.forEach(entry => {
+          const loc = entry.clockInLocation || "Unknown";
+          locAttendance[loc] = (locAttendance[loc] || 0) + 1;
         });
-    </script>
+        const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
+
+        // Populate department filter and calculate department stats
+        departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
+        const departmentSelect = document.getElementById("department-select");
+        departmentSelect.innerHTML = '<option value="">All Departments</option>';
+        departments.forEach(dept => {
+          const option = document.createElement("option");
+          option.value = dept;
+          option.textContent = dept;
+          departmentSelect.appendChild(option);
+        });
+
+        // Calculate department totals, clock-ins, and clock-outs
+        const deptTotals = {};
+        const deptClockIns = {};
+        const deptClockOuts = {};
+        (staffData.staff || []).forEach(entry => {
+          const dept = entry.department;
+          deptTotals[dept] = (deptTotals[dept] || 0) + 1;
+        });
+        staffAttendanceData.forEach(entry => {
+          const dept = entry.department;
+          if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
+          if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
+        });
+        const deptLabels = departments;
+        const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
+        const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
+        const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
+        const deptClockInRates = departments.map(dept => {
+          const total = deptTotals[dept] || 0;
+          const clockedIn = deptClockIns[dept] || 0;
+          return total > 0 ? `${clockedIn}/${total}` : "0/0";
+        });
+        const deptClockOutRates = departments.map(dept => {
+          const clockedIn = deptClockIns[dept] || 0;
+          const clockedOut = deptClockOuts[dept] || 0;
+          return clockedIn > 0 ? `${clockedOut}/${clockedIn}` : "0/0";
+        });
+
+        // Load trend data for the selected date's month
+        const selectedDateObj = new Date(selectedDate);
+        const trendYear = selectedDateObj.getFullYear();
+        const trendMonth = selectedDateObj.getMonth() + 1;
+        let trendData = [];
+        try {
+          trendData = await fetchJSON(`${backendURL}/trend?year=${trendYear}&month=${trendMonth}`);
+          log(`✅ Loaded trend data for ${trendMonth}/${trendYear}`);
+        } catch (err) {
+          log(`⚠️ Could not load trend data: ${err.message}`);
+          // Create dummy trend data for demo
+          trendData = Array.from({ length: 30 }, (_, i) => ({
+            date: `${trendYear}-${trendMonth.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`,
+            present: Math.floor(Math.random() * 50) + 30
+          }));
+        }
+
+        // Update summary tiles
+        document.getElementById("totalStaff").innerText = totalStaff;
+        document.getElementById("activeStaff").innerText = activeCount;
+        document.getElementById("clockInsToday").innerText = clockedInToday;
+        document.getElementById("clockOutsToday").innerText = clockedOutToday;
+        document.getElementById("absentToday").innerText = absentToday;
+        document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
+        document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
+
+        // Update attendance title and table
+        const attendanceTitle = document.getElementById("attendance-title");
+        attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
+        updateTable(staffAttendanceData);
+
+        // Update Charts with error handling
+        try {
+          updateGeneralAttendanceChart(clockedInToday, absentToday);
+          updateReportingChart(clockInsBefore10AM, clockInsAfter10AM);
+          updateDepartureChart(clockOutsBefore4PM, clockOutsAfter4PM);
+          updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels, deptClockInRates, deptClockOutRates);
+          updateLocationChart(locLabels, locCounts);
+          updateTrendChart(trendData, trendYear, trendMonth);
+        } catch (chartError) {
+          log(`❌ Chart error: ${chartError.message}`);
+        }
+
+        log("✅ Dashboard updated");
+
+      } catch (err) {
+        log("❌ " + err.message);
+        ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
+          const tile = document.querySelector(`#${id}`).closest(".tile");
+          if (tile) tile.classList.add("error");
+        });
+      }
+    }
+
+    function convertToMinutes(timeStr) {
+      if (!timeStr) return 0;
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function updateGeneralAttendanceChart(present, absent) {
+      const ctx = document.getElementById("generalAttendanceChart");
+      if (!ctx) return;
+      
+      if (generalAttendanceChart) generalAttendanceChart.destroy();
+      
+      // Ensure we have valid data
+      present = present || 0;
+      absent = absent || 0;
+      
+      generalAttendanceChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Present', 'Absent'],
+          datasets: [{
+            data: [present, absent],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#2d3748', font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateReportingChart(before10AM, after10AM) {
+      const ctx = document.getElementById("reportingChart");
+      if (!ctx) return;
+      
+      if (reportingChart) reportingChart.destroy();
+      
+      before10AM = before10AM || 0;
+      after10AM = after10AM || 0;
+      
+      reportingChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 10 AM', 'After 10 AM'],
+          datasets: [{
+            data: [before10AM, after10AM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#2d3748', font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDepartureChart(before4PM, after4PM) {
+      const ctx = document.getElementById("departureChart");
+      if (!ctx) return;
+      
+      if (departureChart) departureChart.destroy();
+      
+      before4PM = before4PM || 0;
+      after4PM = after4PM || 0;
+      
+      departureChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 4 PM', 'After 4 PM'],
+          datasets: [{
+            data: [before4PM, after4PM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#2d3748', font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels, clockInRates, clockOutRates) {
+      const ctx = document.getElementById("departmentChart");
+      if (!ctx) return;
+      
+      if (departmentChart) departmentChart.destroy();
+      
+      departmentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Total Staff',
+            data: totalLabels,
+            backgroundColor: 'rgba(45, 55, 72, 0.2)'
+          }, {
+            label: 'Clock In',
+            data: clockInData,
+            backgroundColor: '#48bb78'
+          }, {
+            label: 'Clock Out',
+            data: clockOutData,
+            backgroundColor: '#f56565'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            },
+            x: {
+              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+
+    function updateLocationChart(labels, values) {
+      const ctx = document.getElementById("locationChart");
+      if (!ctx) return;
+      
+      if (locationChart) locationChart.destroy();
+      
+      locationChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Attendance Count',
+            data: values,
+            backgroundColor: '#48bb78'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { 
+            y: { 
+              beginAtZero: true, 
+              title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { color: '#2d3748', font: { size: 10 } } 
+            },
+            x: {
+              title: { display: true, text: 'Locations', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function updateTrendChart(trendData = [], year, month) {
+      const ctx = document.getElementById("trendChart");
+      if (!ctx) return;
+      
+      if (trendChart) trendChart.destroy();
+      
+      // Calculate days in the selected month
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      // Create labels for all days in the month
+      const labels = Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        return `${month}/${day}`;
+      });
+      
+      // Map trend data to match the labels
+      const presentData = labels.map((date, index) => {
+        const day = index + 1;
+        const fullDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        
+        // Try to find matching trend entry
+        const trendEntry = trendData.find(d => {
+          if (!d.date) return false;
+          const entryDate = new Date(d.date).toISOString().split('T')[0];
+          return entryDate === fullDate;
+        });
+        return trendEntry ? (trendEntry.present || trendEntry.clockedIn || 0) : 0;
+      });
+
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Staff Present',
+            data: presentData,
+            borderColor: '#48bb78',
+            backgroundColor: 'rgba(72, 187, 120, 0.2)',
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#48bb78',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { 
+              beginAtZero: true, 
+              title: { display: true, text: 'Staff Present', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { color: '#2d3748', font: { size: 10 } } 
+            },
+            x: { 
+              title: { display: true, text: 'Dates of the Month', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { 
+                color: '#2d3748', 
+                font: { size: 10 },
+                maxTicksLimit: 15
+              } 
+            }
+          },
+          plugins: { 
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                title: function(tooltipItems) {
+                  return `Date: ${month}/${tooltipItems[0].dataIndex + 1}/${year}`;
+                },
+                label: function(context) {
+                  return `Staff Present: ${context.raw}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Missing sort functions
+    function handleSort(key) {
+        if (sortConfig.key === key) {
+            sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
+        } else {
+            sortConfig.key = key;
+            sortConfig.direction = "asc";
+        }
+        updateTable(staffAttendanceData);
+    }
+
+    function sortData(data, key, direction) {
+        return [...data].sort((a, b) => {
+            let aVal = a[key];
+            let bVal = b[key];
+            
+            if (direction === "asc") {
+                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            } else {
+                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+            }
+        });
+    }
+
+    document.querySelectorAll(".sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort");
+        handleSort(key);
+        updateTable(staffAttendanceData);
+      });
+    });
+
+    // Initialize dashboard when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      loadDashboardData();
+      setInterval(loadDashboardData, 10000);
+    });
+  </script>
 </body>
 </html>
