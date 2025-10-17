@@ -84,16 +84,33 @@
     #summary-container {
       display: flex;
       flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: space-around;
+      justify-content: space-between;
+      align-items: center;
+      height: 100%;
     }
-    #summary-container canvas {
-      width: 30% !important;
-      height: 250px !important; /* Optimized for mobile */
-      min-width: 150px; /* Reduced min-width for mobile */
-      max-height: 250px; /* Cap height for mobile optimization */
+    .summary-chart {
+      flex: 0 0 30%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
-    canvas {
+    .summary-chart canvas {
+      width: 100% !important;
+      height: 250px !important;
+      max-height: 250px;
+    }
+    .chart-title {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    #department-container canvas,
+    #trend-container canvas,
+    .chart-card:not(:first-child) canvas {
       width: 100% !important;
       height: 300px !important;
     }
@@ -215,22 +232,29 @@
       }
       .chart-card {
         padding: 0.75rem;
-        height: 250px; /* Optimized height for mobile */
+        height: 300px; /* Reduced height for mobile */
       }
       .chart-card h3 {
         font-size: 1rem;
       }
       #summary-container {
         flex-direction: column; /* Stack charts vertically on mobile */
+        height: auto;
       }
-      #summary-container canvas {
-        width: 100% !important; /* Full width on mobile */
-        height: 150px !important; /* Optimized for mobile */
-        min-width: 0; /* Remove min-width on mobile */
-        max-height: 150px; /* Cap height for mobile */
+      .summary-chart {
+        flex: 0 0 auto;
+        width: 100%;
+        height: 200px;
+        margin-bottom: 1rem;
       }
-      canvas {
-        height: 150px !important; /* Reduced height for mobile */
+      .summary-chart canvas {
+        height: 150px !important;
+        max-height: 150px;
+      }
+      #department-container canvas,
+      #trend-container canvas,
+      .chart-card:not(:first-child) canvas {
+        height: 200px !important;
       }
       #attendance-table th,
       #attendance-table td {
@@ -296,9 +320,18 @@
     <div class="chart-card">
       <h3>Attendance Summary</h3>
       <div id="summary-container">
-        <canvas id="generalAttendanceChart"></canvas>
-        <canvas id="reportingChart"></canvas>
-        <canvas id="departureChart"></canvas>
+        <div class="summary-chart">
+          <div class="chart-title">General Attendance</div>
+          <canvas id="generalAttendanceChart"></canvas>
+        </div>
+        <div class="summary-chart">
+          <div class="chart-title">Reporting</div>
+          <canvas id="reportingChart"></canvas>
+        </div>
+        <div class="summary-chart">
+          <div class="chart-title">Departure</div>
+          <canvas id="departureChart"></canvas>
+        </div>
       </div>
     </div>
     <div class="chart-card" id="department-container">
@@ -579,6 +612,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           animation: {
             duration: 1000,
             easing: 'easeInOutQuad'
@@ -586,12 +620,18 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
-            title: {
-              display: true,
-              text: 'General Attendance',
-              font: { size: 14 }
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
             }
           }
         }
@@ -614,6 +654,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           animation: {
             duration: 1000,
             easing: 'easeInOutQuad'
@@ -621,12 +662,18 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
-            title: {
-              display: true,
-              text: 'Reporting',
-              font: { size: 14 }
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
             }
           }
         }
@@ -649,6 +696,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           animation: {
             duration: 1000,
             easing: 'easeInOutQuad'
@@ -656,12 +704,18 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
-            title: {
-              display: true,
-              text: 'Departure',
-              font: { size: 14 }
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
             }
           }
         }
@@ -682,7 +736,7 @@
             datalabels: {
               display: true,
               color: '#2d3748',
-              font: { size: 10, weight: 'bold' }, // Reduced font size
+              font: { size: 10, weight: 'bold' },
               anchor: 'end',
               align: 'top'
             }
@@ -698,22 +752,23 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
             y: {
               beginAtZero: true,
-              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } }, // Reduced font size
-              ticks: { color: '#2d3748', font: { size: 10 } } // Reduced font size
+              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
             },
             x: {
-              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } }, // Reduced font size
-              ticks: { color: '#2d3748', font: { size: 10 } } // Reduced font size
+              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
             }
           },
           plugins: {
-            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }, // Reduced font size
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
             datalabels: {
               color: '#2d3748',
-              font: { size: 10, weight: 'bold' }, // Reduced font size
+              font: { size: 10, weight: 'bold' },
               anchor: 'end',
               align: 'top',
               formatter: (value, context) => {
@@ -742,7 +797,18 @@
         },
         options: {
           responsive: true,
-          scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } } },
+          maintainAspectRatio: false,
+          scales: { 
+            y: { 
+              beginAtZero: true, 
+              title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { color: '#2d3748', font: { size: 10 } } 
+            },
+            x: {
+              title: { display: true, text: 'Locations', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            }
+          },
           plugins: { legend: { display: false } }
         }
       });
@@ -775,13 +841,51 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } },
-            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }
+            y: { 
+              beginAtZero: true, 
+              title: { display: true, text: 'Staff Present', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { color: '#2d3748', font: { size: 10 } } 
+            },
+            x: { 
+              title: { display: true, text: 'Dates of the Month', color: '#2d3748', font: { size: 12 } }, 
+              ticks: { color: '#2d3748', font: { size: 10 } } 
+            }
           },
           plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } } }
         }
       });
+    }
+
+    // Missing sort functions
+    function handleSort(key) {
+        if (sortConfig.key === key) {
+            sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
+        } else {
+            sortConfig.key = key;
+            sortConfig.direction = "asc";
+        }
+        updateTable(staffAttendanceData);
+    }
+
+    function sortData(data, key, direction) {
+        return [...data].sort((a, b) => {
+            let aVal = a[key];
+            let bVal = b[key];
+            
+            // Handle numeric sorting for time/workTime
+            if (key === "workTime") {
+                aVal = aVal === "N/A" ? 0 : parseInt(aVal);
+                bVal = bVal === "N/A" ? 0 : parseInt(bVal);
+            }
+            
+            if (direction === "asc") {
+                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+            } else {
+                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+            }
+        });
     }
 
     document.querySelectorAll(".sortable").forEach(th => {
@@ -797,5 +901,3 @@
   </script>
 </body>
 </html>
-</xaiArtifact>
-
