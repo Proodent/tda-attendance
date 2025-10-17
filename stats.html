@@ -1,324 +1,270 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attendance Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
-      color: #1a202c;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-    }
-    header {
-      background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
-      color: #fff;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 700;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    #summary-tiles {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .tile {
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 1rem;
-      text-align: center;
-      transition: transform 0.2s;
-    }
-    .tile:hover {
-      transform: translateY(-3px);
-    }
-    .tile h3 {
-      color: #2d3748;
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    .tile p {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin: 0;
-      color: #48bb78;
-    }
-    .tile.error p {
-      color: #f56565;
-    }
-    #stats-container {
-      display: grid;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .chart-card {
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 1rem;
-      transition: transform 0.2s;
-      width: 100%; /* Full width for all chart cards */
-      grid-column: 1 / -1; /* Span full width */
-    }
-    .chart-card:hover {
-      transform: translateY(-3px);
-    }
-    .chart-card h3 {
-      text-align: center;
-      color: #2d3748;
-      margin-bottom: 0.75rem;
-      font-size: 1.25rem;
-    }
-    canvas {
-      width: 100% !important;
-      height: 200px !important; /* Reduced height for mobile */
-    }
-    #log {
-      background: #1a202c;
-      color: #48bb78;
-      font-family: 'Courier New', monospace;
-      padding: 1rem;
-      height: 150px;
-      overflow-y: auto;
-      margin: 1rem;
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    #attendance-table {
-      margin: 1rem;
-      padding: 1rem;
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    #attendance-table table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    #attendance-table th,
-    #attendance-table td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid #e2e8f0;
-      font-size: 0.875rem; /* Smaller font for mobile */
-    }
-    #attendance-table th {
-      background: #2d3748;
-      color: #fff;
-      cursor: pointer;
-    }
-    #attendance-table th:hover {
-      background: #4a5568;
-    }
-    #attendance-table tr:nth-child(even) {
-      background: #f7fafc;
-    }
-    .sort-arrow {
-      display: inline-block;
-      margin-left: 3px;
-    }
-    .asc::after {
-      content: " ▲";
-    }
-    .desc::after {
-      content: " ▼";
-    }
-    #filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin: 1rem;
-      padding: 1rem;
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    #filters label {
-      font-weight: 600;
-      color: #2d3748;
-      font-size: 0.875rem;
-    }
-    #date-select, #department-select {
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      border: 2px solid #e2e8f0;
-      font-size: 0.875rem;
-      width: 100%; /* Full width on mobile */
-    }
-    #date-select:focus, #department-select:focus {
-      border-color: #48bb78;
-      outline: none;
-    }
-    #export-btn {
-      background: #48bb78;
-      color: white;
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      font-size: 0.875rem;
-      width: 100%; /* Full width on mobile */
-    }
-    #export-btn:hover {
-      background: #38a169;
-    }
-
-    /* Media Queries for Mobile Responsiveness */
-    @media (max-width: 768px) {
-      header {
-        font-size: 1.25rem;
-        padding: 0.75rem;
-      }
-      #summary-tiles {
-        grid-template-columns: 1fr; /* Stack tiles vertically */
-        gap: 0.75rem;
-        padding: 0.75rem;
-      }
-      .tile {
-        padding: 0.75rem;
-      }
-      .tile h3 {
-        font-size: 0.875rem;
-      }
-      .tile p {
-        font-size: 1.25rem;
-      }
-      #stats-container {
-        grid-template-columns: 1fr; /* Stack charts vertically */
-        gap: 0.75rem;
-        padding: 0.75rem;
-      }
-      .chart-card {
-        padding: 0.75rem;
-      }
-      .chart-card h3 {
-        font-size: 1rem;
-      }
-      canvas {
-        height: 150px !important; /* Further reduced for smaller screens */
-      }
-      #attendance-table th,
-      #attendance-table td {
-        font-size: 0.75rem;
-        padding: 0.5rem;
-      }
-      #filters {
-        flex-direction: column;
-        gap: 0.5rem;
-        padding: 0.75rem;
-      }
-      #date-select, #department-select, #export-btn {
-        width: 100%;
-        padding: 0.375rem;
-      }
-      #log {
-        height: 100px;
-        padding: 0.75rem;
-        margin: 0.75rem;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attendance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+body {
+font-family: 'Inter', sans-serif;
+background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+color: #1a202c;
+margin: 0;
+padding: 0;
+min-height: 100vh;
+}
+header {
+background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
+color: #fff;
+padding: 1.5rem;
+text-align: center;
+font-size: 2rem;
+font-weight: 700;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+#summary-tiles {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+gap: 1.5rem;
+padding: 2rem;
+}
+.tile {
+background: white;
+border-radius: 12px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+padding: 1.5rem;
+text-align: center;
+transition: transform 0.2s;
+}
+.tile:hover {
+transform: translateY(-5px);
+}
+.tile h3 {
+color: #2d3748;
+font-size: 1.2rem;
+margin-bottom: 0.75rem;
+}
+.tile p {
+font-size: 2rem;
+font-weight: 700;
+margin: 0;
+color: #48bb78;
+}
+.tile.error p {
+color: #f56565;
+}
+#stats-container {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+gap: 1.5rem;
+padding: 2rem;
+}
+.chart-card {
+background: white;
+border-radius: 12px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+padding: 1.5rem;
+transition: transform 0.2s;
+height: 400px; /* Increased height */
+}
+.chart-card:hover {
+transform: translateY(-5px);
+}
+.chart-card h3 {
+text-align: center;
+color: #2d3748;
+margin-bottom: 1rem;
+font-size: 1.5rem;
+}
+canvas {
+width: 100% !important;
+height: 300px !important;
+}
+#log {
+background: #1a202c;
+color: #48bb78;
+font-family: 'Courier New', monospace;
+padding: 1.5rem;
+height: 200px;
+overflow-y: auto;
+margin: 2rem;
+border-radius: 12px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+#attendance-table {
+margin: 2rem;
+padding: 1.5rem;
+background: white;
+border-radius: 12px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+#attendance-table table {
+width: 100%;
+border-collapse: collapse;
+}
+#attendance-table th,
+#attendance-table td {
+padding: 1rem;
+text-align: left;
+border-bottom: 1px solid #e2e8f0;
+}
+#attendance-table th {
+background: #2d3748;
+color: #fff;
+cursor: pointer;
+}
+#attendance-table th:hover {
+background: #4a5568;
+}
+#attendance-table tr:nth-child(even) {
+background: #f7fafc;
+}
+.sort-arrow {
+display: inline-block;
+margin-left: 5px;
+}
+.asc::after {
+content: " ▲";
+}
+.desc::after {
+content: " ▼";
+}
+#filters {
+display: flex;
+gap: 1.5rem;
+margin: 2rem;
+padding: 1.5rem;
+background: white;
+border-radius: 12px;
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+#filters label {
+font-weight: 600;
+color: #2d3748;
+}
+#date-select, #department-select, #name-search {
+padding: 0.75rem;
+border-radius: 8px;
+border: 2px solid #e2e8f0;
+font-size: 1rem;
+transition: border-color 0.2s;
+}
+#date-select:focus, #department-select:focus, #name-search:focus {
+border-color: #48bb78;
+outline: none;
+}
+#export-btn, #clear-filter-btn {
+background: #48bb78;
+color: white;
+padding: 0.75rem 1.5rem;
+border: none;
+border-radius: 8px;
+cursor: pointer;
+font-size: 1rem;
+transition: background-color 0.2s;
+}
+#export-btn:hover, #clear-filter-btn:hover {
+background: #38a169;
+}
+#department-container {
+width: 100%;
+padding: 2rem;
+}
+#trend-container {
+width: 100%;
+padding: 2rem;
+}
+#summary-container {
+display: flex;
+flex-direction: row;
+flex-wrap: wrap;
+justify-content: space-around;
+}
+#summary-container canvas {
+width: 30% !important;
+height: 300px !important;
+min-width: 200px; /* Minimum width for mobile */
+}
+</style>
 </head>
 <body>
-  <header>Attendance Dashboard</header>
-
-  <!-- Summary Tiles -->
-  <section id="summary-tiles">
-    <div class="tile">
-      <h3>Total Staff</h3>
-      <p id="totalStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Active Staff</h3>
-      <p id="activeStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Ins Today</h3>
-      <p id="clockInsToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Outs Today</h3>
-      <p id="clockOutsToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Absent Today</h3>
-      <p id="absentToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-In Rate</h3>
-      <p id="percentClockedIn">--%</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Out Rate</h3>
-      <p id="percentClockedOut">--%</p>
-    </div>
-  </section>
-
-  <!-- Charts -->
-  <section id="stats-container">
-    <div class="chart-card">
-      <h3>Attendance Summary</h3>
-      <canvas id="summaryChart"></canvas>
-      <canvas id="clockInTimeChart"></canvas>
-      <canvas id="clockOutTimeChart"></canvas>
-    </div>
-    <div class="chart-card" id="department-container">
-      <h3>Department Attendance</h3>
+<header>Attendance Dashboard</header>
+  
+  
+    
+      Total Staff
+      --
+    
+    
+      Active Staff
+      --
+    
+    
+      Clock-Ins Today
+      --
+    
+    
+      Clock-Outs Today
+      --
+    
+    
+      Absent Today
+      --
+    
+    
+      Clock-In Rate
+      --%
+    
+    
+      Clock-Out Rate
+      --%
+    
+  
+  
+  
+    
+      Attendance Summary
+      
+        <canvas id="summaryChart"></canvas>
+        <canvas id="clockInTimeChart"></canvas>
+        <canvas id="clockOutTimeChart"></canvas>
+      
+    
+    
+      Department Attendance
       <canvas id="departmentChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Location Attendance</h3>
+    
+    
+      Location Attendance
       <canvas id="locationChart"></canvas>
-    </div>
-    <div class="chart-card" id="trend-container">
-      <h3>Staff Attendance Trend</h3>
+    
+    
+      Staff Attendance Trend
       <canvas id="trendChart"></canvas>
-    </div>
-  </section>
-
-  <!-- Filters -->
-  <section id="filters">
-    <label for="date-select">Select Date:</label>
-    <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-15">
-
-    <label for="department-select">Filter Department:</label>
-    <select id="department-select" onchange="filterTable()">
+    
+  
+  
+  
+    Select Date:
+    
+Filter Department:
+<select id="department-select" onchange="filterTable()">
       <option value="">All Departments</option>
-    </select>
+    
+Search Name:
 
-    <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
-  </section>
-
-  <!-- Staff Attendance Details -->
-  <section id="attendance-table">
-    <h3 id="attendance-title" class="text-xl font-semibold text-gray-800">Staff Attendance Details (October 15, 2025)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" data-sort="name">Name</th>
-          <th class="sortable" data-sort="department">Department</th>
-          <th class="sortable" data-sort="timeIn">Time In</th>
-          <th class="sortable" data-sort="timeOut">Time Out</th>
-          <th class="sortable" data-sort="workTime">Work Time</th>
-          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
-        </tr>
-      </thead>
-      <tbody id="attendance-body"></tbody>
-    </table>
-  </section>
-
-  <div id="log"></div>
-
+<button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>
+<button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
+  
+  
+  
+    Showing 0 of 0 entries
+    Staff Attendance Details (October 15, 2025)
+    NameDepartmentTime InTime OutWork TimeClock In Location
+  
+  
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const currentDate = new Date().toISOString().split("T")[0]; // Current date, e.g., "2025-10-17"
@@ -326,7 +272,8 @@
     const log = (msg) => {
       const logBox = document.getElementById("log");
       const time = new Date().toLocaleTimeString();
-      logBox.innerHTML += `[${time}] ${msg}<br>`;
+      logBox.innerHTML += `[${time}] ${msg}
+`;
       logBox.scrollTop = logBox.scrollHeight;
     };
 
@@ -361,25 +308,38 @@
       const attendanceBody = document.getElementById("attendance-body");
       attendanceBody.innerHTML = "";
       const departmentFilter = document.getElementById("department-select").value;
-      const filteredData = departmentFilter ? data.filter(entry => entry.department === departmentFilter) : data;
+      const nameSearch = document.getElementById("name-search").value.toLowerCase();
+      const filteredData = data.filter(entry => {
+        const nameMatch = entry.name.toLowerCase().includes(nameSearch);
+        const deptMatch = departmentFilter ? entry.department === departmentFilter : true;
+        return nameMatch && deptMatch;
+      });
       const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
       sortedData.forEach(entry => {
         const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${entry.name}</td>
-          <td>${entry.department}</td>
-          <td>${entry.timeIn}</td>
-          <td>${entry.timeOut}</td>
-          <td>${workTime}</td>
-          <td>${entry.clockInLocation}</td>
+          ${entry.name}
+          ${entry.department}
+          ${entry.timeIn}
+          ${entry.timeOut}
+          ${workTime}
+          ${entry.clockInLocation}
         `;
         attendanceBody.appendChild(row);
       });
+      document.getElementById("attendance-count").textContent = `Showing ${sortedData.length} of ${data.length} entries`;
     }
 
     function filterTable() {
       updateTable(staffAttendanceData);
+    }
+
+    function clearFilters() {
+      document.getElementById("date-select").value = "2025-10-15";
+      document.getElementById("department-select").value = "";
+      document.getElementById("name-search").value = "";
+      loadDashboardData();
     }
 
     function exportToCSV() {
@@ -407,6 +367,7 @@
         const staffData = await fetchJSON(`${backendURL}/staff`);
         const totalStaff = staffData.totalStaff || 0;
         const activeCount = staffData.staffCount || 0;
+        const inactiveCount = totalStaff - activeCount;
         log(`✅ Loaded ${totalStaff} staff members`);
 
         // --- Load today's attendance stats (independent of selected date) ---
@@ -532,8 +493,8 @@
         options: {
           responsive: true,
           animation: {
-            duration: 1000,
-            easing: 'easeInOutQuad'
+            duration: 1000, // Smoother animation
+            easing: 'easeInOutQuad' // Optimized easing
           },
           plugins: {
             legend: {
@@ -619,7 +580,7 @@
             datalabels: {
               display: true,
               color: '#2d3748',
-              font: { size: 12, weight: 'bold' },
+              font: { size: 14, weight: 'bold' },
               anchor: 'end',
               align: 'top'
             }
@@ -650,7 +611,7 @@
             legend: { position: 'bottom', labels: { color: '#2d3748' } },
             datalabels: {
               color: '#2d3748',
-              font: { size: 12, weight: 'bold' },
+              font: { size: 14, weight: 'bold' },
               anchor: 'end',
               align: 'top',
               formatter: (value, context) => {
@@ -698,14 +659,14 @@
         return trendEntry ? trendEntry.present || 0 : 0;
       });
       trendChart = new Chart(ctx, {
-        type: 'line',
+        type: "line",
         data: {
           labels,
           datasets: [{
-            label: 'Staff Present',
+            label: "Staff Present",
             data: presentData,
-            borderColor: '#48bb78',
-            backgroundColor: 'rgba(72, 187, 120, 0.2)',
+            borderColor: "#48bb78",
+            backgroundColor: "rgba(72, 187, 120, 0.2)",
             tension: 0.4,
             fill: true
           }]
@@ -716,7 +677,7 @@
             y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748' } },
             x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748' } }
           },
-          plugins: { legend: { position: 'bottom', labels: { color: '#2d3748' } } }
+          plugins: { legend: { position: "bottom", labels: { color: '#2d3748' } } }
         }
       });
     }
@@ -735,32 +696,3 @@
 </body>
 </html>
 </xaiArtifact>
-
-### Changes Made
-
-1. **Add New Doughnut Charts to Attendance Summary Tile**:
-   - Added `<canvas id="clockInTimeChart"></canvas>` and `<canvas id="clockOutTimeChart"></canvas>` within the "Attendance Summary" `chart-card`.
-   - Implemented `updateClockInTimeChart` to display "Clock Ins Before 10 AM" and "After 10 AM" using doughnut charts.
-   - Implemented `updateClockOutTimeChart` to display "Clock Outs Before 4 PM" and "After 4 PM" using doughnut charts.
-   - Added a `convertToMinutes` helper function to convert time strings (e.g., "09:30") to minutes for comparison.
-   - Updated `loadDashboardData` to calculate `clockInsBefore10AM`, `clockInsAfter10AM`, `clockOutsBefore4PM`, and `clockOutsAfter4PM` based on `staffAttendanceData`.
-
-2. **Make All Tiles Full Width and Mobile-Friendly**:
-   - Updated the `.chart-card` CSS to include `width: 100%` and `grid-column: 1 / -1` to ensure all chart cards (Attendance Summary, Department Attendance, Location Attendance, Staff Attendance Trend) span the full width.
-   - Adopted the mobile-responsive styling from the provided example:
-     - Reduced padding, margins, and font sizes for mobile (e.g., `.tile`, `.chart-card`, `#attendance-table`).
-     - Stacked tiles and charts vertically on screens ≤ 768px using `grid-template-columns: 1fr`.
-     - Adjusted `canvas` height to `150px` and font sizes in charts for smaller screens.
-     - Ensured `#filters` elements stack vertically with `flex-direction: column` and full-width inputs/buttons on mobile.
-
-### Notes
-- **Current Date/Time**: Reflects "2025-10-17" at 08:23 AM GMT.
-- **API Assumptions**: Assumes `staffAttendanceData` contains `timeIn` and `timeOut` fields in "HH:MM" format (e.g., "09:30"). If the format differs, adjust the `convertToMinutes` function accordingly.
-- **Chart Behavior**: The new doughnut charts will reflect the split of clock-ins and clock-outs based on the selected date. If no data exists, they will show 0 for both segments.
-- **Testing**: Verify the new doughnut charts appear in the "Attendance Summary" section, all chart cards are full-width, and the layout adapts to mobile screens (< 768px) with stacked elements.
-
-### Deployment Steps
-1. **Update Frontend**:
-   - Save the updated `index.html` to `/client/index.html`.
-
-2. **Commit and Push**:
