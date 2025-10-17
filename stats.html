@@ -86,9 +86,10 @@
       flex-direction: row;
       flex-wrap: wrap;
       justify-content: space-around;
+      height: 100%; /* Ensure full height utilization */
     }
     #summary-container canvas {
-      width: 30% !important;
+      width: 25% !important; /* Each chart takes 25% width */
       height: 250px !important; /* Optimized for mobile */
       min-width: 150px; /* Reduced min-width for mobile */
       max-height: 250px; /* Cap height for mobile optimization */
@@ -586,7 +587,7 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
             title: {
               display: true,
@@ -621,7 +622,7 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
             title: {
               display: true,
@@ -656,7 +657,7 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } } // Reduced legend font size
+              labels: { color: '#2d3748', font: { size: 10 } }
             },
             title: {
               display: true,
@@ -682,7 +683,7 @@
             datalabels: {
               display: true,
               color: '#2d3748',
-              font: { size: 10, weight: 'bold' }, // Reduced font size
+              font: { size: 10, weight: 'bold' },
               anchor: 'end',
               align: 'top'
             }
@@ -701,19 +702,19 @@
           scales: {
             y: {
               beginAtZero: true,
-              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } }, // Reduced font size
-              ticks: { color: '#2d3748', font: { size: 10 } } // Reduced font size
+              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
             },
             x: {
-              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } }, // Reduced font size
-              ticks: { color: '#2d3748', font: { size: 10 } } // Reduced font size
+              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
             }
           },
           plugins: {
-            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }, // Reduced font size
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
             datalabels: {
               color: '#2d3748',
-              font: { size: 10, weight: 'bold' }, // Reduced font size
+              font: { size: 10, weight: 'bold' },
               anchor: 'end',
               align: 'top',
               formatter: (value, context) => {
@@ -758,14 +759,14 @@
       const labels = Array.from({ length: daysInMonth }, (_, i) => `${month + 1}/${i + 1}/${year}`);
       const presentData = labels.map(date => {
         const trendEntry = trendData.find(d => d.date === date);
-        return trendEntry ? trendEntry.present || 0 : 0;
+        return trendEntry ? trendEntry.present || trendEntry.clockIns || 0 : 0; // Use clockIns if present is unavailable
       });
       trendChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
           datasets: [{
-            label: 'Staff Present',
+            label: 'Staff Present/Clock Ins',
             data: presentData,
             borderColor: '#48bb78',
             backgroundColor: 'rgba(72, 187, 120, 0.2)',
@@ -776,8 +777,8 @@
         options: {
           responsive: true,
           scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } },
-            x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }
+            y: { beginAtZero: true, title: { display: true, text: 'Staff Present/Clock Ins', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } },
+            x: { title: { display: true, text: 'Days of October 2025', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }
           },
           plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } } }
         }
@@ -801,26 +802,20 @@
 
 ### Changes Made
 
-1. **Optimize for Mobile Chart Sizing**:
-   - Reduced desktop `#summary-container canvas` height to `250px` and `max-height: 250px`, with `min-width: 150px` for better mobile fit.
-   - In mobile view (`@media (max-width: 768px)`), set `#summary-container canvas` height to `150px` and `max-height: 150px`, ensuring compact display.
-   - Adjusted `.chart-card` height to `250px` on mobile for consistency with optimized chart sizes.
-   - Reduced font sizes and padding across charts (e.g., legend, title, and axis labels) for better readability on smaller screens.
+1. **Each of the 3 Charts Takes 25% Width of the Attendance Summary Tile**:
+   - Updated `#summary-container canvas` to `width: 25% !important` to ensure each of the three charts (General Attendance, Reporting, Departure) occupies 25% of the tile's width on desktop.
+   - Maintained `height: 250px !important` and `max-height: 250px` for consistency, with `min-width: 150px` adjusted for mobile optimization.
 
-2. **Reduce Sizes of Labels of Summary Tiles for Horizontal Alignment**:
-   - Reduced `.tile h3` font size to `0.875rem` (desktop) and `0.75rem` (mobile).
-   - Decreased `.tile` padding to `1rem` (desktop) and `0.5rem` (mobile), and margin-bottom to `0.5rem`.
-   - Added `white-space: nowrap`, `overflow: hidden`, and `text-overflow: ellipsis` to `.tile h3` to prevent wrapping and align labels horizontally.
-   - Reduced `.tile p` font size to `1.5rem` (desktop) and `1rem` (mobile) for balance.
-
-3. **Label the 3 Charts of the Attendance Summary**:
-   - Renamed canvas IDs to `generalAttendanceChart`, `reportingChart`, and `departureChart` (already present).
-   - Added `plugins.title` to each chart function (`updateGeneralAttendanceChart`, `updateReportingChart`, `updateDepartureChart`) with texts "General Attendance", "Reporting", and "Departure" respectively, using a font size of `14` for clarity.
+2. **Staff Attendance Trend Graph Shows Total Number of Staff Present/Clock Ins Per Day for the Current Month**:
+   - Modified `updateTrendChart` to use the current month (October 2025) by generating labels with `Array.from({ length: daysInMonth }, (_, i) => `${month + 1}/${i + 1}/${year}`)` where `month` is 9 (October) and `year` is 2025.
+   - Updated the data retrieval to use `trendEntry.present || trendEntry.clockIns || 0`, prioritizing `present` but falling back to `clockIns` if available, ensuring the graph reflects the total number of staff present or clocked in per day.
+   - Adjusted the y-axis title to "Staff Present/Clock Ins" and x-axis title to "Days of October 2025" for clarity.
+   - Ensured the dataset label is "Staff Present/Clock Ins" to reflect the combined metric.
 
 ### Notes
-- **Current Date/Time**: Reflects "2025-10-17" at 09:35 AM GMT.
-- **API Assumptions**: The `stats.trend` data should match your Google Sheet attendance data. Ensure the backend at `https://tolon-attendance.proodentit.com/api` returns this data in the expected format (`{ date: "10/17/2025", present: 50 }`).
-- **Testing**: Verify chart sizes are optimized on mobile (< 768px) with heights of 150px, summary tile labels align horizontally without wrapping, and the three attendance summary charts are correctly labeled as "General Attendance", "Reporting", and "Departure".
+- **Current Date/Time**: Reflects "09:47 AM GMT on Friday, October 17, 2025".
+- **API Assumptions**: The `stats.trend` data should include daily entries for October 2025 in the format `{ date: "10/17/2025", present: 50 }` or `{ date: "10/17/2025", clockIns: 50 }`. Ensure the backend at `https://tolon-attendance.proodentit.com/api` returns this data accordingly.
+- **Testing**: Verify the three charts in the Attendance Summary tile each take 25% width on desktop (> 768px), and the trend chart displays daily present/clock-in totals for October 2025, with correct labeling.
 
 ### Deployment Steps
 1. **Update Frontend**:
