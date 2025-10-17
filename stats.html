@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.js"></script> <!-- Use minified version -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
@@ -84,7 +84,7 @@
       margin-bottom: 1rem;
       font-size: 1.25rem;
       font-weight: 600;
-      height: 40px; /* Fixed height for title */
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -95,7 +95,7 @@
       align-items: center;
       justify-content: center;
       position: relative;
-      min-height: 0; /* Important for flex children */
+      min-height: 0;
     }
     .chart-container canvas {
       max-width: 100% !important;
@@ -221,7 +221,6 @@
       width: auto;
     }
 
-    /* Media Queries for Mobile Responsiveness */
     @media (max-width: 1200px) {
       #stats-container {
         grid-template-columns: repeat(2, 1fr);
@@ -320,7 +319,6 @@
 <body>
   <header>Attendance Dashboard</header>
 
-  <!-- Summary Tiles -->
   <section id="summary-tiles">
     <div class="tile">
       <h3>Total Staff</h3>
@@ -352,9 +350,7 @@
     </div>
   </section>
 
-  <!-- Charts -->
   <section id="stats-container">
-    <!-- Three individual chart tiles -->
     <div class="chart-tile">
       <h3>General Attendance</h3>
       <div class="chart-container">
@@ -373,8 +369,6 @@
         <canvas id="departureChart"></canvas>
       </div>
     </div>
-    
-    <!-- Full width charts -->
     <div class="chart-tile full-width-chart" id="department-container">
       <h3>Department Attendance</h3>
       <div class="chart-container">
@@ -395,25 +389,21 @@
     </div>
   </section>
 
-  <!-- Filters -->
   <section id="filters">
     <div class="filter-group">
       <label for="date-select">Select Date:</label>
       <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-17">
     </div>
-    
     <div class="filter-group">
       <label for="department-select">Filter Department:</label>
       <select id="department-select" onchange="filterTable()">
         <option value="">All Departments</option>
       </select>
     </div>
-    
     <div class="filter-group">
       <label for="name-search">Search Name:</label>
       <input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">
     </div>
-    
     <div class="button-group">
       <div class="filter-group">
         <label style="visibility: hidden;">Actions</label>
@@ -426,7 +416,6 @@
     </div>
   </section>
 
-  <!-- Staff Attendance Details -->
   <section id="attendance-table">
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 17, 2025)</h3>
@@ -449,7 +438,7 @@
 
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const currentDate = new Date().toISOString().split("T")[0];
+    const currentDate = new Date().toISOString().split("T")[0]; // "2025-10-17"
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -462,13 +451,12 @@
     let sortConfig = { key: null, direction: "asc" };
     let departments = [];
     let staffAttendanceData = [];
+    let eventSource = null; // For SSE real-time updates
 
     async function fetchJSON(url) {
       try {
         const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const text = await res.text();
         return JSON.parse(text);
       } catch (e) {
@@ -505,10 +493,10 @@
         row.innerHTML = `
           <td>${entry.name}</td>
           <td>${entry.department}</td>
-          <td>${entry.timeIn}</td>
-          <td>${entry.timeOut}</td>
+          <td>${entry.timeIn || '--'}</td>
+          <td>${entry.timeOut || '--'}</td>
           <td>${workTime}</td>
-          <td>${entry.clockInLocation}</td>
+          <td>${entry.clockInLocation || 'Unknown'}</td>
         `;
         attendanceBody.appendChild(row);
       });
@@ -530,7 +518,7 @@
       const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
         staffAttendanceData.map(entry => {
           const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
-          return `${entry.name},${entry.department},${entry.timeIn},${entry.timeOut},${workTime},${entry.clockInLocation}`;
+          return `${entry.name},${entry.department},${entry.timeIn || ''},${entry.timeOut || ''},${workTime},${entry.clockInLocation || 'Unknown'}`;
         }).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -541,489 +529,112 @@
       document.body.removeChild(link);
     }
 
+    function updateGeneralAttendanceChart(present, absent) {
+      const ctx = document.getElementById("generalAttendanceChart").getContext('2d');
+      if (generalAttendanceChart) generalAttendanceChart.destroy();
+      generalAttendanceChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['Present', 'Absent'], datasets: [{ data: [present || 0, absent || 0], backgroundColor: ['#48bb78', '#e2e8f0'], borderWidth: 1, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: true, animation: { duration: 500 }, plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} (${((ctx.raw / (ctx.dataset.data.reduce((a, b) => a + b, 0) || 1) * 100).toFixed(1))}%` } } } } }
+      });
+    }
+
+    function updateReportingChart(before10AM, after10AM) {
+      const ctx = document.getElementById("reportingChart").getContext('2d');
+      if (reportingChart) reportingChart.destroy();
+      reportingChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [before10AM || 0, after10AM || 0], backgroundColor: ['#48bb78', '#e2e8f0'], borderWidth: 1, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: true, animation: { duration: 500 }, plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} (${((ctx.raw / (ctx.dataset.data.reduce((a, b) => a + b, 0) || 1) * 100).toFixed(1))}%` } } } } }
+      });
+    }
+
+    function updateDepartureChart(before4PM, after4PM) {
+      const ctx = document.getElementById("departureChart").getContext('2d');
+      if (departureChart) departureChart.destroy();
+      departureChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [before4PM || 0, after4PM || 0], backgroundColor: ['#48bb78', '#e2e8f0'], borderWidth: 1, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: true, animation: { duration: 500 }, plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} (${((ctx.raw / (ctx.dataset.data.reduce((a, b) => a + b, 0) || 1) * 100).toFixed(1))}%` } } } } }
+      });
+    }
+
+    function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels) {
+      const ctx = document.getElementById("departmentChart").getContext('2d');
+      if (departmentChart) departmentChart.destroy();
+      departmentChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels || [], datasets: [
+          { label: 'Total Staff', data: totalLabels || [], backgroundColor: 'rgba(45, 55, 72, 0.2)' },
+          { label: 'Clock In', data: clockInData || [], backgroundColor: '#48bb78' },
+          { label: 'Clock Out', data: clockOutData || [], backgroundColor: '#f56565' }
+        ] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Count', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }, x: { title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } } }, plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } } } }
+      });
+    }
+
+    function updateLocationChart(labels, values) {
+      const ctx = document.getElementById("locationChart").getContext('2d');
+      if (locationChart) locationChart.destroy();
+      locationChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels || [], datasets: [{ label: 'Attendance Count', data: values || [], backgroundColor: '#48bb78' }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Count', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }, x: { title: { display: true, text: 'Locations', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } } }, plugins: { legend: { display: false } } }
+      });
+    }
+
+    function updateTrendChart(trendData = [], year, month) {
+      const ctx = document.getElementById("trendChart").getContext('2d');
+      if (trendChart) trendChart.destroy();
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, i) => `${month}/${i + 1}`);
+      const presentData = labels.map((_, i) => {
+        const fullDate = `${year}-${month.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
+        const entry = trendData.find(d => d.date === fullDate);
+        return entry ? (entry.present || entry.clockedIn || 0) : 0;
+      });
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Staff Present', data: presentData, borderColor: '#48bb78', backgroundColor: 'rgba(72, 187, 120, 0.2)', tension: 0.4, fill: true, pointBackgroundColor: '#48bb78', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Count', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 } } }, x: { title: { display: true, text: 'Dates', color: '#2d3748', font: { size: 12 } }, ticks: { color: '#2d3748', font: { size: 10 }, maxTicksLimit: 15 } } }, plugins: { legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }, tooltip: { callbacks: { title: tooltipItems => `Date: ${month}/${tooltipItems[0].dataIndex + 1}/${year}`, label: ctx => `Staff Present: ${ctx.raw}` } } } }
+      });
+    }
+
+    function handleSort(key) {
+      if (sortConfig.key === key) {
+        sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortConfig.key = key;
+        sortConfig.direction = "asc";
+      }
+      const th = document.querySelector(`th[data-sort="${key}"]`);
+      document.querySelectorAll(".sortable").forEach(el => el.classList.remove("asc", "desc"));
+      th.classList.add(sortConfig.direction);
+      updateTable(staffAttendanceData);
+    }
+
+    function sortData(data, key, direction) {
+      return [...data].sort((a, b) => {
+        let aVal = a[key];
+        let bVal = b[key];
+        if (aVal == null) aVal = '';
+        if (bVal == null) bVal = '';
+        return direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    }
+
     async function loadDashboardData() {
       const dateSelect = document.getElementById("date-select");
       const selectedDate = dateSelect.value;
       try {
         log("⏳ Fetching data...");
 
-        // Load staff data
         const staffData = await fetchJSON(`${backendURL}/staff`);
         const totalStaff = staffData.totalStaff || 0;
         const activeCount = staffData.staffCount || 0;
         log(`✅ Loaded ${totalStaff} staff members`);
 
-        // Load today's attendance stats
         const todayStats = await fetchJSON(`${backendURL}/stats?date=${currentDate}`);
         const clockedInToday = todayStats.clockIns?.today || 0;
         const clockedOutToday = todayStats.clockOuts?.today || 0;
-        const absentToday = activeCount > 0 ? Math.max(0, activeCount - clockedInToday) : 0;
-        const percentClockedIn = activeCount > 0 ? Math.round((clockedInToday / activeCount) * 100) : 0;
-        const percentClockedOut = clockedInToday > 0 ? Math.round((clockedOutToday / clockedInToday) * 100) : 0;
-
-        // Load attendance stats for selected date
-        const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
-        const stats = await fetchJSON(statsUrl);
-        staffAttendanceData = stats.staffAttendance || [];
-
-        // Calculate clock-in and clock-out time splits
-        const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
-        const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
-        const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
-        const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
-
-        // Load location-wise data
-        const locationData = await fetchJSON(`${backendURL}/locations`);
-        const locLabels = locationData.locations?.map(l => l.name) || [];
-        const locAttendance = {};
-        staffAttendanceData.forEach(entry => {
-          const loc = entry.clockInLocation || "Unknown";
-          locAttendance[loc] = (locAttendance[loc] || 0) + 1;
-        });
-        const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
-
-        // Populate department filter and calculate department stats
-        departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
-        const departmentSelect = document.getElementById("department-select");
-        departmentSelect.innerHTML = '<option value="">All Departments</option>';
-        departments.forEach(dept => {
-          const option = document.createElement("option");
-          option.value = dept;
-          option.textContent = dept;
-          departmentSelect.appendChild(option);
-        });
-
-        // Calculate department totals, clock-ins, and clock-outs
-        const deptTotals = {};
-        const deptClockIns = {};
-        const deptClockOuts = {};
-        (staffData.staff || []).forEach(entry => {
-          const dept = entry.department;
-          deptTotals[dept] = (deptTotals[dept] || 0) + 1;
-        });
-        staffAttendanceData.forEach(entry => {
-          const dept = entry.department;
-          if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
-          if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
-        });
-        const deptLabels = departments;
-        const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
-        const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
-        const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
-        const deptClockInRates = departments.map(dept => {
-          const total = deptTotals[dept] || 0;
-          const clockedIn = deptClockIns[dept] || 0;
-          return total > 0 ? `${clockedIn}/${total}` : "0/0";
-        });
-        const deptClockOutRates = departments.map(dept => {
-          const clockedIn = deptClockIns[dept] || 0;
-          const clockedOut = deptClockOuts[dept] || 0;
-          return clockedIn > 0 ? `${clockedOut}/${clockedIn}` : "0/0";
-        });
-
-        // Load trend data for the selected date's month
-        const selectedDateObj = new Date(selectedDate);
-        const trendYear = selectedDateObj.getFullYear();
-        const trendMonth = selectedDateObj.getMonth() + 1;
-        let trendData = [];
-        try {
-          trendData = await fetchJSON(`${backendURL}/trend?year=${trendYear}&month=${trendMonth}`);
-          log(`✅ Loaded trend data for ${trendMonth}/${trendYear}`);
-        } catch (err) {
-          log(`⚠️ Could not load trend data: ${err.message}`);
-          // Create dummy trend data for demo
-          trendData = Array.from({ length: 30 }, (_, i) => ({
-            date: `${trendYear}-${trendMonth.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`,
-            present: Math.floor(Math.random() * 50) + 30
-          }));
-        }
-
-        // Update summary tiles
-        document.getElementById("totalStaff").innerText = totalStaff;
-        document.getElementById("activeStaff").innerText = activeCount;
-        document.getElementById("clockInsToday").innerText = clockedInToday;
-        document.getElementById("clockOutsToday").innerText = clockedOutToday;
-        document.getElementById("absentToday").innerText = absentToday;
-        document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
-        document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
-
-        // Update attendance title and table
-        const attendanceTitle = document.getElementById("attendance-title");
-        attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
-        updateTable(staffAttendanceData);
-
-        // Update Charts with error handling
-        try {
-          updateGeneralAttendanceChart(clockedInToday, absentToday);
-          updateReportingChart(clockInsBefore10AM, clockInsAfter10AM);
-          updateDepartureChart(clockOutsBefore4PM, clockOutsAfter4PM);
-          updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels, deptClockInRates, deptClockOutRates);
-          updateLocationChart(locLabels, locCounts);
-          updateTrendChart(trendData, trendYear, trendMonth);
-        } catch (chartError) {
-          log(`❌ Chart error: ${chartError.message}`);
-        }
-
-        log("✅ Dashboard updated");
-
-      } catch (err) {
-        log("❌ " + err.message);
-        ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
-          const tile = document.querySelector(`#${id}`).closest(".tile");
-          if (tile) tile.classList.add("error");
-        });
-      }
-    }
-
-    function convertToMinutes(timeStr) {
-      if (!timeStr) return 0;
-      const [hours, minutes] = timeStr.split(":").map(Number);
-      return hours * 60 + minutes;
-    }
-
-    function updateGeneralAttendanceChart(present, absent) {
-      const ctx = document.getElementById("generalAttendanceChart");
-      if (!ctx) return;
-      
-      if (generalAttendanceChart) generalAttendanceChart.destroy();
-      
-      // Ensure we have valid data
-      present = present || 0;
-      absent = absent || 0;
-      
-      generalAttendanceChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Present', 'Absent'],
-          datasets: [{
-            data: [present, absent],
-            backgroundColor: ['#48bb78', '#e2e8f0'],
-            borderWidth: 1,
-            borderColor: '#fff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          animation: {
-            duration: 1000,
-            easing: 'easeInOutQuad'
-          },
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } }
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function updateReportingChart(before10AM, after10AM) {
-      const ctx = document.getElementById("reportingChart");
-      if (!ctx) return;
-      
-      if (reportingChart) reportingChart.destroy();
-      
-      before10AM = before10AM || 0;
-      after10AM = after10AM || 0;
-      
-      reportingChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Before 10 AM', 'After 10 AM'],
-          datasets: [{
-            data: [before10AM, after10AM],
-            backgroundColor: ['#48bb78', '#e2e8f0'],
-            borderWidth: 1,
-            borderColor: '#fff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          animation: {
-            duration: 1000,
-            easing: 'easeInOutQuad'
-          },
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } }
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function updateDepartureChart(before4PM, after4PM) {
-      const ctx = document.getElementById("departureChart");
-      if (!ctx) return;
-      
-      if (departureChart) departureChart.destroy();
-      
-      before4PM = before4PM || 0;
-      after4PM = after4PM || 0;
-      
-      departureChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Before 4 PM', 'After 4 PM'],
-          datasets: [{
-            data: [before4PM, after4PM],
-            backgroundColor: ['#48bb78', '#e2e8f0'],
-            borderWidth: 1,
-            borderColor: '#fff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          animation: {
-            duration: 1000,
-            easing: 'easeInOutQuad'
-          },
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#2d3748', font: { size: 10 } }
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels, clockInRates, clockOutRates) {
-      const ctx = document.getElementById("departmentChart");
-      if (!ctx) return;
-      
-      if (departmentChart) departmentChart.destroy();
-      
-      departmentChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Total Staff',
-            data: totalLabels,
-            backgroundColor: 'rgba(45, 55, 72, 0.2)'
-          }, {
-            label: 'Clock In',
-            data: clockInData,
-            backgroundColor: '#48bb78'
-          }, {
-            label: 'Clock Out',
-            data: clockOutData,
-            backgroundColor: '#f56565'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } },
-              ticks: { color: '#2d3748', font: { size: 10 } }
-            },
-            x: {
-              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } },
-              ticks: { color: '#2d3748', font: { size: 10 } }
-            }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }
-          }
-        }
-      });
-    }
-
-    function updateLocationChart(labels, values) {
-      const ctx = document.getElementById("locationChart");
-      if (!ctx) return;
-      
-      if (locationChart) locationChart.destroy();
-      
-      locationChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Attendance Count',
-            data: values,
-            backgroundColor: '#48bb78'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { 
-            y: { 
-              beginAtZero: true, 
-              title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } }, 
-              ticks: { color: '#2d3748', font: { size: 10 } } 
-            },
-            x: {
-              title: { display: true, text: 'Locations', color: '#2d3748', font: { size: 12 } },
-              ticks: { color: '#2d3748', font: { size: 10 } }
-            }
-          },
-          plugins: { legend: { display: false } }
-        }
-      });
-    }
-
-    function updateTrendChart(trendData = [], year, month) {
-      const ctx = document.getElementById("trendChart");
-      if (!ctx) return;
-      
-      if (trendChart) trendChart.destroy();
-      
-      // Calculate days in the selected month
-      const daysInMonth = new Date(year, month, 0).getDate();
-      
-      // Create labels for all days in the month
-      const labels = Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1;
-        return `${month}/${day}`;
-      });
-      
-      // Map trend data to match the labels
-      const presentData = labels.map((date, index) => {
-        const day = index + 1;
-        const fullDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-        
-        // Try to find matching trend entry
-        const trendEntry = trendData.find(d => {
-          if (!d.date) return false;
-          const entryDate = new Date(d.date).toISOString().split('T')[0];
-          return entryDate === fullDate;
-        });
-        return trendEntry ? (trendEntry.present || trendEntry.clockedIn || 0) : 0;
-      });
-
-      trendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Staff Present',
-            data: presentData,
-            borderColor: '#48bb78',
-            backgroundColor: 'rgba(72, 187, 120, 0.2)',
-            tension: 0.4,
-            fill: true,
-            pointBackgroundColor: '#48bb78',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: { 
-              beginAtZero: true, 
-              title: { display: true, text: 'Staff Present', color: '#2d3748', font: { size: 12 } }, 
-              ticks: { color: '#2d3748', font: { size: 10 } } 
-            },
-            x: { 
-              title: { display: true, text: 'Dates of the Month', color: '#2d3748', font: { size: 12 } }, 
-              ticks: { 
-                color: '#2d3748', 
-                font: { size: 10 },
-                maxTicksLimit: 15
-              } 
-            }
-          },
-          plugins: { 
-            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
-            tooltip: {
-              callbacks: {
-                title: function(tooltipItems) {
-                  return `Date: ${month}/${tooltipItems[0].dataIndex + 1}/${year}`;
-                },
-                label: function(context) {
-                  return `Staff Present: ${context.raw}`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // Missing sort functions
-    function handleSort(key) {
-        if (sortConfig.key === key) {
-            sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
-        } else {
-            sortConfig.key = key;
-            sortConfig.direction = "asc";
-        }
-        updateTable(staffAttendanceData);
-    }
-
-    function sortData(data, key, direction) {
-        return [...data].sort((a, b) => {
-            let aVal = a[key];
-            let bVal = b[key];
-            
-            if (direction === "asc") {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            } else {
-                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-            }
-        });
-    }
-
-    document.querySelectorAll(".sortable").forEach(th => {
-      th.addEventListener("click", () => {
-        const key = th.getAttribute("data-sort");
-        handleSort(key);
-        updateTable(staffAttendanceData);
-      });
-    });
-
-    // Initialize dashboard when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      loadDashboardData();
-      setInterval(loadDashboardData, 10000);
-    });
-  </script>
-</body>
-</html>
+        const absentToday = activeCount > 0 ? Math.max
