@@ -19,36 +19,36 @@
     header {
       background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
       color: #fff;
-      padding: 1.5rem;
+      padding: 1rem;
       text-align: center;
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #summary-tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1.5rem;
-      padding: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
     }
     .tile {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
       text-align: center;
       transition: transform 0.2s;
     }
     .tile:hover {
-      transform: translateY(-5px);
+      transform: translateY(-3px);
     }
     .tile h3 {
       color: #2d3748;
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
     }
     .tile p {
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
       margin: 0;
       color: #48bb78;
@@ -58,47 +58,48 @@
     }
     #stats-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 1.5rem;
-      padding: 2rem;
+      gap: 1rem;
+      padding: 1rem;
     }
     .chart-card {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
       transition: transform 0.2s;
+      width: 100%; /* Full width for all chart cards */
+      grid-column: 1 / -1; /* Span full width */
     }
     .chart-card:hover {
-      transform: translateY(-5px);
+      transform: translateY(-3px);
     }
     .chart-card h3 {
       text-align: center;
       color: #2d3748;
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 1.25rem;
     }
     canvas {
       width: 100% !important;
-      height: 300px !important;
+      height: 200px !important; /* Reduced height for mobile */
     }
     #log {
       background: #1a202c;
       color: #48bb78;
       font-family: 'Courier New', monospace;
-      padding: 1.5rem;
-      height: 200px;
+      padding: 1rem;
+      height: 150px;
       overflow-y: auto;
-      margin: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin: 1rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #attendance-table {
-      margin: 2rem;
-      padding: 1.5rem;
+      margin: 1rem;
+      padding: 1rem;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #attendance-table table {
       width: 100%;
@@ -106,9 +107,10 @@
     }
     #attendance-table th,
     #attendance-table td {
-      padding: 1rem;
+      padding: 0.75rem;
       text-align: left;
       border-bottom: 1px solid #e2e8f0;
+      font-size: 0.875rem; /* Smaller font for mobile */
     }
     #attendance-table th {
       background: #2d3748;
@@ -123,7 +125,7 @@
     }
     .sort-arrow {
       display: inline-block;
-      margin-left: 5px;
+      margin-left: 3px;
     }
     .asc::after {
       content: " ▲";
@@ -133,45 +135,97 @@
     }
     #filters {
       display: flex;
-      gap: 1.5rem;
-      margin: 2rem;
-      padding: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin: 1rem;
+      padding: 1rem;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     #filters label {
       font-weight: 600;
       color: #2d3748;
+      font-size: 0.875rem;
     }
-    #date-select, #department-select, #name-search {
-      padding: 0.75rem;
-      border-radius: 8px;
+    #date-select, #department-select {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
       border: 2px solid #e2e8f0;
-      font-size: 1rem;
-      transition: border-color 0.2s;
+      font-size: 0.875rem;
+      width: 100%; /* Full width on mobile */
     }
-    #date-select:focus, #department-select:focus, #name-search:focus {
+    #date-select:focus, #department-select:focus {
       border-color: #48bb78;
       outline: none;
     }
-    #export-btn, #clear-filter-btn {
+    #export-btn {
       background: #48bb78;
       color: white;
-      padding: 0.75rem 1.5rem;
+      padding: 0.5rem 1rem;
       border: none;
-      border-radius: 8px;
+      border-radius: 0.5rem;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.2s;
+      font-size: 0.875rem;
+      width: 100%; /* Full width on mobile */
     }
-    #export-btn:hover, #clear-filter-btn:hover {
+    #export-btn:hover {
       background: #38a169;
     }
-    #attendance-count {
-      margin-bottom: 1rem;
-      font-size: 1rem;
-      color: #2d3748;
+
+    /* Media Queries for Mobile Responsiveness */
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.25rem;
+        padding: 0.75rem;
+      }
+      #summary-tiles {
+        grid-template-columns: 1fr; /* Stack tiles vertically */
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tile {
+        padding: 0.75rem;
+      }
+      .tile h3 {
+        font-size: 0.875rem;
+      }
+      .tile p {
+        font-size: 1.25rem;
+      }
+      #stats-container {
+        grid-template-columns: 1fr; /* Stack charts vertically */
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .chart-card {
+        padding: 0.75rem;
+      }
+      .chart-card h3 {
+        font-size: 1rem;
+      }
+      canvas {
+        height: 150px !important; /* Further reduced for smaller screens */
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+      }
+      #filters {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+      }
+      #date-select, #department-select, #export-btn {
+        width: 100%;
+        padding: 0.375rem;
+      }
+      #log {
+        height: 100px;
+        padding: 0.75rem;
+        margin: 0.75rem;
+      }
     }
   </style>
 </head>
@@ -215,6 +269,8 @@
     <div class="chart-card">
       <h3>Attendance Summary</h3>
       <canvas id="summaryChart"></canvas>
+      <canvas id="clockInTimeChart"></canvas>
+      <canvas id="clockOutTimeChart"></canvas>
     </div>
     <div class="chart-card" id="department-container">
       <h3>Department Attendance</h3>
@@ -240,17 +296,11 @@
       <option value="">All Departments</option>
     </select>
 
-    <label for="name-search">Search Name:</label>
-    <input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">
-
-    <button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>
-
     <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
   </section>
 
   <!-- Staff Attendance Details -->
   <section id="attendance-table">
-    <p id="attendance-count" class="text-gray-600">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-gray-800">Staff Attendance Details (October 15, 2025)</h3>
     <table>
       <thead>
@@ -280,7 +330,7 @@
       logBox.scrollTop = logBox.scrollHeight;
     };
 
-    let summaryChart, departmentChart, locationChart, trendChart;
+    let summaryChart, clockInTimeChart, clockOutTimeChart, departmentChart, locationChart, trendChart;
     let sortConfig = { key: null, direction: "asc" };
     let departments = [];
     let staffAttendanceData = [];
@@ -311,12 +361,7 @@
       const attendanceBody = document.getElementById("attendance-body");
       attendanceBody.innerHTML = "";
       const departmentFilter = document.getElementById("department-select").value;
-      const nameSearch = document.getElementById("name-search").value.toLowerCase();
-      const filteredData = data.filter(entry => {
-        const nameMatch = entry.name.toLowerCase().includes(nameSearch);
-        const deptMatch = departmentFilter ? entry.department === departmentFilter : true;
-        return nameMatch && deptMatch;
-      });
+      const filteredData = departmentFilter ? data.filter(entry => entry.department === departmentFilter) : data;
       const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
       sortedData.forEach(entry => {
         const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
@@ -331,18 +376,10 @@
         `;
         attendanceBody.appendChild(row);
       });
-      document.getElementById("attendance-count").textContent = `Showing ${sortedData.length} of ${data.length} entries`;
     }
 
     function filterTable() {
       updateTable(staffAttendanceData);
-    }
-
-    function clearFilters() {
-      document.getElementById("date-select").value = "2025-10-15";
-      document.getElementById("department-select").value = "";
-      document.getElementById("name-search").value = "";
-      loadDashboardData();
     }
 
     function exportToCSV() {
@@ -384,6 +421,12 @@
         const statsUrl = selectedDate ? `${backendURL}/stats?date=${selectedDate}` : `${backendURL}/stats`;
         const stats = await fetchJSON(statsUrl);
         staffAttendanceData = stats.staffAttendance || [];
+
+        // --- Calculate clock-in and clock-out time splits ---
+        const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
+        const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
+        const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
+        const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
 
         // --- Load location-wise data ---
         const locationData = await fetchJSON(`${backendURL}/locations`);
@@ -450,6 +493,8 @@
 
         // --- Update Charts ---
         updateSummaryChart(clockedInToday, absentToday);
+        updateClockInTimeChart(clockInsBefore10AM, clockInsAfter10AM);
+        updateClockOutTimeChart(clockOutsBefore4PM, clockOutsAfter4PM);
         updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels, deptClockInRates, deptClockOutRates);
         updateLocationChart(locLabels, locCounts);
         updateTrendChart(stats.trend || []);
@@ -463,6 +508,11 @@
           if (tile) tile.classList.add("error");
         });
       }
+    }
+
+    function convertToMinutes(timeStr) {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
     }
 
     function updateSummaryChart(present, absent) {
@@ -482,8 +532,68 @@
         options: {
           responsive: true,
           animation: {
-            duration: 1000, // Smoother animation
-            easing: 'easeInOutQuad' // Optimized easing
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#2d3748' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateClockInTimeChart(before10AM, after10AM) {
+      const ctx = document.getElementById("clockInTimeChart").getContext('2d');
+      if (clockInTimeChart) clockInTimeChart.destroy();
+      clockInTimeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 10 AM', 'After 10 AM'],
+          datasets: [{
+            data: [before10AM, after10AM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#2d3748' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateClockOutTimeChart(before4PM, after4PM) {
+      const ctx = document.getElementById("clockOutTimeChart").getContext('2d');
+      if (clockOutTimeChart) clockOutTimeChart.destroy();
+      clockOutTimeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 4 PM', 'After 4 PM'],
+          datasets: [{
+            data: [before4PM, after4PM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuad'
           },
           plugins: {
             legend: {
@@ -509,7 +619,7 @@
             datalabels: {
               display: true,
               color: '#2d3748',
-              font: { size: 14, weight: 'bold' },
+              font: { size: 12, weight: 'bold' },
               anchor: 'end',
               align: 'top'
             }
@@ -525,16 +635,11 @@
         },
         options: {
           responsive: true,
-          animation: {
-            duration: 1000, // Smoother animation
-            easing: 'easeInOutQuad' // Optimized easing
-          },
           scales: {
             y: {
               beginAtZero: true,
               title: { display: true, text: 'Clock In/Out Count', color: '#2d3748' },
-              ticks: { color: '#2d3748' },
-              stacked: false
+              ticks: { color: '#2d3748' }
             },
             x: {
               title: { display: true, text: 'Departments', color: '#2d3748' },
@@ -545,7 +650,7 @@
             legend: { position: 'bottom', labels: { color: '#2d3748' } },
             datalabels: {
               color: '#2d3748',
-              font: { size: 14, weight: 'bold' },
+              font: { size: 12, weight: 'bold' },
               anchor: 'end',
               align: 'top',
               formatter: (value, context) => {
@@ -574,10 +679,6 @@
         },
         options: {
           responsive: true,
-          animation: {
-            duration: 1000, // Smoother animation
-            easing: 'easeInOutQuad' // Optimized easing
-          },
           scales: { y: { beginAtZero: true, title: { display: true, text: 'Attendance Count', color: '#2d3748' }, ticks: { color: '#2d3748' } } },
           plugins: { legend: { display: false } }
         }
@@ -611,10 +712,6 @@
         },
         options: {
           responsive: true,
-          animation: {
-            duration: 1000, // Smoother animation
-            easing: 'easeInOutQuad' // Optimized easing
-          },
           scales: {
             y: { beginAtZero: true, title: { display: true, text: 'Staff Present', color: '#2d3748' }, ticks: { color: '#2d3748' } },
             x: { title: { display: true, text: 'Dates of the Month', color: '#2d3748' }, ticks: { color: '#2d3748' } }
@@ -641,43 +738,26 @@
 
 ### Changes Made
 
-1. **Undo Previous Changes**:
-   - Reverted to the state before the last update (which included chart animations, additional doughnut chart, etc.), preserving the mobile-responsive design and the separation of "Clock-Ins Today" and "Clock-Outs Today" tiles.
+1. **Add New Doughnut Charts to Attendance Summary Tile**:
+   - Added `<canvas id="clockInTimeChart"></canvas>` and `<canvas id="clockOutTimeChart"></canvas>` within the "Attendance Summary" `chart-card`.
+   - Implemented `updateClockInTimeChart` to display "Clock Ins Before 10 AM" and "After 10 AM" using doughnut charts.
+   - Implemented `updateClockOutTimeChart` to display "Clock Outs Before 4 PM" and "After 4 PM" using doughnut charts.
+   - Added a `convertToMinutes` helper function to convert time strings (e.g., "09:30") to minutes for comparison.
+   - Updated `loadDashboardData` to calculate `clockInsBefore10AM`, `clockInsAfter10AM`, `clockOutsBefore4PM`, and `clockOutsAfter4PM` based on `staffAttendanceData`.
 
-2. **Add Search Bar**:
-   - Added an `<input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">` to the `#filters` section.
-   - Updated the `updateTable` function to filter `staffAttendanceData` based on the `nameSearch` value (case-insensitive).
-
-3. **Add Clear Filter Button**:
-   - Added a `<button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>` to the `#filters` section.
-   - Implemented the `clearFilters` function to reset the date to "2025-10-15", department to "All Departments", and name search to empty, then reload the dashboard data.
-
-4. **Move Attendance Count to Top of Table**:
-   - Moved the `<p id="attendance-count">` element above the `<h3 id="attendance-title">` in the `#attendance-table` section.
-   - Updated its styling with `margin-bottom: 1rem` to separate it from the title.
-
-### Answers to Your Questions
-
-1. **Why do the numbers keep changing from red to green?**
-   - The numbers in the summary tiles (e.g., "Total Staff", "Clock-Ins Today") change from red to green due to the `.tile.error` CSS class being applied or removed based on the success/failure of the `loadDashboardData` function. Specifically:
-     - If an error occurs during data fetching (e.g., API failure), the code adds the `.error` class to the tiles via `tile.classList.add("error")`, turning the text red (`color: #f56565`).
-     - When the data loads successfully on the next interval (every 10 seconds via `setInterval(loadDashboardData, 10000)`), the error state is cleared, and the default green color (`color: #48bb78`) is restored.
-   - **Solution**: This behavior is intentional to indicate data loading issues. To stabilize the colors, you could remove the error handling that toggles the `.error` class or adjust the interval to a longer duration (e.g., 30 seconds) to reduce frequent updates. Let me know if you'd like to modify this!
-
-2. **Why is the attendance trend keep changing and not reflecting real attendance figures on the graph?**
-   - The "Staff Attendance Trend" chart changes because it refreshes every 10 seconds with `setInterval(loadDashboardData, 10000)`, pulling new data from the `stats.trend` API endpoint. If the API returns different `trendData` each time (e.g., due to real-time updates or inconsistent data), the graph will reflect those changes. However, if it’s not showing real attendance figures:
-     - **Possible Cause 1**: The `stats.trend` data might not contain accurate or complete historical attendance data for the current month. The code assumes `trendData` has a `date` and `present` property, defaulting to 0 if no match is found, which could result in a flat line or incorrect trends.
-     - **Possible Cause 2**: The `labels` array (generated as days of the current month) might not align with the `trendData` dates, leading to mismatches.
-   - **Solution**: 
-     - Verify the `stats.trend` API response to ensure it provides accurate daily attendance data (e.g., `{ date: "10/17/2025", present: 50 }`).
-     - Adjust the `updateTrendChart` function to log the received `trendData` for debugging (e.g., `console.log(trendData)`).
-     - If the API doesn’t provide historical data, you may need to store and aggregate attendance data locally or modify the backend to return consistent trend data.
-   - **Temporary Fix**: I’ve kept the current implementation, but you can test by adding `console.log(stats.trend)` in `loadDashboardData` after the fetch to inspect the data. Let me know the API response, and I can help refine the chart logic!
+2. **Make All Tiles Full Width and Mobile-Friendly**:
+   - Updated the `.chart-card` CSS to include `width: 100%` and `grid-column: 1 / -1` to ensure all chart cards (Attendance Summary, Department Attendance, Location Attendance, Staff Attendance Trend) span the full width.
+   - Adopted the mobile-responsive styling from the provided example:
+     - Reduced padding, margins, and font sizes for mobile (e.g., `.tile`, `.chart-card`, `#attendance-table`).
+     - Stacked tiles and charts vertically on screens ≤ 768px using `grid-template-columns: 1fr`.
+     - Adjusted `canvas` height to `150px` and font sizes in charts for smaller screens.
+     - Ensured `#filters` elements stack vertically with `flex-direction: column` and full-width inputs/buttons on mobile.
 
 ### Notes
-- **Current Date/Time**: Reflects "2025-10-17" at 08:07 AM GMT.
-- **API Assumptions**: Assumes `todayStats.clockIns?.today`, `todayStats.clockOuts?.today`, and `stats.trend` provide the necessary data. The trend issue might require API validation.
-- **Testing**: Test the search bar, clear filter button, and attendance count placement. Check the color toggling and trend graph behavior with your API data.
+- **Current Date/Time**: Reflects "2025-10-17" at 08:23 AM GMT.
+- **API Assumptions**: Assumes `staffAttendanceData` contains `timeIn` and `timeOut` fields in "HH:MM" format (e.g., "09:30"). If the format differs, adjust the `convertToMinutes` function accordingly.
+- **Chart Behavior**: The new doughnut charts will reflect the split of clock-ins and clock-outs based on the selected date. If no data exists, they will show 0 for both segments.
+- **Testing**: Verify the new doughnut charts appear in the "Attendance Summary" section, all chart cards are full-width, and the layout adapts to mobile screens (< 768px) with stacked elements.
 
 ### Deployment Steps
 1. **Update Frontend**:
