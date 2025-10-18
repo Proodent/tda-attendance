@@ -251,7 +251,7 @@ async function handleClock(action) {
     hideLoader();
     return showPopup('Face Recognition Error', faceRes.error || 'No matching face found.', false);
   }
-  if (faceRes.similarity < 0.55) {
+  if (faceRes.similarity < 0.85) {
     hideLoader();
     return showPopup('Face Recognition Error', 'Face similarity too low. Please try again with better lighting.', false);
   }
@@ -296,3 +296,4 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
