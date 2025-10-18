@@ -439,8 +439,7 @@
   <script>
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const currentDate = "2025-10-18";
-    const SHEET_ID = "YOUR_GOOGLE_SHEET_ID"; // Replace with your Google Sheet ID
-    const API_KEY = "YOUR_API_KEY"; // Replace with your Google API Key
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1dY7QqfD8MUEwlBqHJPBRsmn3hAtDpF5TGhlmHWEVh-k/gviz/tq?tqx=out:csv&sheet=Attendance Sheet"; // Replace with your public sheet URL and sheet name
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -470,18 +469,26 @@
       }
     }
 
-    async function fetchGoogleSheetData(range) {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+    async function fetchSheetData() {
       try {
-        const res = await fetch(url);
+        const res = await fetch(SHEET_URL);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
         }
-        const data = await res.json();
-        log(`Fetched Google Sheet data: ${JSON.stringify(data.values?.slice(0, 5) || []).substring(0, 100)}${JSON.stringify(data.values).length > 100 ? "..." : ""}`);
-        return data.values || [];
+        const csv = await res.text();
+        log(`Fetched Sheet data: ${csv.substring(0, 100)}${csv.length > 100 ? "..." : ""}`);
+        const lines = csv.split("\n").filter(line => line.trim());
+        const headers = lines[0].split(",").map(header => header.trim().toLowerCase());
+        const data = lines.slice(1).map(line => {
+          const values = line.split(",");
+          return headers.reduce((obj, header, index) => {
+            obj[header] = values[index] || "";
+            return obj;
+          }, {});
+        });
+        return data;
       } catch (e) {
-        log(`❌ Fetch error for Google Sheet: ${e.message}`);
+        log(`❌ Fetch error for Sheet: ${e.message}`);
         return [];
       }
     }
@@ -510,15 +517,15 @@
       });
       const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
       sortedData.forEach(entry => {
-        const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+        const workTime = calculateWorkTime(entry.timein || entry.time_in, entry.timeout || entry.time_out); // Flexible key names
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${entry.name || '--'}</td>
           <td>${entry.department || '--'}</td>
-          <td>${entry.timeIn || '--'}</td>
-          <td>${entry.timeOut || '--'}</td>
+          <td>${entry.timein || entry.time_in || '--'}</td>
+          <td>${entry.timeout || entry.time_out || '--'}</td>
           <td>${workTime}</td>
-          <td>${entry.clockInLocation || 'Unknown'}</td>
+          <td>${entry.clockinlocation || entry.clock_in_location || 'Unknown'}</td>
         `;
         attendanceBody.appendChild(row);
       });
@@ -539,8 +546,8 @@
     function exportToCSV() {
       const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
         staffAttendanceData.map(entry => {
-          const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
-          return `${entry.name || ''},${entry.department || ''},${entry.timeIn || ''},${entry.timeOut || ''},${workTime},${entry.clockInLocation || 'Unknown'}`;
+          const workTime = calculateWorkTime(entry.timein || entry.time_in, entry.timeout || entry.time_out);
+          return `${entry.name || ''},${entry.department || ''},${entry.timein || entry.time_in || ''},${entry.timeout || entry.time_out || ''},${workTime},${entry.clockinlocation || entry.clock_in_location || 'Unknown'}`;
         }).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -748,12 +755,12 @@
       const ctx = document.getElementById("trendChart").getContext('2d');
       if (!ctx) return;
       if (trendChart) trendChart.destroy();
-      const daysInMonth = new Date(year, month, 0).getDate();
+      const daysInMonth = new Date(year, month - 1, 0).getDate(); // month is 1-based in Date object
       const labels = Array.from({ length: daysInMonth }, (_, i) => `${month}/${i + 1}`);
       const presentData = labels.map((_, i) => {
         const fullDate = `${year}-${month.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
-        const entry = trendData.find(d => d.date === fullDate);
-        return entry ? entry.present || 0 : 0;
+        const entry = trendData.find(d => d.date.toLowerCase() === fullDate.toLowerCase());
+        return entry ? parseInt(entry.present) || 0 : 0;
       });
       trendChart = new Chart(ctx, {
         type: 'line',
@@ -838,28 +845,28 @@
         const activeCount = staffData.staffCount || (staffData.staff ? staffData.staff.filter(s => s.active).length : 0);
         log(`Parsed: totalStaff=${totalStaff}, activeCount=${activeCount}`);
 
-        const statsUrl = `${backendURL}/stats?date=${selectedDate}`; // Use selected date for all stats
+        const statsUrl = `${backendURL}/stats?date=${selectedDate}`;
         const stats = await fetchJSON(statsUrl);
         staffAttendanceData = stats.staffAttendance || [];
         log(`Attendance data length: ${staffAttendanceData.length}`);
 
-        const clockedInToday = staffAttendanceData.filter(entry => entry.timeIn).length;
-        const clockedOutToday = staffAttendanceData.filter(entry => entry.timeOut).length;
+        const clockedInToday = staffAttendanceData.filter(entry => entry.timein || entry.time_in).length;
+        const clockedOutToday = staffAttendanceData.filter(entry => entry.timeout || entry.time_out).length;
         const absentToday = activeCount > 0 ? Math.max(0, activeCount - clockedInToday) : 0;
         const percentClockedIn = activeCount > 0 ? Math.round((clockedInToday / activeCount) * 100) : 0;
         const percentClockedOut = clockedInToday > 0 ? Math.round((clockedOutToday / clockedInToday) * 100) : 0;
 
-        const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
-        const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
-        const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
-        const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
+        const clockInsBefore10AM = staffAttendanceData.filter(entry => (entry.timein || entry.time_in) && convertToMinutes(entry.timein || entry.time_in) < 10 * 60).length;
+        const clockInsAfter10AM = staffAttendanceData.filter(entry => (entry.timein || entry.time_in) && convertToMinutes(entry.timein || entry.time_in) >= 10 * 60).length;
+        const clockOutsBefore4PM = staffAttendanceData.filter(entry => (entry.timeout || entry.time_out) && convertToMinutes(entry.timeout || entry.time_out) < 16 * 60).length;
+        const clockOutsAfter4PM = staffAttendanceData.filter(entry => (entry.timeout || entry.time_out) && convertToMinutes(entry.timeout || entry.time_out) >= 16 * 60).length;
 
         const locationData = await fetchJSON(`${backendURL}/locations`);
         log(`Location data: ${JSON.stringify(locationData).substring(0, 100)}${JSON.stringify(locationData).length > 100 ? "..." : ""}`);
         const locLabels = locationData.locations?.map(l => l.name) || [];
         const locAttendance = {};
         staffAttendanceData.forEach(entry => {
-          const loc = entry.clockInLocation || "Unknown";
+          const loc = entry.clockinlocation || entry.clock_in_location || "Unknown";
           locAttendance[loc] = (locAttendance[loc] || 0) + 1;
         });
         const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
@@ -883,8 +890,8 @@
         });
         staffAttendanceData.forEach(entry => {
           const dept = entry.department;
-          if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
-          if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
+          if (entry.timein || entry.time_in) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
+          if (entry.timeout || entry.time_out) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
         });
         const deptLabels = departments;
         const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
@@ -894,11 +901,7 @@
         const selectedDateObj = new Date(selectedDate);
         const trendYear = selectedDateObj.getFullYear();
         const trendMonth = selectedDateObj.getMonth() + 1;
-        let trendData = await fetchGoogleSheetData(`${trendYear}!A2:B`);
-        trendData = trendData.map(row => ({
-          date: row[0], // Assuming first column is date
-          present: parseInt(row[1]) || 0 // Assuming second column is present count
-        })).filter(row => row.date);
+        let trendData = await fetchSheetData();
 
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
