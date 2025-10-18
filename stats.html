@@ -25,6 +25,14 @@
       font-size: 2rem;
       font-weight: 700;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    header img {
+      height: 2rem; /* Adjust size as needed */
+      margin: 0 1rem; /* Space between images and text */
     }
     #summary-tiles {
       display: grid;
@@ -236,6 +244,10 @@
         font-size: 1.25rem;
         padding: 0.75rem;
       }
+      header img {
+        height: 1.5rem; /* Smaller image size for mobile */
+        margin: 0 0.5rem;
+      }
       #summary-tiles {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
@@ -314,11 +326,18 @@
         height: 30px;
         font-size: 1rem;
       }
+      header img {
+        display: none; /* Hide images on very small screens to save space */
+      }
     }
   </style>
 </head>
 <body>
-  <header>Attendance Dashboard</header>
+  <header>
+    <img src="/assets/image1.png" alt="Left Icon" />
+    Attendance Dashboard
+    <img src="/assets/image2.png" alt="Right Icon" />
+  </header>
 
   <section id="summary-tiles">
     <div class="tile">
@@ -438,7 +457,10 @@
   <div id="log"></div>
 
   <script>
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
     const currentDate = "2025-10-18";
+    const SHEET_ID = "YOUR_GOOGLE_SHEET_ID"; // Replace with your Google Sheet ID
+    const API_KEY = "YOUR_API_KEY"; // Replace with your Google API Key
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -452,51 +474,37 @@
     let departments = [];
     let staffAttendanceData = [];
 
-    // Sample static data
-    const staffData = {
-      staff: [
-        { name: "John Doe", department: "HR", active: true },
-        { name: "Jane Smith", department: "IT", active: true },
-        { name: "Bob Johnson", department: "HR", active: false },
-      ],
-      totalStaff: 3,
-      staffCount: 2
-    };
+    async function fetchJSON(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
+        }
+        const text = await res.text();
+        log(`Fetched from ${url}: ${text.substring(0, 100)}${text.length > 100 ? "..." : ""}`);
+        const data = JSON.parse(text);
+        return data;
+      } catch (e) {
+        log(`❌ Fetch error for ${url}: ${e.message}`);
+        throw e;
+      }
+    }
 
-    const stats = {
-      staffAttendance: [
-        { name: "John Doe", department: "HR", timeIn: "09:00", timeOut: "17:00", clockInLocation: "Office A" },
-        { name: "Jane Smith", department: "IT", timeIn: "10:15", timeOut: "18:30", clockInLocation: "Office B" }
-      ]
-    };
-
-    const locationData = {
-      locations: [
-        { name: "Office A" },
-        { name: "Office B" }
-      ]
-    };
-
-    const trendData = [
-      { date: "2025-10-01", present: 5 },
-      { date: "2025-10-02", present: 7 },
-      { date: "2025-10-03", present: 6 },
-      { date: "2025-10-04", present: 8 },
-      { date: "2025-10-05", present: 5 },
-      { date: "2025-10-06", present: 9 },
-      { date: "2025-10-07", present: 7 },
-      { date: "2025-10-08", present: 6 },
-      { date: "2025-10-09", present: 8 },
-      { date: "2025-10-10", present: 10 },
-      { date: "2025-10-11", present: 7 },
-      { date: "2025-10-12", present: 6 },
-      { date: "2025-10-13", present: 9 },
-      { date: "2025-10-14", present: 8 },
-      { date: "2025-10-15", present: 5 },
-      { date: "2025-10-16", present: 7 },
-      { date: "2025-10-17", present: 6 },
-      { date: "2025-10-18", present: 8 }
-    ];
+    async function fetchGoogleSheetData(range) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
+        }
+        const data = await res.json();
+        log(`Fetched Google Sheet data: ${JSON.stringify(data.values?.slice(0, 5) || []).substring(0, 100)}${JSON.stringify(data.values).length > 100 ? "..." : ""}`);
+        return data.values || [];
+      } catch (e) {
+        log(`❌ Fetch error for Google Sheet: ${e.message}`);
+        return [];
+      }
+    }
 
     function calculateWorkTime(timeIn, timeOut) {
       if (!timeIn || !timeOut) return "N/A";
@@ -838,16 +846,20 @@
       });
     }
 
-    function loadDashboardData() {
+    async function loadDashboardData() {
       const dateSelect = document.getElementById("date-select");
       const selectedDate = dateSelect.value;
       try {
-        log("⏳ Loading static data...");
+        log("⏳ Fetching data...");
 
+        const staffData = await fetchJSON(`${backendURL}/staff`);
+        log(`Staff data: ${JSON.stringify(staffData).substring(0, 100)}${JSON.stringify(staffData).length > 100 ? "..." : ""}`);
         const totalStaff = staffData.totalStaff || (staffData.staff ? staffData.staff.length : 0);
         const activeCount = staffData.staffCount || (staffData.staff ? staffData.staff.filter(s => s.active).length : 0);
         log(`Parsed: totalStaff=${totalStaff}, activeCount=${activeCount}`);
 
+        const statsUrl = `${backendURL}/stats?date=${selectedDate}`; // Use selected date for all stats
+        const stats = await fetchJSON(statsUrl);
         staffAttendanceData = stats.staffAttendance || [];
         log(`Attendance data length: ${staffAttendanceData.length}`);
 
@@ -862,6 +874,8 @@
         const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
         const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
 
+        const locationData = await fetchJSON(`${backendURL}/locations`);
+        log(`Location data: ${JSON.stringify(locationData).substring(0, 100)}${JSON.stringify(locationData).length > 100 ? "..." : ""}`);
         const locLabels = locationData.locations?.map(l => l.name) || [];
         const locAttendance = {};
         staffAttendanceData.forEach(entry => {
@@ -900,10 +914,11 @@
         const selectedDateObj = new Date(selectedDate);
         const trendYear = selectedDateObj.getFullYear();
         const trendMonth = selectedDateObj.getMonth() + 1;
-        let trendDataFiltered = trendData.filter(entry => {
-          const entryDate = new Date(entry.date);
-          return entryDate.getFullYear() === trendYear && entryDate.getMonth() + 1 === trendMonth;
-        });
+        let trendData = await fetchGoogleSheetData(`${trendYear}!A2:B`);
+        trendData = trendData.map(row => ({
+          date: row[0], // Assuming first column is date
+          present: parseInt(row[1]) || 0 // Assuming second column is present count
+        })).filter(row => row.date);
 
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
@@ -922,7 +937,7 @@
         updateDepartureChart(clockOutsBefore4PM, clockOutsAfter4PM);
         updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels);
         updateLocationChart(locLabels, locCounts);
-        updateTrendChart(trendDataFiltered, trendYear, trendMonth);
+        updateTrendChart(trendData, trendYear, trendMonth);
 
         log("✅ Dashboard updated");
 
