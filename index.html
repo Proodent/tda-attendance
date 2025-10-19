@@ -6,7 +6,7 @@
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* [Existing CSS remains unchanged - copy from previous version] */
+    /* General styles */
     body {
       font-family: Arial, sans-serif;
       background: #f7f7f7;
@@ -23,18 +23,18 @@
 
     .container {
       background: #fff;
-      padding: 20px;
+      padding: 20px; /* Reduced padding */
       border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); /* Drop shadow */
       max-width: 600px;
       width: 90%;
       text-align: center;
-      margin: 0 auto;
+      margin: 0 auto; /* Center the container */
     }
 
     h1 {
       color: #009245;
-      margin-bottom: 15px;
+      margin-bottom: 15px; /* Reduced margin */
       font-size: 1.4em;
     }
 
@@ -446,10 +446,73 @@
     </div>
   </div>
   <script src="script.js"></script>
-  <!-- Temporary inline script to expose loginAdmin globally -->
   <script>
-    // Ensure loginAdmin is accessible globally (temporary until server/build tool setup)
-    window.loginAdmin = window.loginAdmin || function() {};
+    // Admin login functionality
+    const SHEET_ID = ""; // Replace with your Google Sheet ID
+    const API_KEY = ""; // Replace with your Google API Key
+
+    async function fetchAdminLogins() {
+      const range = "Admin Logins!A2:B"; // Assuming Email in column A, Password in column B
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status} - ${res.statusText}`);
+        const data = await res.json();
+        console.log("Fetched admin logins data:", data); // Debug log
+        if (!data.values || data.values.length === 0) {
+          console.warn("No values found in the sheet response.");
+          return [];
+        }
+        return data.values;
+      } catch (error) {
+        console.error("Error fetching admin logins:", error);
+        return [];
+      }
+    }
+
+    async function loginAdmin() {
+      const email = document.getElementById("adminEmail").value.trim();
+      const password = document.getElementById("adminPassword").value.trim();
+      const adminError = document.getElementById("adminError");
+      const adminPopup = document.getElementById("adminPopup");
+
+      if (!email || !password) {
+        adminError.textContent = "Please fill in both fields.";
+        return;
+      }
+
+      const adminLogins = await fetchAdminLogins();
+      if (adminLogins.length === 0) {
+        adminError.textContent = "No admin logins found. Check Google Sheet configuration or API access.";
+        return;
+      }
+
+      const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
+      console.log("Checking login:", { email, password, adminLogins }); // Debug log
+
+      if (validLogin) {
+        adminPopup.classList.remove("show");
+        window.location.href = "stats.html"; // Redirect to stats.html on success
+      } else {
+        adminError.textContent = "Invalid email or password.";
+      }
+    }
+
+    document.getElementById("adminDashboard").addEventListener("click", () => {
+      document.getElementById("adminPopup").classList.add("show");
+      document.getElementById("adminError").textContent = "";
+      document.getElementById("adminEmail").value = "";
+      document.getElementById("adminPassword").value = "";
+    });
+
+    // Close admin popup if clicked outside
+    document.getElementById("adminPopup").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("adminPopup")) {
+        document.getElementById("adminPopup").classList.remove("show");
+      }
+    });
   </script>
 </body>
 </html>
+
+
