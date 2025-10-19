@@ -87,6 +87,27 @@ app.get("/api/locations", async (req, res) => {
   }
 });
 
+// ----------------- API: Admin Logins -----------------
+app.get("/api/admin-logins", async (req, res) => {
+  try {
+    await loadDoc();
+    const adminSheet = doc.sheetsByTitle["Admin Logins"];
+    if (!adminSheet) return res.status(500).json({ error: "Admin Logins sheet not found" });
+    const rows = await adminSheet.getRows();
+
+    const adminLogins = rows.map(r => [
+      r["Email"] || r.get("Email") || "",
+      r["Password"] || r.get("Password") || ""
+    ]).filter(row => row[0] && row[1]); // Filter out incomplete rows
+
+    console.log("Admin logins fetched:", adminLogins.length, "records");
+    res.json({ success: true, logins: adminLogins });
+  } catch (err) {
+    console.error("GET /api/admin-logins error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ----------------- Proxy: CompreFace -----------------
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
@@ -242,12 +263,12 @@ app.get("/api/staff", async (req, res) => {
     const activeStaff = rows.filter(r =>
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
-    const totalStaff = rows.length; // Count every staff in the Staff Sheet
+    const totalStaff = rows.length;
 
     res.json({
       success: true,
-      totalStaff: totalStaff, // All staff in the sheet
-      staffCount: activeStaff.length, // Only those with "Yes" in Active
+      totalStaff,
+      staffCount: activeStaff.length,
       staff: activeStaff.map(r => ({
         name: r["Name"] || r.get("Name"),
         department: r["Department"] || r.get("Department"),
@@ -301,14 +322,13 @@ app.get("/api/stats", async (req, res) => {
     const activeStaff = staffRows.filter(r =>
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     ).length;
-    const totalStaff = staffRows.length; // All staff in the sheet
+    const totalStaff = staffRows.length;
 
     const presentToday = clockIns.today;
     const absentToday = activeStaff > 0 ? Math.max(0, activeStaff - presentToday) : 0;
     const percentClockedIn = activeStaff > 0 ? Math.round((presentToday / activeStaff) * 100) : 0;
     const percentClockedOut = presentToday > 0 ? Math.round((clockOuts.today / presentToday) * 100) : 0;
 
-    // Staff attendance details for the requested date
     const staffAttendance = attendanceRows
       .filter(r => (r["Date"] || r.get("Date")) === requestedDate)
       .map(r => ({
@@ -319,7 +339,6 @@ app.get("/api/stats", async (req, res) => {
         clockInLocation: r["Clock In Location"] || r.get("Clock In Location") || "Unknown"
       }));
 
-    // Optional trend data (if needed for the chart)
     const trend = [
       { date: new Date(now.setDate(now.getDate() - 7)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
       { date: new Date(now.setDate(now.getDate() - 6)).toLocaleDateString(), present: Math.floor(Math.random() * activeStaff) },
