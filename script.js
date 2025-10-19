@@ -77,9 +77,7 @@ function hideLoader() {
 // Fetch office locations from server
 async function fetchLocations() {
   try {
-    showLoader("Loading locations...");
     const r = await fetch('/api/locations');
-    if (!r.ok) throw new Error(`HTTP error! Status: ${r.status}`);
     const j = await r.json();
     if (!j.success || !Array.isArray(j.locations)) throw new Error('Bad locations response');
     locations = j.locations.map(l => ({
@@ -89,12 +87,10 @@ async function fetchLocations() {
       radiusMeters: Number(l.radiusMeters)
     }));
     console.log('Loaded locations:', locations);
-    hideLoader();
     return true;
   } catch (err) {
     console.error('Error loading locations:', err);
-    hideLoader();
-    showPopup('Location Error', `Unable to load location data: ${err.message}. Check server or /api/locations endpoint.`, false);
+    showPopup('Location Error', 'Unable to load location data. Please check your connection.', false);
     return false;
   }
 }
@@ -105,12 +101,6 @@ async function startLocationWatch() {
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
-
-  if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
-    console.error('DOM elements not found:', { statusEl, locationEl, clockInBtn, clockOutBtn });
-    showPopup('Initialization Error', 'Required DOM elements not found. Reload the page.', false);
-    return;
-  }
 
   videoEl = document.getElementById('video');
   canvasEl = document.getElementById('canvas');
@@ -130,65 +120,41 @@ async function startLocationWatch() {
     return;
   }
 
-  watchId = navigator.geolocation.watchPosition(
-    pos => {
-      const { latitude, longitude } = pos.coords;
-      let office = null;
-      for (const o of locations) {
-        const distKm = getDistanceKm(latitude, longitude, o.lat, o.long);
-        if (distKm <= (o.radiusMeters / 1000)) {
-          office = o.name;
-          break;
-        }
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    let office = null;
+    for (const o of locations) {
+      const distKm = getDistanceKm(latitude, longitude, o.lat, o.long);
+      if (distKm <= (o.radiusMeters / 1000)) {
+        office = o.name;
+        break;
       }
+    }
 
-      if (office) {
-        statusEl.textContent = `You are currently at: ${office}`;
-        locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-        locationEl.dataset.lat = latitude;
-        locationEl.dataset.long = longitude;
-        clockInBtn.disabled = clockOutBtn.disabled = false;
-        clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
-      } else {
-        statusEl.textContent = 'Unapproved Location';
-        locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-        locationEl.dataset.lat = latitude;
-        locationEl.dataset.long = longitude;
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-        clockInBtn.style.opacity = clockOutBtn.style.opacity = "0.6";
-        showPopup('Location Error', 'You are not at an approved office location.', false);
-      }
-    },
-    err => {
-      statusEl.textContent = `Error getting location: ${err.message}`;
+    if (office) {
+      statusEl.textContent = `You are currently at: ${office}`;
+      locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      locationEl.dataset.lat = latitude;
+      locationEl.dataset.long = longitude;
+      clockInBtn.disabled = clockOutBtn.disabled = false;
+      clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
+    } else {
+      statusEl.textContent = 'Unapproved Location';
+      locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      locationEl.dataset.lat = latitude;
+      locationEl.dataset.long = longitude;
       clockInBtn.disabled = clockOutBtn.disabled = true;
-      showPopup('Location Error', `Unable to detect GPS coordinates: ${err.message}`, false);
-    },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-  );
+      clockInBtn.style.opacity = clockOutBtn.style.opacity = "0.6";
+      showPopup('Location Error', 'You are not at an approved office location.', false);
+    }
+  }, err => {
+    statusEl.textContent = `Error getting location: ${err.message}`;
+    clockInBtn.disabled = clockOutBtn.disabled = true;
+    showPopup('Location Error', `Unable to detect GPS coordinates: ${err.message}`, false);
+  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
 
   document.getElementById('clockIn').addEventListener('click', () => handleClock('clock in'));
   document.getElementById('clockOut').addEventListener('click', () => handleClock('clock out'));
-
-  // Admin Dashboard button handler
-  const adminDashboardBtn = document.getElementById('adminDashboard');
-  if (adminDashboardBtn) {
-    adminDashboardBtn.addEventListener('click', () => {
-      const adminPopup = document.getElementById('adminPopup');
-      if (adminPopup) {
-        adminPopup.classList.add('show');
-        document.getElementById('adminError').textContent = "";
-        document.getElementById('adminEmail').value = "";
-        document.getElementById('adminPassword').value = "";
-      } else {
-        console.error('Admin popup not found in DOM');
-        showPopup('Initialization Error', 'Admin popup not found. Reload the page.', false);
-      }
-    });
-  } else {
-    console.error('Admin Dashboard button not found in DOM');
-    showPopup('Initialization Error', 'Admin Dashboard button not found. Reload the page.', false);
-  }
 }
 
 // Start video for facial recognition
@@ -283,7 +249,7 @@ async function handleClock(action) {
   const faceRes = await validateFaceWithProxy(base64);
   if (!faceRes.ok) {
     hideLoader();
-    return showPopup('Face Recognition Error', faceRes.error || 'No matching face found.', false');
+    return showPopup('Face Recognition Error', faceRes.error || 'No matching face found.', false);
   }
   if (faceRes.similarity < 0.85) {
     hideLoader();
@@ -325,81 +291,9 @@ async function handleClock(action) {
   }
 }
 
-// Fetch admin logins from Google Sheet
-async function fetchAdminLogins() {
-  const SHEET_ID = process.env.SHEET_ID || '1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A'; // Fallback for local testing
-  const API_KEY = process.env.API_KEY || 'AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw'; // Fallback for local testing
-  if (!SHEET_ID || !API_KEY) {
-    console.error('SHEET_ID or API_KEY not set');
-    return [];
-  }
-  const range = "Admin Logins!A2:B"; // Targeting the Admin Logins tab
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
-  try {
-    showLoader("Fetching admin logins...");
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status} - ${res.statusText}`);
-    const data = await res.json();
-    console.log("Fetched admin logins data:", data);
-    hideLoader();
-    if (!data.values || data.values.length === 0) {
-      console.warn("No values found in the Admin Logins tab.");
-      return [];
-    }
-    return data.values;
-  } catch (error) {
-    console.error("Error fetching admin logins:", error);
-    hideLoader();
-    showPopup('Admin Login Error', `Failed to fetch admin logins: ${error.message}. Check API key or sheet access.`, false);
-    return [];
-  }
-}
-
-// Handle admin login
-async function loginAdmin() {
-  const email = document.getElementById("adminEmail").value.trim();
-  const password = document.getElementById("adminPassword").value.trim();
-  const adminError = document.getElementById("adminError");
-  const adminPopup = document.getElementById("adminPopup");
-
-  if (!email || !password) {
-    adminError.textContent = "Please fill in both fields.";
-    return;
-  }
-
-  const adminLogins = await fetchAdminLogins();
-  if (adminLogins.length === 0) {
-    adminError.textContent = "No admin logins found. Check the 'Admin Logins' tab in your Google Sheet.";
-    return;
-  }
-
-  const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
-  console.log("Checking login:", { email, password, adminLogins });
-
-  if (validLogin) {
-    adminPopup.classList.remove("show");
-    window.location.href = "stats.html";
-  } else {
-    adminError.textContent = "Invalid email or password.";
-  }
-}
-
-// Close admin popup if clicked outside
-document.addEventListener('DOMContentLoaded', () => {
-  const adminPopup = document.getElementById("adminPopup");
-  if (adminPopup) {
-    adminPopup.addEventListener("click", (e) => {
-      if (e.target === adminPopup) {
-        adminPopup.classList.remove("show");
-      }
-    });
-  } else {
-    console.error('Admin popup not found in DOM');
-  }
-});
-
 window.onload = startLocationWatch;
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
