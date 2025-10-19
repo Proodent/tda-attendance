@@ -300,7 +300,7 @@ app.get("/api/stats", async (req, res) => {
 
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
-    const now = new Date("2025-10-19T08:13:00Z"); // Current date and time
+    const now = new Date("2025-10-19T12:52:00Z"); // Current date and time
     const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Default to yesterday (Oct 18, 2025)
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() - 1);
