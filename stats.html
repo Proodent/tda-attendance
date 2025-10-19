@@ -482,32 +482,26 @@
   <div id="log"></div>
 
   <script>
-    // Inject environment variables
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
     const currentDate = new Date().toISOString().split('T')[0]; // 2025-10-19
+    const SESSION_TIMEOUT = 900000; // 15 minutes in milliseconds
+    let timeoutId;
 
-    // Login session management
-    const isLoggedIn = () => {
-      const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      log(`Checking login status: ${loggedIn}`);
-      return loggedIn;
-    };
+    const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
     const login = (username, password) => {
-      log(`Attempting login with username: ${username}, password: ${password}`);
-      // Simulate login (replace with actual authentication logic)
       if (username === 'admin' && password === 'password') {
         localStorage.setItem('isLoggedIn', 'true');
-        log('Login successful, session set');
+        localStorage.setItem('lastActivity', Date.now());
         return true;
       }
-      log('Login failed: Invalid credentials');
       return false;
     };
     const logout = () => {
-      log('Logging out...');
       localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('lastActivity');
+      clearTimeout(timeoutId);
       window.location.href = 'index.html';
     };
 
@@ -517,9 +511,26 @@
         const time = new Date().toLocaleTimeString();
         logBox.innerHTML += `[${time}] ${msg}<br>`;
         logBox.scrollTop = logBox.scrollHeight;
-      } else {
-        console.error("Log element not found:", msg);
       }
+    };
+
+    const resetTimeout = () => {
+      const lastActivity = localStorage.getItem('lastActivity');
+      if (lastActivity) {
+        const inactiveTime = Date.now() - parseInt(lastActivity, 10);
+        if (inactiveTime >= SESSION_TIMEOUT) {
+          log('Session timed out due to inactivity');
+          logout();
+          return;
+        }
+      }
+      localStorage.setItem('lastActivity', Date.now());
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        log('Session expired due to inactivity');
+        alert('Session expired due to inactivity. Please log in again.');
+        logout();
+      }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
     };
 
     let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyAttendanceChart;
@@ -527,13 +538,13 @@
     let departments = [];
     let staffAttendanceData = [];
 
-    // Check login status and redirect if not logged in
     document.addEventListener('DOMContentLoaded', () => {
       if (!isLoggedIn()) {
-        log('No active session found, redirecting to login page');
+        log('No session detected, redirecting to login');
         window.location.href = 'index.html';
       } else {
-        log('Active session found, loading dashboard');
+        log('Session active, loading dashboard');
+        resetTimeout();
         document.getElementById("date-select").value = currentDate;
         loadDashboardData();
         setInterval(loadDashboardData, 30000);
@@ -864,7 +875,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-19T23:36:00Z"); // 11:36 PM GMT
+      const today = new Date("2025-10-19T23:44:00Z"); // 11:44 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -1022,13 +1033,13 @@
 
     async function loadDashboardData() {
       if (!isLoggedIn()) {
-        log('Session expired or invalid, redirecting to login page');
+        log('Session invalid, redirecting to login');
         window.location.href = 'index.html';
         return;
       }
 
       const dateSelect = document.getElementById("date-select");
-      const selectedDate = dateSelect?.value || currentDate; // 2025-10-19
+      const selectedDate = dateSelect?.value || currentDate;
       try {
         log("⏳ Fetching data...");
 
@@ -1126,7 +1137,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        const today = new Date("2025-10-19T23:36:00Z"); // 11:36 PM GMT
+        const today = new Date("2025-10-19T23:44:00Z"); // 11:44 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1200,18 +1211,22 @@
       th.addEventListener("click", () => {
         const key = th.getAttribute("data-sort");
         handleSort(key);
+        resetTimeout();
       });
     });
 
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        log('⏳ Initiating logout...');
+        log('Logging out...');
         logout();
       });
-    } else {
-      log("❌ Logout button not found");
     }
+
+    // Reset timeout on user activity
+    document.addEventListener('mousemove', resetTimeout);
+    document.addEventListener('keypress', resetTimeout);
+    document.addEventListener('click', resetTimeout);
   </script>
 </body>
 </html>
