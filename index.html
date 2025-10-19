@@ -23,18 +23,18 @@
 
     .container {
       background: #fff;
-      padding: 20px;
+      padding: 20px; /* Reduced padding */
       border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); /* Drop shadow */
       max-width: 600px;
       width: 90%;
       text-align: center;
-      margin: 0 auto;
+      margin: 0 auto; /* Center the container */
     }
 
     h1 {
       color: #009245;
-      margin-bottom: 15px;
+      margin-bottom: 15px; /* Reduced margin */
       font-size: 1.4em;
     }
 
@@ -58,6 +58,7 @@
       color: #333;
     }
 
+    /* Button styles */
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -93,6 +94,7 @@
       opacity: 0.6;
     }
 
+    /* Face recognition */
     #faceRecognition {
       display: none;
       margin-top: 10px;
@@ -107,6 +109,7 @@
       border-radius: 10px;
     }
 
+    /* Loader overlay */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -132,7 +135,9 @@
     }
 
     @keyframes spin {
-      100% { transform: rotate(360deg); }
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     #loaderOverlay p {
@@ -141,6 +146,7 @@
       color: #333;
     }
 
+    /* Popup styles */
     .popup {
       display: none;
       position: fixed;
@@ -160,8 +166,12 @@
     }
 
     @keyframes popupFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
     }
 
     .popup-content {
@@ -176,8 +186,14 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .popup-header {
@@ -226,20 +242,38 @@
     }
 
     @keyframes pop {
-      from { transform: scale(0.6); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+      from {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     @keyframes bounce {
-      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-      40% { transform: translateY(-10px); }
-      60% { transform: translateY(-5px); }
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
     }
 
     @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-      20%, 40%, 60%, 80% { transform: translateX(5px); }
+      0%, 100% {
+        transform: translateX(0);
+      }
+      10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+      }
+      20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+      }
     }
 
     .popup-close-btn {
@@ -258,16 +292,35 @@
       color: #333;
     }
 
+    /* Responsive design */
     @media (max-height: 700px) {
-      .container { padding: 15px; width: 80%; }
-      h1 { font-size: 1.2em; }
-      h1 span { font-size: 1.2em; }
-      h1 .subtitle { font-size: 0.75em; }
-      button { padding: 8px 16px; font-size: 14px; }
-      .popup-content { width: calc(100% - 40px); padding: 15px; }
-      .popup-icon { font-size: 24px; }
+      .container {
+        padding: 15px;
+        width: 80%;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      h1 span {
+        font-size: 1.2em;
+      }
+      h1 .subtitle {
+        font-size: 0.75em;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      .popup-content {
+        width: calc(100% - 40px);
+        padding: 15px;
+      }
+      .popup-icon {
+        font-size: 24px;
+      }
     }
 
+    /* Footer styles */
     .footer {
       margin-top: auto;
       font-size: 0.9em;
@@ -287,6 +340,7 @@
       text-decoration: underline;
     }
 
+    /* Admin Login Popup */
     #adminPopup {
       display: none;
       position: fixed;
@@ -347,7 +401,10 @@
 </head>
 <body>
   <div class="container">
-    <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Management</span></h1>
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Management</span>
+    </h1>
     <p id="status">Checking location...</p>
     <pre id="location">Location: Loading...</pre>
     <button id="clockIn" disabled>Clock In</button>
@@ -358,6 +415,7 @@
       <canvas id="canvas"></canvas>
     </div>
   </div>
+  <!-- Centered Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader"></div>
@@ -367,14 +425,17 @@
       <div id="popupRetry"></div>
     </div>
   </div>
+  <!-- Loader Overlay -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
+  <!-- Footer -->
   <div class="footer">
     Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a>
     | <button id="adminDashboard">Admin Dashboard</button>
   </div>
+  <!-- Admin Login Popup -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
