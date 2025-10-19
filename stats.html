@@ -427,7 +427,7 @@
       </div>
     </div>
     <div class="chart-tile full-width-chart" id="weekly-container">
-      <h3>Weekly Attendance Summary</h3> <!-- New chart tile -->
+      <h3>Weekly Attendance Summary</h3>
       <div class="chart-container">
         <canvas id="weeklyAttendanceChart"></canvas>
       </div>
@@ -488,6 +488,21 @@
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
     const currentDate = new Date().toISOString().split('T')[0]; // 2025-10-19
 
+    // Login session management
+    const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
+    const login = (username, password) => {
+      // Simulate login (replace with actual authentication logic)
+      if (username === 'admin' && password === 'password') {
+        localStorage.setItem('isLoggedIn', 'true');
+        return true;
+      }
+      return false;
+    };
+    const logout = () => {
+      localStorage.removeItem('isLoggedIn');
+      window.location.href = 'index.html';
+    };
+
     const log = (msg) => {
       const logBox = document.getElementById("log");
       if (logBox) {
@@ -503,6 +518,11 @@
     let sortConfig = { key: null, direction: "asc" };
     let departments = [];
     let staffAttendanceData = [];
+
+    // Check login status and redirect if not logged in
+    if (!isLoggedIn()) {
+      window.location.href = 'index.html';
+    }
 
     async function fetchJSON(url) {
       try {
@@ -828,7 +848,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-19T23:06:00Z"); // 11:06 PM GMT
+      const today = new Date("2025-10-19T23:19:00Z"); // 11:19 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -985,6 +1005,11 @@
     }
 
     async function loadDashboardData() {
+      if (!isLoggedIn()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
       const dateSelect = document.getElementById("date-select");
       const selectedDate = dateSelect?.value || currentDate; // 2025-10-19
       try {
@@ -1084,8 +1109,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        // Calculate weekly attendance summary for the last 90 days
-        const today = new Date("2025-10-19T23:06:00Z"); // 11:06 PM GMT
+        const today = new Date("2025-10-19T23:19:00Z"); // 11:19 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1094,7 +1118,7 @@
           if (date >= startDate && date <= today) {
             const weekNumber = getWeekNumber(date);
             if (!weeklyMap[weekNumber]) weeklyMap[weekNumber] = new Set();
-            weeklyMap[weekNumber].add(entry.date); // Track unique dates per week
+            weeklyMap[weekNumber].add(entry.date);
           }
         });
         const weeklyData = Object.keys(weeklyMap).map(week => {
@@ -1106,7 +1130,7 @@
             week: week,
             startDate: firstDate.toISOString().split('T')[0],
             endDate: lastDate.toISOString().split('T')[0],
-            totalPresent: weeklyMap[week].size // Count of unique dates (staff present days)
+            totalPresent: weeklyMap[week].size
           };
         }).sort((a, b) => a.week - b.week);
         log(`Weekly attendance data length: ${weeklyData.length}, sample: ${JSON.stringify(weeklyData.slice(0, 2))}`);
@@ -1147,7 +1171,6 @@
       return hours * 60 + minutes;
     }
 
-    // Get ISO week number for a date
     function getWeekNumber(d) {
       d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
       d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -1168,13 +1191,7 @@
       if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
           log('⏳ Initiating logout...');
-          setTimeout(() => {
-            try {
-              window.location.href = 'index.html';
-            } catch (e) {
-              log(`❌ Logout redirect failed: ${e.message}`);
-            }
-          }, 1000);
+          logout();
         });
       } else {
         log("❌ Logout button not found");
