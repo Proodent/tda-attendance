@@ -155,6 +155,14 @@ async function startLocationWatch() {
 
   document.getElementById('clockIn').addEventListener('click', () => handleClock('clock in'));
   document.getElementById('clockOut').addEventListener('click', () => handleClock('clock out'));
+
+  // Admin Dashboard button handler
+  document.getElementById('adminDashboard').addEventListener('click', () => {
+    document.getElementById('adminPopup').classList.add('show');
+    document.getElementById('adminError').textContent = "";
+    document.getElementById('adminEmail').value = "";
+    document.getElementById('adminPassword').value = "";
+  });
 }
 
 // Start video for facial recognition
@@ -249,7 +257,7 @@ async function handleClock(action) {
   const faceRes = await validateFaceWithProxy(base64);
   if (!faceRes.ok) {
     hideLoader();
-    return showPopup('Face Recognition Error', faceRes.error || 'No matching face found.', false);
+    return showPopup('Face Recognition Error', faceRes.error || 'No matching face found.', false');
   }
   if (faceRes.similarity < 0.85) {
     hideLoader();
@@ -291,9 +299,71 @@ async function handleClock(action) {
   }
 }
 
+// Fetch admin logins from Google Sheet
+async function fetchAdminLogins() {
+  // Note: SHEET_ID and API_KEY should be loaded from environment variables via a server or build tool
+  const SHEET_ID = process.env.SHEET_ID || '1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A'; // Fallback for local testing
+  const API_KEY = process.env.API_KEY || 'AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw'; // Fallback for local testing
+  if (!SHEET_ID || !API_KEY) {
+    console.error('SHEET_ID or API_KEY not set');
+    return [];
+  }
+  const range = "Admin Logins!A2:B"; // Targeting the Admin Logins tab
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! Status: ${res.status} - ${res.statusText}`);
+    const data = await res.json();
+    console.log("Fetched admin logins data:", data);
+    if (!data.values || data.values.length === 0) {
+      console.warn("No values found in the Admin Logins tab.");
+      return [];
+    }
+    return data.values;
+  } catch (error) {
+    console.error("Error fetching admin logins:", error);
+    return [];
+  }
+}
+
+// Handle admin login
+async function loginAdmin() {
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value.trim();
+  const adminError = document.getElementById("adminError");
+  const adminPopup = document.getElementById("adminPopup");
+
+  if (!email || !password) {
+    adminError.textContent = "Please fill in both fields.";
+    return;
+  }
+
+  const adminLogins = await fetchAdminLogins();
+  if (adminLogins.length === 0) {
+    adminError.textContent = "No admin logins found. Check the 'Admin Logins' tab in your Google Sheet.";
+    return;
+  }
+
+  const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
+  console.log("Checking login:", { email, password, adminLogins });
+
+  if (validLogin) {
+    adminPopup.classList.remove("show");
+    window.location.href = "stats.html";
+  } else {
+    adminError.textContent = "Invalid email or password.";
+  }
+}
+
+// Close admin popup if clicked outside
+document.getElementById("adminPopup").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("adminPopup")) {
+    document.getElementById("adminPopup").classList.remove("show");
+  }
+});
+
 window.onload = startLocationWatch;
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
-
