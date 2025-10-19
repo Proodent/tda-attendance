@@ -34,6 +34,24 @@
       height: 5rem; /* Adjust size as needed */
       margin: 0 5rem; /* Space between images and text */
     }
+    header .logout-btn {
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0.75rem 1.5rem;
+      background: #f56565;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    header .logout-btn:hover {
+      background: #e53e3e;
+    }
     #summary-tiles {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -248,6 +266,11 @@
         height: 1.5rem; /* Smaller image size for mobile */
         margin: 0 0.5rem;
       }
+      header .logout-btn {
+        right: 0.75rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+      }
       #summary-tiles {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
@@ -337,6 +360,7 @@
     <img src="/assets/favicon.png" alt="logo" />
     Attendance Dashboard
     <img src="/assets/favicon.png" alt="logo" />
+    <button class="logout-btn" id="logoutBtn">Logout</button>
   </header>
 
   <section id="summary-tiles">
@@ -961,6 +985,14 @@
         const key = th.getAttribute("data-sort");
         handleSort(key);
       });
+    });
+
+    // Logout functionality
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      log('⏳ Initiating logout...');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1000); // Delay for log visibility
     });
 
     document.addEventListener('DOMContentLoaded', () => {
