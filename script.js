@@ -59,6 +59,8 @@ function showLoader(text = "Verifying...") {
   if (loaderEl) {
     loaderEl.querySelector("p").textContent = text;
     loaderEl.style.display = "flex";
+  } else {
+    console.error("Loader overlay not found");
   }
 }
 
@@ -71,10 +73,10 @@ function hideLoader() {
 async function fetchLocations() {
   try {
     showLoader("Loading locations...");
-    const response = await fetch('/api/locations');
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    const response = await fetch('/api/locations', { mode: 'cors' });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
-    if (!data.success || !Array.isArray(data.locations)) throw new Error('Invalid location data format');
+    if (!data.success || !Array.isArray(data.locations)) throw new Error('Invalid location data format: ' + JSON.stringify(data));
     locations = data.locations.map(l => ({
       name: l.name,
       lat: Number(l.lat),
@@ -87,7 +89,7 @@ async function fetchLocations() {
   } catch (error) {
     console.error('Location fetch error:', error);
     hideLoader();
-    showPopup('Location Error', `Failed to load locations: ${error.message}. Ensure server is running.`, false);
+    showPopup('Location Error', `Failed to load locations: ${error.message}. Check server and Locations Sheet.`, false);
     return false;
   }
 }
@@ -165,6 +167,7 @@ function startLocationWatch() {
     const adminDashboardBtn = document.getElementById('adminDashboard');
     if (adminDashboardBtn) {
       adminDashboardBtn.addEventListener('click', () => {
+        console.log('Admin Dashboard clicked');
         const adminPopup = document.getElementById('adminPopup');
         if (adminPopup) {
           adminPopup.classList.add('show');
@@ -320,8 +323,8 @@ async function handleClock(action) {
 async function fetchAdminLogins() {
   try {
     showLoader('Fetching admin logins...');
-    const response = await fetch('/api/admin-logins');
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    const response = await fetch('/api/admin-logins', { mode: 'cors' });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
     console.log('Admin logins data:', data);
     hideLoader();
@@ -329,7 +332,7 @@ async function fetchAdminLogins() {
   } catch (error) {
     console.error('Admin fetch error:', error);
     hideLoader();
-    showPopup('Admin Error', `Failed to fetch admin logins: ${error.message}.`, false);
+    showPopup('Admin Error', `Failed to fetch admin logins: ${error.message}. Check server and Admin Logins sheet.`, false);
     return [];
   }
 }
