@@ -31,26 +31,8 @@
       position: relative;
     }
     header img {
-      height: 5rem;
-      margin: 0 5rem;
-    }
-    header .logout-btn {
-      position: absolute;
-      right: 1.5rem;
-      top: 50%;
-      transform: translateY(-50%);
-      padding: 0.75rem 1.5rem;
-      background: #f56565;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    header .logout-btn:hover {
-      background: #e53e3e;
+      height: 5rem; /* Adjust size as needed */
+      margin: 0 5rem; /* Space between images and text */
     }
     #summary-tiles {
       display: grid;
@@ -263,13 +245,8 @@
         padding: 0.75rem;
       }
       header img {
-        height: 1.5rem;
+        height: 1.5rem; /* Smaller image size for mobile */
         margin: 0 0.5rem;
-      }
-      header .logout-btn {
-        right: 0.75rem;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
       }
       #summary-tiles {
         grid-template-columns: repeat(2, 1fr);
@@ -350,7 +327,7 @@
         font-size: 1rem;
       }
       header img {
-        display: none;
+        display: none; /* Hide images on very small screens to save space */
       }
     }
   </style>
@@ -481,7 +458,7 @@
   <div id="log"></div>
 
   <script>
-    // Inject environment variables (since process.env might not work directly in browser)
+    // Inject environment variables
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
@@ -522,19 +499,15 @@
     async function fetchGoogleSheetData(range) {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
       try {
-        const res = await fetch(url, { mode: 'cors' });
+        const res = await fetch(url);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
         }
         const data = await res.json();
-        if (!data.values) {
-          log(`⚠️ No data found in range ${range}`);
-          return [];
-        }
-        log(`Fetched Google Sheet data: ${JSON.stringify(data.values.slice(0, 5) || []).substring(0, 100)}${JSON.stringify(data.values).length > 100 ? "..." : ""}`);
-        return data.values;
+        log(`Fetched Google Sheet data: ${JSON.stringify(data.values?.slice(0, 5) || []).substring(0, 100)}${JSON.stringify(data.values).length > 100 ? "..." : ""}`);
+        return data.values || [];
       } catch (e) {
-        log(`❌ Fetch error for Google Sheet ${range}: ${e.message}`);
+        log(`❌ Fetch error for Google Sheet: ${e.message}`);
         return [];
       }
     }
@@ -553,13 +526,9 @@
 
     function updateTable(data) {
       const attendanceBody = document.getElementById("attendance-body");
-      if (!attendanceBody) {
-        log("❌ Attendance body element not found");
-        return;
-      }
       attendanceBody.innerHTML = "";
-      const departmentFilter = document.getElementById("department-select")?.value || "";
-      const nameSearch = document.getElementById("name-search")?.value.toLowerCase() || "";
+      const departmentFilter = document.getElementById("department-select").value;
+      const nameSearch = document.getElementById("name-search").value.toLowerCase();
       const filteredData = data.filter(entry => {
         const nameMatch = entry.name.toLowerCase().includes(nameSearch);
         const deptMatch = departmentFilter ? entry.department === departmentFilter : true;
@@ -609,11 +578,8 @@
     }
 
     function updateGeneralAttendanceChart(present, absent) {
-      const ctx = document.getElementById("generalAttendanceChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ General Attendance Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("generalAttendanceChart").getContext('2d');
+      if (!ctx) return;
       if (generalAttendanceChart) generalAttendanceChart.destroy();
       present = present || 0;
       absent = absent || 0;
@@ -651,11 +617,8 @@
     }
 
     function updateReportingChart(before10AM, after10AM) {
-      const ctx = document.getElementById("reportingChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ Reporting Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("reportingChart").getContext('2d');
+      if (!ctx) return;
       if (reportingChart) reportingChart.destroy();
       before10AM = before10AM || 0;
       after10AM = after10AM || 0;
@@ -693,11 +656,8 @@
     }
 
     function updateDepartureChart(before4PM, after4PM) {
-      const ctx = document.getElementById("departureChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ Departure Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("departureChart").getContext('2d');
+      if (!ctx) return;
       if (departureChart) departureChart.destroy();
       before4PM = before4PM || 0;
       after4PM = after4PM || 0;
@@ -735,11 +695,8 @@
     }
 
     function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels) {
-      const ctx = document.getElementById("departmentChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ Department Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("departmentChart").getContext('2d');
+      if (!ctx) return;
       if (departmentChart) departmentChart.destroy();
       departmentChart = new Chart(ctx, {
         type: 'bar',
@@ -781,11 +738,8 @@
     }
 
     function updateLocationChart(labels, values) {
-      const ctx = document.getElementById("locationChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ Location Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("locationChart").getContext('2d');
+      if (!ctx) return;
       if (locationChart) locationChart.destroy();
       locationChart = new Chart(ctx, {
         type: 'bar',
@@ -817,13 +771,10 @@
     }
 
     function updateTrendChart(trendData = [], year, month) {
-      const ctx = document.getElementById("trendChart")?.getContext('2d');
-      if (!ctx) {
-        log("❌ Trend Chart context not found");
-        return;
-      }
+      const ctx = document.getElementById("trendChart").getContext('2d');
+      if (!ctx) return;
       if (trendChart) trendChart.destroy();
-      const daysInMonth = new Date(year, month - 1, 0).getDate();
+      const daysInMonth = new Date(year, month, 0).getDate();
       const labels = Array.from({ length: daysInMonth }, (_, i) => `${month}/${i + 1}`);
       const presentData = labels.map((_, i) => {
         const fullDate = `${year}-${month.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
@@ -887,7 +838,7 @@
       }
       const th = document.querySelector(`th[data-sort="${key}"]`);
       document.querySelectorAll(".sortable").forEach(el => el.classList.remove("asc", "desc"));
-      if (th) th.classList.add(sortConfig.direction);
+      th.classList.add(sortConfig.direction);
       updateTable(staffAttendanceData);
     }
 
@@ -903,7 +854,7 @@
 
     async function loadDashboardData() {
       const dateSelect = document.getElementById("date-select");
-      const selectedDate = dateSelect?.value || currentDate;
+      const selectedDate = dateSelect.value;
       try {
         log("⏳ Fetching data...");
 
@@ -941,15 +892,13 @@
 
         departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
         const departmentSelect = document.getElementById("department-select");
-        if (departmentSelect) {
-          departmentSelect.innerHTML = '<option value="">All Departments</option>';
-          departments.forEach(dept => {
-            const option = document.createElement("option");
-            option.value = dept;
-            option.textContent = dept;
-            departmentSelect.appendChild(option);
-          });
-        }
+        departmentSelect.innerHTML = '<option value="">All Departments</option>';
+        departments.forEach(dept => {
+          const option = document.createElement("option");
+          option.value = dept;
+          option.textContent = dept;
+          departmentSelect.appendChild(option);
+        });
 
         const deptTotals = {};
         const deptClockIns = {};
@@ -971,11 +920,25 @@
         const selectedDateObj = new Date(selectedDate);
         const trendYear = selectedDateObj.getFullYear();
         const trendMonth = selectedDateObj.getMonth() + 1;
-        let trendData = await fetchGoogleSheetData(`Attendance!A2:B`);
-        trendData = trendData.map(row => ({
-          date: row[0], // Assuming first column is date (e.g., 2025-10-19)
-          present: parseInt(row[1]) || 0 // Assuming second column is present count
-        })).filter(row => row.date && row.date.trim() !== "");
+        let trendData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
+        log(`Raw attendance data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
+        const trendMap = {};
+        trendData.forEach(row => {
+          const date = row[0];
+          const name = row[2];
+          const timeIn = row[3];
+          if (date && name && timeIn) {
+            if (!trendMap[date]) trendMap[date] = new Set();
+            trendMap[date].add(name);
+          } else {
+            log(`⚠️ Invalid row skipped: ${JSON.stringify(row)}`);
+          }
+        });
+        trendData = Object.keys(trendMap).map(date => ({
+          date,
+          present: trendMap[date].size
+        }));
+        log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
@@ -986,7 +949,7 @@
         document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
 
         const attendanceTitle = document.getElementById("attendance-title");
-        if (attendanceTitle) attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
+        attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
         updateTable(staffAttendanceData);
 
         updateGeneralAttendanceChart(clockedInToday, absentToday);
@@ -997,10 +960,11 @@
         updateTrendChart(trendData, trendYear, trendMonth);
 
         log("✅ Dashboard updated");
+
       } catch (err) {
         log("❌ " + err.message);
         ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
-          const tile = document.querySelector(`#${id}`)?.closest(".tile");
+          const tile = document.querySelector(`#${id}`).closest(".tile");
           if (tile) tile.classList.add("error");
         });
       }
@@ -1019,27 +983,18 @@
       });
     });
 
-    // Logout functionality with enhanced error handling
-    document.addEventListener('DOMContentLoaded', () => {
-      const logoutBtn = document.getElementById('logoutBtn');
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-          log('⏳ Initiating logout...');
-          setTimeout(() => {
-            try {
-              window.location.href = 'index.html'; // Adjust path if needed (e.g., './index.html' or '/index.html')
-            } catch (e) {
-              log(`❌ Logout redirect failed: ${e.message}`);
-            }
-          }, 1000);
-        });
-      } else {
-        log("❌ Logout button not found");
-      }
+    // Logout functionality
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      log('⏳ Initiating logout...');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1000); // Delay for log visibility
+    });
 
+    document.addEventListener('DOMContentLoaded', () => {
       document.getElementById("date-select").value = currentDate;
       loadDashboardData();
-      setInterval(loadDashboardData, 30000);
+      setInterval(loadDashboardData, 30000); // Update every 30 seconds
     });
   </script>
 </body>
