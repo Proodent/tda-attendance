@@ -436,7 +436,7 @@
   <section id="filters">
     <div class="filter-group">
       <label for="date-select">Select Date:</label>
-      <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-18">
+      <input type="date" id="date-select" onchange="loadDashboardData()" value="2025-10-19">
     </div>
     <div class="filter-group">
       <label for="department-select">Filter Department:</label>
@@ -462,7 +462,7 @@
 
   <section id="attendance-table">
     <p id="attendance-count">Showing 0 of 0 entries</p>
-    <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 18, 2025)</h3>
+    <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 19, 2025)</h3>
     <table>
       <thead>
         <tr>
@@ -481,10 +481,11 @@
   <div id="log"></div>
 
   <script>
-    const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const currentDate = "2025-10-18";
-    const SHEET_ID = "YOUR_GOOGLE_SHEET_ID"; // Replace with your Google Sheet ID
-    const API_KEY = "YOUR_API_KEY"; // Replace with your Google API Key
+    // Load environment variables from .env (assuming a Node.js-like environment or similar)
+    const backendURL = process.env.BACKEND_URL || "https://tolon-attendance.proodentit.com/api";
+    const SHEET_ID = process.env.GOOGLE_SHEET_ID || "YOUR_GOOGLE_SHEET_ID"; // From .env
+    const API_KEY = process.env.GOOGLE_API_KEY || "YOUR_API_KEY"; // From .env
+    const currentDate = new Date().toISOString().split('T')[0]; // Dynamically set to today's date: 2025-10-19
 
     const log = (msg) => {
       const logBox = document.getElementById("log");
@@ -792,7 +793,7 @@
       const ctx = document.getElementById("trendChart").getContext('2d');
       if (!ctx) return;
       if (trendChart) trendChart.destroy();
-      const daysInMonth = new Date(year, month, 0).getDate();
+      const daysInMonth = new Date(year, month - 1, 0).getDate(); // month is 1-based for Date object
       const labels = Array.from({ length: daysInMonth }, (_, i) => `${month}/${i + 1}`);
       const presentData = labels.map((_, i) => {
         const fullDate = `${year}-${month.toString().padStart(2, '0')}-${(i + 1).toString().padStart(2, '0')}`;
@@ -872,7 +873,7 @@
 
     async function loadDashboardData() {
       const dateSelect = document.getElementById("date-select");
-      const selectedDate = dateSelect.value;
+      const selectedDate = dateSelect.value || currentDate; // Default to current date if not selected
       try {
         log("⏳ Fetching data...");
 
@@ -938,9 +939,9 @@
         const selectedDateObj = new Date(selectedDate);
         const trendYear = selectedDateObj.getFullYear();
         const trendMonth = selectedDateObj.getMonth() + 1;
-        let trendData = await fetchGoogleSheetData(`${trendYear}!A2:B`);
+        let trendData = await fetchGoogleSheetData(`Attendance!A2:B`); // Fetch from 'Attendance' sheet
         trendData = trendData.map(row => ({
-          date: row[0], // Assuming first column is date
+          date: row[0], // Assuming first column is date (e.g., 2025-10-19)
           present: parseInt(row[1]) || 0 // Assuming second column is present count
         })).filter(row => row.date);
 
@@ -996,6 +997,7 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById("date-select").value = currentDate; // Set to current date on load
       loadDashboardData();
       setInterval(loadDashboardData, 30000); // Update every 30 seconds
     });
