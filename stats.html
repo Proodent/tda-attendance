@@ -1,212 +1,1089 @@
-async function loadDashboardData() {
-  const dateSelect = document.getElementById("date-select");
-  const selectedDate = dateSelect?.value || currentDate; // 2025-10-19
-  try {
-    log("⏳ Fetching data...");
-
-    const staffData = await fetchJSON(`${backendURL}/staff`);
-    log(`Staff data: ${JSON.stringify(staffData).substring(0, 100)}${JSON.stringify(staffData).length > 100 ? "..." : ""}`);
-    const totalStaff = staffData.totalStaff || (staffData.staff ? staffData.staff.length : 0);
-    const activeCount = staffData.staffCount || (staffData.staff ? staffData.staff.filter(s => s.active).length : 0);
-    log(`Parsed: totalStaff=${totalStaff}, activeCount=${activeCount}`);
-
-    const statsUrl = `${backendURL}/stats?date=${selectedDate}`;
-    const stats = await fetchJSON(statsUrl);
-    staffAttendanceData = stats.staffAttendance || [];
-    log(`Attendance data length: ${staffAttendanceData.length}`);
-
-    const clockedInToday = staffAttendanceData.filter(entry => entry.timeIn).length;
-    const clockedOutToday = staffAttendanceData.filter(entry => entry.timeOut).length;
-    const absentToday = activeCount > 0 ? Math.max(0, activeCount - clockedInToday) : 0;
-    const percentClockedIn = activeCount > 0 ? Math.round((clockedInToday / activeCount) * 100) : 0;
-    const percentClockedOut = clockedInToday > 0 ? Math.round((clockedOutToday / clockedInToday) * 100) : 0;
-
-    const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
-    const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
-    const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
-    const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
-
-    const locationData = await fetchJSON(`${backendURL}/locations`);
-    log(`Location data: ${JSON.stringify(locationData).substring(0, 100)}${JSON.stringify(locationData).length > 100 ? "..." : ""}`);
-    const locLabels = locationData.locations?.map(l => l.name) || [];
-    const locAttendance = {};
-    staffAttendanceData.forEach(entry => {
-      const loc = entry.clockInLocation || "Unknown";
-      locAttendance[loc] = (locAttendance[loc] || 0) + 1;
-    });
-    const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
-
-    departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
-    const departmentSelect = document.getElementById("department-select");
-    if (departmentSelect) {
-      departmentSelect.innerHTML = '<option value="">All Departments</option>';
-      departments.forEach(dept => {
-        const option = document.createElement("option");
-        option.value = dept;
-        option.textContent = dept;
-        departmentSelect.appendChild(option);
-      });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Dashboard</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      color: #1a202c;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+      color: #fff;
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    header img {
+      height: 5rem;
+      margin: 0 5rem;
+    }
+    header .logout-btn {
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0.75rem 1.5rem;
+      background: #f56565;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    header .logout-btn:hover {
+      background: #e53e3e;
+    }
+    #summary-tiles {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .tile:hover {
+      transform: translateY(-5px);
+    }
+    .tile h3 {
+      color: #2d3748;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tile p {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+      color: #48bb78;
+    }
+    .tile.error p {
+      color: #f56565;
+    }
+    #stats-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    .chart-tile {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      transition: transform 0.2s;
+      height: 350px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-tile:hover {
+      transform: translateY(-5px);
+    }
+    .chart-tile h3 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chart-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 0;
+    }
+    .chart-container canvas {
+      max-width: 100% !important;
+      max-height: 100% !important;
+      width: auto !important;
+      height: auto !important;
+    }
+    .full-width-chart {
+      grid-column: 1 / -1;
+      height: 400px;
+    }
+    .full-width-chart .chart-container {
+      height: 300px;
+    }
+    #log {
+      background: #1a202c;
+      color: #48bb78;
+      font-family: 'Courier New', monospace;
+      padding: 1.5rem;
+      height: 200px;
+      overflow-y: auto;
+      margin: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #attendance-table {
+      margin: 2rem;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    #attendance-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #attendance-table th,
+    #attendance-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    #attendance-table th {
+      background: #2d3748;
+      color: #fff;
+      cursor: pointer;
+    }
+    #attendance-table th:hover {
+      background: #4a5568;
+    }
+    #attendance-table tr:nth-child(even) {
+      background: #f7fafc;
+    }
+    .sort-arrow {
+      display: inline-block;
+      margin-left: 5px;
+    }
+    .asc::after {
+      content: " ▲";
+    }
+    .desc::after {
+      content: " ▼";
+    }
+    #filters {
+      display: flex;
+      gap: 1rem;
+      margin: 2rem;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    #filters label {
+      font-weight: 600;
+      color: #2d3748;
+      white-space: nowrap;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    #date-select, #department-select, #name-search {
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 2px solid #e2e8f0;
+      font-size: 0.9rem;
+      width: 100%;
+      height: 38px;
+    }
+    #date-select:focus, #department-select:focus, #name-search:focus {
+      border-color: #48bb78;
+      outline: none;
+    }
+    #export-btn, #clear-filter-btn {
+      background: #48bb78;
+      color: white;
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      height: 38px;
+      transition: background-color 0.2s;
+      white-space: nowrap;
+    }
+    #export-btn:hover, #clear-filter-btn:hover {
+      background: #38a169;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 18.75%;
+    }
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    .button-group .filter-group {
+      min-width: auto;
+      width: auto;
     }
 
-    const deptTotals = {};
-    const deptClockIns = {};
-    const deptClockOuts = {};
-    (staffData.staff || []).forEach(entry => {
-      const dept = entry.department;
-      deptTotals[dept] = (deptTotals[dept] || 0) + 1;
-    });
-    staffAttendanceData.forEach(entry => {
-      const dept = entry.department;
-      if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
-      if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
-    });
-    const deptLabels = departments;
-    const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
-    const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
-    const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
-
-    // Fetch and process trend data for the last 90 days
-    let trendData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
-    log(`Raw attendance data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 5))}`);
-    const trendMap = {};
-    trendData.forEach(row => {
-      const dateRaw = row[0];
-      const name = row[2];
-      const timeIn = row[3];
-      let date = dateRaw;
-      if (dateRaw) {
-        const dateObj = new Date(dateRaw);
-        if (isNaN(dateObj.getTime())) {
-          const parts = dateRaw.split(/[\/-]/);
-          if (parts.length === 3) {
-            date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`; // Convert to YYYY-MM-DD
-          }
-        } else {
-          date = dateObj.toISOString().split('T')[0];
-        }
+    @media (max-width: 1200px) {
+      #stats-container {
+        grid-template-columns: repeat(2, 1fr);
       }
-      if (date && name && timeIn) {
-        if (!trendMap[date]) trendMap[date] = new Set();
-        trendMap[date].add(name);
-        log(`Processed date: ${dateRaw} -> ${date}, name: ${name}, timeIn: ${timeIn}`);
+      .full-width-chart {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.25rem;
+        padding: 0.75rem;
+      }
+      header img {
+        height: 1.5rem;
+        margin: 0 0.5rem;
+      }
+      #summary-tiles {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tile {
+        padding: 0.75rem;
+      }
+      .tile h3 {
+        font-size: 0.75rem;
+      }
+      .tile p {
+        font-size: 1.25rem;
+      }
+      #stats-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .chart-tile {
+        padding: 1rem;
+        height: 300px;
+      }
+      .chart-tile h3 {
+        font-size: 1.1rem;
+        height: 35px;
+      }
+      .full-width-chart {
+        height: 350px;
+      }
+      .full-width-chart .chart-container {
+        height: 250px;
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+      }
+      #filters {
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        align-items: stretch;
+      }
+      .filter-group {
+        min-width: 100%;
+      }
+      .button-group {
+        width: 100%;
+        justify-content: stretch;
+        margin-top: 0.5rem;
+      }
+      .button-group .filter-group {
+        width: 100%;
+      }
+      #export-btn, #clear-filter-btn {
+        flex: 1;
+        text-align: center;
+        height: 38px;
+      }
+      #log {
+        height: 150px;
+        padding: 1rem;
+        margin: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #summary-tiles {
+        grid-template-columns: 1fr;
+      }
+      .chart-tile {
+        height: 250px;
+      }
+      .chart-tile h3 {
+        height: 30px;
+        font-size: 1rem;
+      }
+      header img {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/assets/favicon.png" alt="logo" />
+    Attendance Dashboard
+    <img src="/assets/favicon.png" alt="logo" />
+    <button class="logout-btn" id="logoutBtn">Logout</button>
+  </header>
+
+  <section id="summary-tiles">
+    <div class="tile">
+      <h3>Total Staff</h3>
+      <p id="totalStaff">--</p>
+    </div>
+    <div class="tile">
+      <h3>Active Staff</h3>
+      <p id="activeStaff">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Ins</h3>
+      <p id="clockInsToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Outs</h3>
+      <p id="clockOutsToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Absent</h3>
+      <p id="absentToday">--</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-In Rate</h3>
+      <p id="percentClockedIn">--%</p>
+    </div>
+    <div class="tile">
+      <h3>Clock-Out Rate</h3>
+      <p id="percentClockedOut">--%</p>
+    </div>
+  </section>
+
+  <section id="stats-container">
+    <div class="chart-tile">
+      <h3>General Attendance</h3>
+      <div class="chart-container">
+        <canvas id="generalAttendanceChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile">
+      <h3>Reporting</h3>
+      <div class="chart-container">
+        <canvas id="reportingChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile">
+      <h3>Departure</h3>
+      <div class="chart-container">
+        <canvas id="departureChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart" id="department-container">
+      <h3>Department Attendance</h3>
+      <div class="chart-container">
+        <canvas id="departmentChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart">
+      <h3>Location Attendance</h3>
+      <div class="chart-container">
+        <canvas id="locationChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart" id="trend-container">
+      <h3>90 Days Staff Attendance Trend</h3> <!-- Updated title -->
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="filters">
+    <div class="filter-group">
+      <label for="date-select">Select Date:</label>
+      <input type="date" id="date-select" onchange="loadDashboardData()">
+    </div>
+    <div class="filter-group">
+      <label for="department-select">Filter Department:</label>
+      <select id="department-select" onchange="filterTable()">
+        <option value="">All Departments</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="name-search">Search Name:</label>
+      <input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">
+    </div>
+    <div class="button-group">
+      <div class="filter-group">
+        <label style="visibility: hidden;">Actions</label>
+        <button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>
+      </div>
+      <div class="filter-group">
+        <label style="visibility: hidden;">Export</label>
+        <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="attendance-table">
+    <p id="attendance-count">Showing 0 of 0 entries</p>
+    <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 19, 2025)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="name">Name</th>
+          <th class="sortable" data-sort="department">Department</th>
+          <th class="sortable" data-sort="timeIn">Time In</th>
+          <th class="sortable" data-sort="timeOut">Time Out</th>
+          <th class="sortable" data-sort="workTime">Work Time</th>
+          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-body"></tbody>
+    </table>
+  </section>
+
+  <div id="log"></div>
+
+  <script>
+    // Inject environment variables
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
+    const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
+    const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
+    const currentDate = new Date().toISOString().split('T')[0]; // 2025-10-19
+
+    const log = (msg) => {
+      const logBox = document.getElementById("log");
+      if (logBox) {
+        const time = new Date().toLocaleTimeString();
+        logBox.innerHTML += `[${time}] ${msg}<br>`;
+        logBox.scrollTop = logBox.scrollHeight;
       } else {
-        log(`⚠️ Invalid row skipped: ${JSON.stringify(row)}, reason: ${!date ? 'invalid date' : !name ? 'no name' : 'no timeIn'}`);
+        console.error("Log element not found:", msg);
       }
-    });
-    trendData = Object.keys(trendMap).map(date => ({
-      date,
-      present: trendMap[date].size
-    }));
-    log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
+    };
 
-    document.getElementById("totalStaff").innerText = totalStaff;
-    document.getElementById("activeStaff").innerText = activeCount;
-    document.getElementById("clockInsToday").innerText = clockedInToday;
-    document.getElementById("clockOutsToday").innerText = clockedOutToday;
-    document.getElementById("absentToday").innerText = absentToday;
-    document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
-    document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
+    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart;
+    let sortConfig = { key: null, direction: "asc" };
+    let departments = [];
+    let staffAttendanceData = [];
 
-    const attendanceTitle = document.getElementById("attendance-title");
-    if (attendanceTitle) attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
-    updateTable(staffAttendanceData);
-
-    updateGeneralAttendanceChart(clockedInToday, absentToday);
-    updateReportingChart(clockInsBefore10AM, clockInsAfter10AM);
-    updateDepartureChart(clockOutsBefore4PM, clockOutsAfter4PM);
-    updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels);
-    updateLocationChart(locLabels, locCounts);
-    updateTrendChart(trendData);
-
-    log("✅ Dashboard updated");
-  } catch (err) {
-    log("❌ " + err.message);
-    ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
-      const tile = document.querySelector(`#${id}`)?.closest(".tile");
-      if (tile) tile.classList.add("error");
-    });
-  }
-}
-
-function updateTrendChart(trendData = []) {
-  const ctx = document.getElementById("trendChart")?.getContext('2d');
-  if (!ctx) {
-    log("❌ Trend Chart context not found");
-    return;
-  }
-  if (trendChart) trendChart.destroy();
-
-  // Calculate the last 90 days from today (October 19, 2025)
-  const today = new Date("2025-10-19T22:58:00Z"); // 10:58 PM GMT
-  const labels = [];
-  for (let i = 0; i < 90; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    labels.unshift(date.toISOString().split('T')[0]); // YYYY-MM-DD format
-  }
-  log(`Trend Chart: 90 days labels generated, sample: ${labels.slice(0, 5)}${labels.length > 5 ? "..." : ""}`);
-
-  // Count occurrences of each date in trendData
-  const dateCounts = {};
-  trendData.forEach(entry => {
-    const date = entry.date;
-    if (labels.includes(date)) {
-      dateCounts[date] = (dateCounts[date] || 0) + 1;
-    }
-  });
-  const presentData = labels.map(date => dateCounts[date] || 0);
-  log(`Trend Chart data: ${presentData.slice(0, 5)}${presentData.length > 5 ? "..." : ""}`);
-
-  if (presentData.every(v => v === 0)) {
-    log("⚠️ Warning: All trend data is zero, chart may appear empty");
-  } else if (presentData.length === 0) {
-    log("⚠️ Warning: No valid trend data available");
-  }
-
-  trendChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Staff Attendance Count',
-        data: presentData,
-        borderColor: '#48bb78',
-        backgroundColor: 'rgba(72, 187, 120, 0.2)',
-        tension: 0.4,
-        fill: true,
-        pointBackgroundColor: '#48bb78',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } },
-          ticks: { color: '#2d3748', font: { size: 10 } }
-        },
-        x: {
-          title: { display: true, text: 'Last 90 Days', color: '#2d3748', font: { size: 12 } },
-          ticks: { color: '#2d3748', font: { size: 10 }, maxTicksLimit: 15 }
+    async function fetchJSON(url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
         }
-      },
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
-        tooltip: {
-          callbacks: {
-            title: function(tooltipItems) {
-              return `Date: ${tooltipItems[0].label}`;
-            },
-            label: function(context) {
-              return `Attendance Count: ${context.raw}`;
+        const text = await res.text();
+        log(`Fetched from ${url}: ${text.substring(0, 100)}${text.length > 100 ? "..." : ""}`);
+        const data = JSON.parse(text);
+        return data;
+      } catch (e) {
+        log(`❌ Fetch error for ${url}: ${e.message}`);
+        throw e;
+      }
+    }
+
+    async function fetchGoogleSheetData(range) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        const responseText = await res.text();
+        log(`Sheet API response status: ${res.status}, body length: ${responseText.length}`);
+        if (!res.ok) {
+          log(`Full error response: ${responseText}`);
+          throw new Error(`HTTP error! status: ${res.status} - ${responseText}`);
+        }
+        const data = JSON.parse(responseText);
+        if (!data.values || data.values.length === 0) {
+          log(`⚠️ No data found in range ${range}`);
+          return [];
+        }
+        log(`Fetched Google Sheet data (${range}): ${JSON.stringify(data.values.slice(0, 5) || []).substring(0, 100)}${JSON.stringify(data.values).length > 100 ? "..." : ""}`);
+        return data.values;
+      } catch (e) {
+        log(`❌ Fetch error for Google Sheet ${range}: ${e.message}`);
+        return [];
+      }
+    }
+
+    function calculateWorkTime(timeIn, timeOut) {
+      if (!timeIn || !timeOut) return "N/A";
+      const [inH, inM] = timeIn.split(":").map(Number);
+      const [outH, outM] = timeOut.split(":").map(Number);
+      const inMinutes = inH * 60 + inM;
+      const outMinutes = outH * 60 + outM;
+      const workMinutes = outMinutes - inMinutes;
+      const hours = Math.floor(workMinutes / 60);
+      const minutes = workMinutes % 60;
+      return `${hours}h ${minutes}m`;
+    }
+
+    function updateTable(data) {
+      const attendanceBody = document.getElementById("attendance-body");
+      if (!attendanceBody) {
+        log("❌ Attendance body element not found");
+        return;
+      }
+      attendanceBody.innerHTML = "";
+      const departmentFilter = document.getElementById("department-select")?.value || "";
+      const nameSearch = document.getElementById("name-search")?.value.toLowerCase() || "";
+      const filteredData = data.filter(entry => {
+        const nameMatch = entry.name.toLowerCase().includes(nameSearch);
+        const deptMatch = departmentFilter ? entry.department === departmentFilter : true;
+        return nameMatch && deptMatch;
+      });
+      const sortedData = sortConfig.key ? sortData(filteredData, sortConfig.key, sortConfig.direction) : filteredData;
+      sortedData.forEach(entry => {
+        const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.name || '--'}</td>
+          <td>${entry.department || '--'}</td>
+          <td>${entry.timeIn || '--'}</td>
+          <td>${entry.timeOut || '--'}</td>
+          <td>${workTime}</td>
+          <td>${entry.clockInLocation || 'Unknown'}</td>
+        `;
+        attendanceBody.appendChild(row);
+      });
+      document.getElementById("attendance-count").textContent = `Showing ${sortedData.length} of ${data.length} entries`;
+    }
+
+    function filterTable() {
+      updateTable(staffAttendanceData);
+    }
+
+    function clearFilters() {
+      document.getElementById("date-select").value = currentDate;
+      document.getElementById("department-select").value = "";
+      document.getElementById("name-search").value = "";
+      loadDashboardData();
+    }
+
+    function exportToCSV() {
+      const csvContent = "data:text/csv;charset=utf-8," + "Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
+        staffAttendanceData.map(entry => {
+          const workTime = calculateWorkTime(entry.timeIn, entry.timeOut);
+          return `${entry.name || ''},${entry.department || ''},${entry.timeIn || ''},${entry.timeOut || ''},${workTime},${entry.clockInLocation || 'Unknown'}`;
+        }).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "staff_attendance.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function updateGeneralAttendanceChart(present, absent) {
+      const ctx = document.getElementById("generalAttendanceChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ General Attendance Chart context not found");
+        return;
+      }
+      if (generalAttendanceChart) generalAttendanceChart.destroy();
+      present = present || 0;
+      absent = absent || 0;
+      generalAttendanceChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Present', 'Absent'],
+          datasets: [{
+            data: [present, absent],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 1000, easing: 'easeInOutQuad' },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
             }
           }
         }
+      });
+    }
+
+    function updateReportingChart(before10AM, after10AM) {
+      const ctx = document.getElementById("reportingChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Reporting Chart context not found");
+        return;
+      }
+      if (reportingChart) reportingChart.destroy();
+      before10AM = before10AM || 0;
+      after10AM = after10AM || 0;
+      reportingChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 10 AM', 'After 10 AM'],
+          datasets: [{
+            data: [before10AM, after10AM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 1000, easing: 'easeInOutQuad' },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDepartureChart(before4PM, after4PM) {
+      const ctx = document.getElementById("departureChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Departure Chart context not found");
+        return;
+      }
+      if (departureChart) departureChart.destroy();
+      before4PM = before4PM || 0;
+      after4PM = after4PM || 0;
+      departureChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Before 4 PM', 'After 4 PM'],
+          datasets: [{
+            data: [before4PM, after4PM],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 1000, easing: 'easeInOutQuad' },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDepartmentChart(labels, clockInData, clockOutData, totalLabels) {
+      const ctx = document.getElementById("departmentChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Department Chart context not found");
+        return;
+      }
+      if (departmentChart) departmentChart.destroy();
+      departmentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels || [],
+          datasets: [{
+            label: 'Total Staff',
+            data: totalLabels || [],
+            backgroundColor: 'rgba(45, 55, 72, 0.2)'
+          }, {
+            label: 'Clock In',
+            data: clockInData || [],
+            backgroundColor: '#48bb78'
+          }, {
+            label: 'Clock Out',
+            data: clockOutData || [],
+            backgroundColor: '#f56565'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Clock In/Out Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            },
+            x: {
+              title: { display: true, text: 'Departments', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+
+    function updateLocationChart(labels, values) {
+      const ctx = document.getElementById("locationChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Location Chart context not found");
+        return;
+      }
+      if (locationChart) locationChart.destroy();
+      locationChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels || [],
+          datasets: [{
+            label: 'Attendance Count',
+            data: values || [],
+            backgroundColor: '#48bb78'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            },
+            x: {
+              title: { display: true, text: 'Locations', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function updateTrendChart(trendData = []) {
+      const ctx = document.getElementById("trendChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Trend Chart context not found");
+        return;
+      }
+      if (trendChart) trendChart.destroy();
+
+      // Calculate the last 90 days from today (October 19, 2025, 11:01 PM GMT)
+      const today = new Date("2025-10-19T23:01:00Z"); // 11:01 PM GMT
+      const labels = [];
+      for (let i = 0; i < 90; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        labels.unshift(date.toISOString().split('T')[0]); // YYYY-MM-DD format
+      }
+      log(`Trend Chart: 90 days labels generated, sample: ${labels.slice(0, 5)}${labels.length > 5 ? "..." : ""}`);
+
+      // Count occurrences of each date in trendData
+      const dateCounts = {};
+      trendData.forEach(entry => {
+        const date = entry.date;
+        if (labels.includes(date)) {
+          dateCounts[date] = (dateCounts[date] || 0) + entry.present; // Sum present counts
+        }
+      });
+      const presentData = labels.map(date => dateCounts[date] || 0);
+      log(`Trend Chart data: ${presentData.slice(0, 5)}${presentData.length > 5 ? "..." : ""}`);
+
+      if (presentData.every(v => v === 0)) {
+        log("⚠️ Warning: All trend data is zero, chart may appear empty");
+      } else if (presentData.length === 0) {
+        log("⚠️ Warning: No valid trend data available");
+      }
+
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Staff Attendance Count',
+            data: presentData,
+            borderColor: '#48bb78',
+            backgroundColor: 'rgba(72, 187, 120, 0.2)',
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#48bb78',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Attendance Count', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            },
+            x: {
+              title: { display: true, text: 'Last 90 Days', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 }, maxTicksLimit: 15 }
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                title: function(tooltipItems) {
+                  return `Date: ${tooltipItems[0].label}`;
+                },
+                label: function(context) {
+                  return `Attendance Count: ${context.raw}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function handleSort(key) {
+      if (sortConfig.key === key) {
+        sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortConfig.key = key;
+        sortConfig.direction = "asc";
+      }
+      const th = document.querySelector(`th[data-sort="${key}"]`);
+      document.querySelectorAll(".sortable").forEach(el => el.classList.remove("asc", "desc"));
+      if (th) th.classList.add(sortConfig.direction);
+      updateTable(staffAttendanceData);
+    }
+
+    function sortData(data, key, direction) {
+      return [...data].sort((a, b) => {
+        let aVal = a[key];
+        let bVal = b[key];
+        if (aVal == null) aVal = '';
+        if (bVal == null) bVal = '';
+        return direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      });
+    }
+
+    async function loadDashboardData() {
+      const dateSelect = document.getElementById("date-select");
+      const selectedDate = dateSelect?.value || currentDate; // 2025-10-19
+      try {
+        log("⏳ Fetching data...");
+
+        const staffData = await fetchJSON(`${backendURL}/staff`);
+        log(`Staff data: ${JSON.stringify(staffData).substring(0, 100)}${JSON.stringify(staffData).length > 100 ? "..." : ""}`);
+        const totalStaff = staffData.totalStaff || (staffData.staff ? staffData.staff.length : 0);
+        const activeCount = staffData.staffCount || (staffData.staff ? staffData.staff.filter(s => s.active).length : 0);
+        log(`Parsed: totalStaff=${totalStaff}, activeCount=${activeCount}`);
+
+        const statsUrl = `${backendURL}/stats?date=${selectedDate}`;
+        const stats = await fetchJSON(statsUrl);
+        staffAttendanceData = stats.staffAttendance || [];
+        log(`Attendance data length: ${staffAttendanceData.length}`);
+
+        const clockedInToday = staffAttendanceData.filter(entry => entry.timeIn).length;
+        const clockedOutToday = staffAttendanceData.filter(entry => entry.timeOut).length;
+        const absentToday = activeCount > 0 ? Math.max(0, activeCount - clockedInToday) : 0;
+        const percentClockedIn = activeCount > 0 ? Math.round((clockedInToday / activeCount) * 100) : 0;
+        const percentClockedOut = clockedInToday > 0 ? Math.round((clockedOutToday / clockedInToday) * 100) : 0;
+
+        const clockInsBefore10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) < 10 * 60).length;
+        const clockInsAfter10AM = staffAttendanceData.filter(entry => entry.timeIn && convertToMinutes(entry.timeIn) >= 10 * 60).length;
+        const clockOutsBefore4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) < 16 * 60).length;
+        const clockOutsAfter4PM = staffAttendanceData.filter(entry => entry.timeOut && convertToMinutes(entry.timeOut) >= 16 * 60).length;
+
+        const locationData = await fetchJSON(`${backendURL}/locations`);
+        log(`Location data: ${JSON.stringify(locationData).substring(0, 100)}${JSON.stringify(locationData).length > 100 ? "..." : ""}`);
+        const locLabels = locationData.locations?.map(l => l.name) || [];
+        const locAttendance = {};
+        staffAttendanceData.forEach(entry => {
+          const loc = entry.clockInLocation || "Unknown";
+          locAttendance[loc] = (locAttendance[loc] || 0) + 1;
+        });
+        const locCounts = locLabels.map(loc => locAttendance[loc] || 0);
+
+        departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
+        const departmentSelect = document.getElementById("department-select");
+        if (departmentSelect) {
+          departmentSelect.innerHTML = '<option value="">All Departments</option>';
+          departments.forEach(dept => {
+            const option = document.createElement("option");
+            option.value = dept;
+            option.textContent = dept;
+            departmentSelect.appendChild(option);
+          });
+        }
+
+        const deptTotals = {};
+        const deptClockIns = {};
+        const deptClockOuts = {};
+        (staffData.staff || []).forEach(entry => {
+          const dept = entry.department;
+          deptTotals[dept] = (deptTotals[dept] || 0) + 1;
+        });
+        staffAttendanceData.forEach(entry => {
+          const dept = entry.department;
+          if (entry.timeIn) deptClockIns[dept] = (deptClockIns[dept] || 0) + 1;
+          if (entry.timeOut) deptClockOuts[dept] = (deptClockOuts[dept] || 0) + 1;
+        });
+        const deptLabels = departments;
+        const deptClockInData = departments.map(dept => deptClockIns[dept] || 0);
+        const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
+        const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
+
+        // Fetch and process trend data for the last 90 days
+        let trendData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
+        log(`Raw attendance data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 5))}`);
+        const trendMap = {};
+        trendData.forEach(row => {
+          const dateRaw = row[0];
+          const name = row[2];
+          const timeIn = row[3];
+          let date = dateRaw;
+          if (dateRaw) {
+            const dateObj = new Date(dateRaw);
+            if (isNaN(dateObj.getTime())) {
+              const parts = dateRaw.split(/[\/-]/);
+              if (parts.length === 3) {
+                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`; // Convert to YYYY-MM-DD
+              }
+            } else {
+              date = dateObj.toISOString().split('T')[0];
+            }
+          }
+          if (date && name && timeIn) {
+            if (!trendMap[date]) trendMap[date] = new Set();
+            trendMap[date].add(name);
+            log(`Processed date: ${dateRaw} -> ${date}, name: ${name}, timeIn: ${timeIn}`);
+          } else {
+            log(`⚠️ Invalid row skipped: ${JSON.stringify(row)}, reason: ${!date ? 'invalid date' : !name ? 'no name' : 'no timeIn'}`);
+          }
+        });
+        trendData = Object.keys(trendMap).map(date => ({
+          date,
+          present: trendMap[date].size
+        }));
+        log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
+
+        document.getElementById("totalStaff").innerText = totalStaff;
+        document.getElementById("activeStaff").innerText = activeCount;
+        document.getElementById("clockInsToday").innerText = clockedInToday;
+        document.getElementById("clockOutsToday").innerText = clockedOutToday;
+        document.getElementById("absentToday").innerText = absentToday;
+        document.getElementById("percentClockedIn").innerText = percentClockedIn + '%';
+        document.getElementById("percentClockedOut").innerText = percentClockedOut + '%';
+
+        const attendanceTitle = document.getElementById("attendance-title");
+        if (attendanceTitle) attendanceTitle.textContent = `Staff Attendance Details (${new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })})`;
+        updateTable(staffAttendanceData);
+
+        updateGeneralAttendanceChart(clockedInToday, absentToday);
+        updateReportingChart(clockInsBefore10AM, clockInsAfter10AM);
+        updateDepartureChart(clockOutsBefore4PM, clockOutsAfter4PM);
+        updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels);
+        updateLocationChart(locLabels, locCounts);
+        updateTrendChart(trendData);
+
+        log("✅ Dashboard updated");
+      } catch (err) {
+        log("❌ " + err.message);
+        ["totalStaff", "activeStaff", "clockInsToday", "clockOutsToday", "absentToday", "percentClockedIn", "percentClockedOut"].forEach(id => {
+          const tile = document.querySelector(`#${id}`)?.closest(".tile");
+          if (tile) tile.classList.add("error");
+        });
       }
     }
-  });
-}
+
+    function convertToMinutes(timeStr) {
+      if (!timeStr) return 0;
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
+    }
+
+    document.querySelectorAll(".sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.getAttribute("data-sort");
+        handleSort(key);
+      });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          log('⏳ Initiating logout...');
+          setTimeout(() => {
+            try {
+              window.location.href = 'index.html';
+            } catch (e) {
+              log(`❌ Logout redirect failed: ${e.message}`);
+            }
+          }, 1000);
+        });
+      } else {
+        log("❌ Logout button not found");
+      }
+
+      document.getElementById("date-select").value = currentDate;
+      loadDashboardData();
+      setInterval(loadDashboardData, 30000);
+    });
+  </script>
+</body>
+</html>
