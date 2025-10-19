@@ -73,12 +73,12 @@ function hideLoader() {
 async function fetchLocations() {
   try {
     showLoader("Loading locations...");
-    console.log('Fetching /api/locations...');
+    console.log('Fetching /api/locations at', new Date().toISOString());
     const response = await fetch('/api/locations', { mode: 'cors' });
     console.log('Response status:', response.status);
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
-    console.log('Raw data:', data);
+    console.log('Raw data received:', data);
     if (!data.success || !Array.isArray(data.locations)) throw new Error('Invalid location data format: ' + JSON.stringify(data));
     locations = data.locations.map(l => ({
       name: l.name,
@@ -90,7 +90,7 @@ async function fetchLocations() {
     hideLoader();
     return true;
   } catch (error) {
-    console.error('Location fetch error:', error);
+    console.error('Location fetch error at', new Date().toISOString(), ':', error);
     hideLoader();
     showPopup('Location Error', `Failed to load locations: ${error.message}. Check server and Locations Sheet.`, false);
     return false;
@@ -102,14 +102,15 @@ function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
-  the clockOutBtn = document.getElementById('clockOut');
+  const clockOutBtn = document.getElementById('clockOut'); // Fixed typo here
 
   if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
-    console.error('Missing DOM elements:', { statusEl, locationEl, clockInBtn, clockOutBtn });
+    console.error('Missing DOM elements at', new Date().toISOString(), ':', { statusEl, locationEl, clockInBtn, clockOutBtn });
     showPopup('Init Error', 'Required elements not found. Reload the page.', false);
     return;
   }
 
+  console.log('Initializing location watch at', new Date().toISOString());
   videoEl = document.getElementById('video');
   canvasEl = document.getElementById('canvas');
   popupEl = document.getElementById('popup');
@@ -119,7 +120,12 @@ function startLocationWatch() {
   popupRetry = document.getElementById('popupRetry');
 
   fetchLocations().then(ok => {
-    if (!ok) return;
+    console.log('fetchLocations completed with result:', ok);
+    if (!ok) {
+      statusEl.textContent = 'Location load failed.';
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
 
     if (!navigator.geolocation) {
       statusEl.textContent = 'Geolocation not supported.';
@@ -157,6 +163,7 @@ function startLocationWatch() {
         }
       },
       err => {
+        console.error('Geolocation error at', new Date().toISOString(), ':', err);
         statusEl.textContent = `Location error: ${err.message}`;
         clockInBtn.disabled = clockOutBtn.disabled = true;
         showPopup('Location Error', `GPS failed: ${err.message}`, false);
@@ -170,7 +177,7 @@ function startLocationWatch() {
     const adminDashboardBtn = document.getElementById('adminDashboard');
     if (adminDashboardBtn) {
       adminDashboardBtn.addEventListener('click', () => {
-        console.log('Admin Dashboard clicked');
+        console.log('Admin Dashboard clicked at', new Date().toISOString());
         const adminPopup = document.getElementById('adminPopup');
         if (adminPopup) {
           adminPopup.classList.add('show');
@@ -178,12 +185,12 @@ function startLocationWatch() {
           document.getElementById('adminEmail').value = "";
           document.getElementById('adminPassword').value = "";
         } else {
-          console.error('Admin popup missing');
+          console.error('Admin popup missing at', new Date().toISOString());
           showPopup('Init Error', 'Admin popup not found.', false);
         }
       });
     } else {
-      console.error('Admin button missing');
+      console.error('Admin button missing at', new Date().toISOString());
       showPopup('Init Error', 'Admin Dashboard button not found.', false);
     }
   });
@@ -198,7 +205,7 @@ async function startVideo() {
     await videoEl.play();
     return true;
   } catch (err) {
-    console.error('Camera error:', err);
+    console.error('Camera error at', new Date().toISOString(), ':', err);
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
     return false;
   }
@@ -215,27 +222,27 @@ function stopVideo() {
 // Validate face via CompreFace proxy
 async function validateFaceWithProxy(base64) {
   try {
-    console.log('Sending face data to proxy...');
+    console.log('Sending face data to proxy at', new Date().toISOString());
     const response = await fetch('/api/proxy/face-recognition', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file: base64 })
     });
-    console.log('Proxy response status:', response.status);
+    console.log('Proxy response status at', new Date().toISOString(), ':', response.status);
     if (!response.ok) {
       const text = await response.text();
-      console.error('Proxy error response:', text);
+      console.error('Proxy error response at', new Date().toISOString(), ':', text);
       return { ok: false, error: `Service unavailable: ${text}` };
     }
     const data = await response.json();
-    console.log('Face recognition data:', data);
+    console.log('Face recognition data at', new Date().toISOString(), ':', data);
     if (data?.result?.length && data.result[0].subjects?.length) {
       const top = data.result[0].subjects[0];
       return { ok: true, subject: top.subject, similarity: Number(top.similarity) || 0 };
     }
     return { ok: false, error: data?.message || 'No match found' };
   } catch (err) {
-    console.error('Face validation error:', err);
+    console.error('Face validation error at', new Date().toISOString(), ':', err);
     return { ok: false, error: err.message || 'Service error' };
   }
 }
@@ -246,7 +253,7 @@ async function handleClock(action) {
   const lat = Number(locationEl.dataset.lat);
   const long = Number(locationEl.dataset.long);
   if (!lat || !long) {
-    console.error('No GPS data available:', { lat, long });
+    console.error('No GPS data available at', new Date().toISOString(), ':', { lat, long });
     showPopup('Location Error', 'No GPS data.', false);
     return;
   }
@@ -260,7 +267,7 @@ async function handleClock(action) {
     }
   }
   if (!office) {
-    console.error('Not at an approved office:', { lat, long, locations });
+    console.error('Not at an approved office at', new Date().toISOString(), ':', { lat, long, locations });
     showPopup('Location Error', 'Not at an approved office.', false);
     return;
   }
@@ -279,7 +286,7 @@ async function handleClock(action) {
   ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
   const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
-  console.log('Captured face image length:', base64.length);
+  console.log('Captured face image length at', new Date().toISOString(), ':', base64.length);
 
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
@@ -287,7 +294,7 @@ async function handleClock(action) {
   showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
 
   const faceRes = await validateFaceWithProxy(base64);
-  console.log('Face validation result:', faceRes);
+  console.log('Face validation result at', new Date().toISOString(), ':', faceRes);
   if (!faceRes.ok) {
     hideLoader();
     showPopup('Face Error', faceRes.error || 'No match.', false);
@@ -311,9 +318,9 @@ async function handleClock(action) {
         timestamp: new Date().toISOString()
       })
     });
-    console.log('Attendance response status:', response.status);
+    console.log('Attendance response status at', new Date().toISOString(), ':', response.status);
     const data = await response.json();
-    console.log('Attendance response data:', data);
+    console.log('Attendance response data at', new Date().toISOString(), ':', data);
     hideLoader();
 
     if (data.success) {
@@ -329,7 +336,7 @@ async function handleClock(action) {
       showPopup('Attendance Error', messages[data.message] || data.message || 'Not logged.', false);
     }
   } catch (err) {
-    console.error('Attendance error:', err);
+    console.error('Attendance error at', new Date().toISOString(), ':', err);
     hideLoader();
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
   }
@@ -342,11 +349,11 @@ async function fetchAdminLogins() {
     const response = await fetch('/api/admin-logins', { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
-    console.log('Admin logins data:', data);
+    console.log('Admin logins data at', new Date().toISOString(), ':', data);
     hideLoader();
     return data.success ? data.logins : [];
   } catch (error) {
-    console.error('Admin fetch error:', error);
+    console.error('Admin fetch error at', new Date().toISOString(), ':', error);
     hideLoader();
     showPopup('Admin Error', `Failed to fetch admin logins: ${error.message}. Check server and Admin Logins sheet.`, false);
     return [];
@@ -361,7 +368,7 @@ function loginAdmin() {
   const adminPopup = document.getElementById('adminPopup');
 
   if (!email || !password || !adminError || !adminPopup) {
-    console.error('Missing login elements:', { email, password, adminError, adminPopup });
+    console.error('Missing login elements at', new Date().toISOString(), ':', { email, password, adminError, adminPopup });
     showPopup('Init Error', 'Login form incomplete. Reload.', false);
     return;
   }
@@ -378,7 +385,7 @@ function loginAdmin() {
     }
 
     const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
-    console.log('Login check:', { email, password, adminLogins });
+    console.log('Login check at', new Date().toISOString(), ':', { email, password, adminLogins });
 
     if (validLogin) {
       adminPopup.classList.remove('show');
