@@ -421,9 +421,15 @@
       </div>
     </div>
     <div class="chart-tile full-width-chart" id="trend-container">
-      <h3>90 Days Staff Attendance Trend</h3> <!-- Updated title -->
+      <h3>90 Days Staff Attendance Trend</h3>
       <div class="chart-container">
         <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-tile full-width-chart" id="weekly-container">
+      <h3>Weekly Attendance Summary</h3> <!-- New chart tile -->
+      <div class="chart-container">
+        <canvas id="weeklyAttendanceChart"></canvas>
       </div>
     </div>
   </section>
@@ -493,7 +499,7 @@
       }
     };
 
-    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart;
+    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyAttendanceChart;
     let sortConfig = { key: null, direction: "asc" };
     let departments = [];
     let staffAttendanceData = [];
@@ -822,22 +828,20 @@
       }
       if (trendChart) trendChart.destroy();
 
-      // Calculate the last 90 days from today (October 19, 2025, 11:01 PM GMT)
-      const today = new Date("2025-10-19T23:01:00Z"); // 11:01 PM GMT
+      const today = new Date("2025-10-19T23:06:00Z"); // 11:06 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
-        labels.unshift(date.toISOString().split('T')[0]); // YYYY-MM-DD format
+        labels.unshift(date.toISOString().split('T')[0]);
       }
       log(`Trend Chart: 90 days labels generated, sample: ${labels.slice(0, 5)}${labels.length > 5 ? "..." : ""}`);
 
-      // Count occurrences of each date in trendData
       const dateCounts = {};
       trendData.forEach(entry => {
         const date = entry.date;
         if (labels.includes(date)) {
-          dateCounts[date] = (dateCounts[date] || 0) + entry.present; // Sum present counts
+          dateCounts[date] = (dateCounts[date] || 0) + entry.present;
         }
       });
       const presentData = labels.map(date => dateCounts[date] || 0);
@@ -889,6 +893,66 @@
                 },
                 label: function(context) {
                   return `Attendance Count: ${context.raw}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateWeeklyAttendanceChart(weeklyData = []) {
+      const ctx = document.getElementById("weeklyAttendanceChart")?.getContext('2d');
+      if (!ctx) {
+        log("❌ Weekly Attendance Chart context not found");
+        return;
+      }
+      if (weeklyAttendanceChart) weeklyAttendanceChart.destroy();
+
+      const labels = weeklyData.map(w => `Week ${w.week} (${w.startDate} - ${w.endDate})`);
+      const attendanceData = weeklyData.map(w => w.totalPresent);
+
+      log(`Weekly Attendance Chart: labels generated, sample: ${labels.slice(0, 5)}${labels.length > 5 ? "..." : ""}`);
+      log(`Weekly Attendance Chart data: ${attendanceData.slice(0, 5)}${attendanceData.length > 5 ? "..." : ""}`);
+
+      if (attendanceData.every(v => v === 0)) {
+        log("⚠️ Warning: All weekly attendance data is zero, chart may appear empty");
+      } else if (attendanceData.length === 0) {
+        log("⚠️ Warning: No valid weekly attendance data available");
+      }
+
+      weeklyAttendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Total Staff Present',
+            data: attendanceData,
+            backgroundColor: '#48bb78',
+            borderColor: '#38a169',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Total Staff Present', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 } }
+            },
+            x: {
+              title: { display: true, text: 'Weeks (Last 90 Days)', color: '#2d3748', font: { size: 12 } },
+              ticks: { color: '#2d3748', font: { size: 10 }, maxRotation: 45, minRotation: 45 }
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#2d3748', font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Total Present: ${context.raw}`;
                 }
               }
             }
@@ -987,7 +1051,6 @@
         const deptClockOutData = departments.map(dept => deptClockOuts[dept] || 0);
         const deptTotalLabels = departments.map(dept => deptTotals[dept] || 0);
 
-        // Fetch and process trend data for the last 90 days
         let trendData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
         log(`Raw attendance data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 5))}`);
         const trendMap = {};
@@ -1001,7 +1064,7 @@
             if (isNaN(dateObj.getTime())) {
               const parts = dateRaw.split(/[\/-]/);
               if (parts.length === 3) {
-                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`; // Convert to YYYY-MM-DD
+                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
               }
             } else {
               date = dateObj.toISOString().split('T')[0];
@@ -1021,6 +1084,33 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
+        // Calculate weekly attendance summary for the last 90 days
+        const today = new Date("2025-10-19T23:06:00Z"); // 11:06 PM GMT
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - 89); // 90 days back
+        const weeklyMap = {};
+        trendData.forEach(entry => {
+          const date = new Date(entry.date);
+          if (date >= startDate && date <= today) {
+            const weekNumber = getWeekNumber(date);
+            if (!weeklyMap[weekNumber]) weeklyMap[weekNumber] = new Set();
+            weeklyMap[weekNumber].add(entry.date); // Track unique dates per week
+          }
+        });
+        const weeklyData = Object.keys(weeklyMap).map(week => {
+          const firstDate = new Date(startDate);
+          firstDate.setDate(firstDate.getDate() + (week - getWeekNumber(startDate)) * 7);
+          const lastDate = new Date(firstDate);
+          lastDate.setDate(firstDate.getDate() + 6);
+          return {
+            week: week,
+            startDate: firstDate.toISOString().split('T')[0],
+            endDate: lastDate.toISOString().split('T')[0],
+            totalPresent: weeklyMap[week].size // Count of unique dates (staff present days)
+          };
+        }).sort((a, b) => a.week - b.week);
+        log(`Weekly attendance data length: ${weeklyData.length}, sample: ${JSON.stringify(weeklyData.slice(0, 2))}`);
+
         document.getElementById("totalStaff").innerText = totalStaff;
         document.getElementById("activeStaff").innerText = activeCount;
         document.getElementById("clockInsToday").innerText = clockedInToday;
@@ -1039,6 +1129,7 @@
         updateDepartmentChart(deptLabels, deptClockInData, deptClockOutData, deptTotalLabels);
         updateLocationChart(locLabels, locCounts);
         updateTrendChart(trendData);
+        updateWeeklyAttendanceChart(weeklyData);
 
         log("✅ Dashboard updated");
       } catch (err) {
@@ -1054,6 +1145,15 @@
       if (!timeStr) return 0;
       const [hours, minutes] = timeStr.split(":").map(Number);
       return hours * 60 + minutes;
+    }
+
+    // Get ISO week number for a date
+    function getWeekNumber(d) {
+      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return weekNo;
     }
 
     document.querySelectorAll(".sortable").forEach(th => {
