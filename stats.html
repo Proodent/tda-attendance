@@ -483,8 +483,8 @@
   <script>
     // Load environment variables from .env (assuming a Node.js-like environment or similar)
     const backendURL = process.env.BACKEND_URL || "https://tolon-attendance.proodentit.com/api";
-    const SHEET_ID = process.env.GOOGLE_SHEET_ID || "YOUR_GOOGLE_SHEET_ID"; // From .env
-    const API_KEY = process.env.GOOGLE_API_KEY || "YOUR_API_KEY"; // From .env
+    const SHEET_ID = process.env.SPREADSHEET_ID || "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A"; // From .env
+    const API_KEY = process.env.GOOGLE_SHEET_API_KEY || "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw"; // From .env
     const currentDate = new Date().toISOString().split('T')[0]; // Dynamically set to today's date: 2025-10-19
 
     const log = (msg) => {
