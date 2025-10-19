@@ -12,7 +12,7 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: "12mb" }));
 app.use(cors({
-  origin: "https://tolon-attendance.proodentit.com",
+  origin: ["http://localhost:3000", "https://tolon-attendance.proodentit.com"],
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
@@ -30,6 +30,13 @@ const {
   COMPREFACE_URL,
   PORT
 } = process.env;
+
+if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !COMPREFACE_API_KEY || !COMPREFACE_URL || !PORT) {
+  console.error("Missing required environment variables:", {
+    SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, COMPREFACE_API_KEY, COMPREFACE_URL, PORT
+  });
+  process.exit(1);
+}
 
 const processedKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
 const serviceAccountAuth = new JWT({
@@ -293,8 +300,8 @@ app.get("/api/stats", async (req, res) => {
 
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
-    const now = new Date("2025-10-16T05:00:00Z"); // Current date and time
-    const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Default to yesterday (Oct 15, 2025)
+    const now = new Date("2025-10-19T08:13:00Z"); // Current date and time
+    const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Default to yesterday (Oct 18, 2025)
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() - 1);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
