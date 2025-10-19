@@ -3,6 +3,7 @@ let watchId = null;
 let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRetry;
 let loaderEl;
 let locations = [];
+let popupTimeout = null;
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -101,7 +102,7 @@ function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut');
+  the clockOutBtn = document.getElementById('clockOut');
 
   if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
     console.error('Missing DOM elements:', { statusEl, locationEl, clockInBtn, clockOutBtn });
@@ -118,7 +119,6 @@ function startLocationWatch() {
   popupRetry = document.getElementById('popupRetry');
 
   fetchLocations().then(ok => {
-    console.log('fetchLocations result:', ok);
     if (!ok) return;
 
     if (!navigator.geolocation) {
@@ -198,6 +198,7 @@ async function startVideo() {
     await videoEl.play();
     return true;
   } catch (err) {
+    console.error('Camera error:', err);
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
     return false;
   }
@@ -214,21 +215,27 @@ function stopVideo() {
 // Validate face via CompreFace proxy
 async function validateFaceWithProxy(base64) {
   try {
+    console.log('Sending face data to proxy...');
     const response = await fetch('/api/proxy/face-recognition', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file: base64 })
     });
-    if (!response.ok) return { ok: false, error: 'Service unavailable' };
+    console.log('Proxy response status:', response.status);
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('Proxy error response:', text);
+      return { ok: false, error: `Service unavailable: ${text}` };
+    }
     const data = await response.json();
-    console.log('Face data:', data);
+    console.log('Face recognition data:', data);
     if (data?.result?.length && data.result[0].subjects?.length) {
       const top = data.result[0].subjects[0];
       return { ok: true, subject: top.subject, similarity: Number(top.similarity) || 0 };
     }
     return { ok: false, error: data?.message || 'No match found' };
   } catch (err) {
-    console.error('Face error:', err);
+    console.error('Face validation error:', err);
     return { ok: false, error: err.message || 'Service error' };
   }
 }
@@ -239,6 +246,7 @@ async function handleClock(action) {
   const lat = Number(locationEl.dataset.lat);
   const long = Number(locationEl.dataset.long);
   if (!lat || !long) {
+    console.error('No GPS data available:', { lat, long });
     showPopup('Location Error', 'No GPS data.', false);
     return;
   }
@@ -252,6 +260,7 @@ async function handleClock(action) {
     }
   }
   if (!office) {
+    console.error('Not at an approved office:', { lat, long, locations });
     showPopup('Location Error', 'Not at an approved office.', false);
     return;
   }
@@ -270,6 +279,7 @@ async function handleClock(action) {
   ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
   const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
+  console.log('Captured face image length:', base64.length);
 
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
@@ -277,6 +287,7 @@ async function handleClock(action) {
   showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
 
   const faceRes = await validateFaceWithProxy(base64);
+  console.log('Face validation result:', faceRes);
   if (!faceRes.ok) {
     hideLoader();
     showPopup('Face Error', faceRes.error || 'No match.', false);
@@ -300,11 +311,13 @@ async function handleClock(action) {
         timestamp: new Date().toISOString()
       })
     });
+    console.log('Attendance response status:', response.status);
     const data = await response.json();
+    console.log('Attendance response data:', data);
     hideLoader();
 
     if (data.success) {
-      showPopup('Success', `${faceRes.subject}, ${action} recorded at ${office}.`, true);
+      showPopup('Verification Successful', `Dear ${faceRes.subject}, ${action} recorded at ${office}.`, true);
     } else {
       const messages = {
         'Staff not found or inactive': `${faceRes.subject}, profile issue. Contact HR.`,
@@ -313,11 +326,11 @@ async function handleClock(action) {
         'Dear': `${faceRes.subject}, ${data.message.toLowerCase()}`,
         'Invalid input': 'Invalid data. Try again.'
       };
-      showPopup('Error', messages[data.message] || data.message || 'Not logged.', false);
+      showPopup('Attendance Error', messages[data.message] || data.message || 'Not logged.', false);
     }
   } catch (err) {
-    hideLoader();
     console.error('Attendance error:', err);
+    hideLoader();
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
   }
 }
