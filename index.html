@@ -448,50 +448,10 @@
   </div>
   <script src="script.js"></script>
   <script>
-    const SESSION_TIMEOUT = 900000; // 15 minutes in milliseconds
-    let timeoutId;
-
-    const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
-    const logout = () => {
-      localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('lastActivity');
-      clearTimeout(timeoutId);
-      window.location.href = 'index.html';
-    };
-
-    const resetTimeout = () => {
-      const lastActivity = localStorage.getItem('lastActivity');
-      if (lastActivity) {
-        const inactiveTime = Date.now() - parseInt(lastActivity, 10);
-        if (inactiveTime >= SESSION_TIMEOUT) {
-          logout();
-          return;
-        }
-      }
-      localStorage.setItem('lastActivity', Date.now());
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        alert('Session expired due to inactivity. Please log in again.');
-        logout();
-      }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
-    };
-
-    // Redirect if already logged in
-    if (isLoggedIn()) {
-      localStorage.setItem('lastActivity', Date.now());
-      resetTimeout();
-      window.location.href = 'stats.html';
-    }
-
+    // No session timeout logic here since this is a public landing page
     document.getElementById('adminDashboard').addEventListener('click', () => {
       document.getElementById('adminPopup').classList.add('show');
-      resetTimeout();
     });
-
-    // Reset timeout on user activity
-    document.addEventListener('mousemove', resetTimeout);
-    document.addEventListener('keypress', resetTimeout);
-    document.addEventListener('click', resetTimeout);
   </script>
   <script>window.loginAdmin = window.loginAdmin || function() {};</script>
 </body>
