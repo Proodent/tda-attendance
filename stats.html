@@ -186,7 +186,7 @@
     .desc::after {
       content: " ▼";
     }
-    #filters {
+    #filters, #pdf-export {
       display: flex;
       gap: 1rem;
       margin: 2rem;
@@ -197,7 +197,7 @@
       align-items: flex-end;
       flex-wrap: wrap;
     }
-    #filters label {
+    #filters label, #pdf-export label {
       font-weight: 600;
       color: #2d3748;
       white-space: nowrap;
@@ -205,7 +205,7 @@
       margin-bottom: 0.5rem;
       display: block;
     }
-    #date-select, #department-select, #name-search {
+    #date-select, #department-select, #name-search, #start-date, #end-date, #month-select {
       padding: 0.5rem;
       border-radius: 6px;
       border: 2px solid #e2e8f0;
@@ -213,11 +213,15 @@
       width: 100%;
       height: 38px;
     }
-    #date-select:focus, #department-select:focus, #name-search:focus {
+    #department-select[multiple], #month-select {
+      height: auto;
+      min-height: 100px;
+    }
+    #date-select:focus, #department-select:focus, #name-search:focus, #start-date:focus, #end-date:focus, #month-select:focus {
       border-color: #48bb78;
       outline: none;
     }
-    #export-btn, #clear-filter-btn {
+    #export-btn, #clear-filter-btn, #pdf-export-btn {
       background: #48bb78;
       color: white;
       padding: 0.5rem 1.5rem;
@@ -229,7 +233,7 @@
       transition: background-color 0.2s;
       white-space: nowrap;
     }
-    #export-btn:hover, #clear-filter-btn:hover {
+    #export-btn:hover, #clear-filter-btn:hover, #pdf-export-btn:hover {
       background: #38a169;
     }
     .filter-group {
@@ -304,7 +308,7 @@
         font-size: 0.75rem;
         padding: 0.5rem;
       }
-      #filters {
+      #filters, #pdf-export {
         flex-direction: column;
         gap: 0.75rem;
         padding: 1rem;
@@ -321,7 +325,7 @@
       .button-group .filter-group {
         width: 100%;
       }
-      #export-btn, #clear-filter-btn {
+      #export-btn, #clear-filter-btn, #pdf-export-btn {
         flex: 1;
         text-align: center;
         height: 38px;
@@ -461,6 +465,47 @@
     </div>
   </section>
 
+  <section id="pdf-export">
+    <div class="filter-group">
+      <label for="department-select-pdf">Select Departments:</label>
+      <select id="department-select-pdf" multiple>
+        <option value="">All Departments</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="start-date">Start Date:</label>
+      <input type="date" id="start-date">
+    </div>
+    <div class="filter-group">
+      <label for="end-date">End Date:</label>
+      <input type="date" id="end-date">
+    </div>
+    <div class="filter-group">
+      <label for="month-select">Select Month:</label>
+      <select id="month-select">
+        <option value="">All Months</option>
+        <option value="01">January</option>
+        <option value="02">February</option>
+        <option value="03">March</option>
+        <option value="04">April</option>
+        <option value="05">May</option>
+        <option value="06">June</option>
+        <option value="07">July</option>
+        <option value="08">August</option>
+        <option value="09">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+    </div>
+    <div class="button-group">
+      <div class="filter-group">
+        <label style="visibility: hidden;">Export</label>
+        <button id="pdf-export-btn" onclick="exportToPDF()">Export to PDF</button>
+      </div>
+    </div>
+  </section>
+
   <section id="attendance-table">
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details (October 19, 2025)</h3>
@@ -485,7 +530,7 @@
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
-    const currentDate = new Date().toISOString().split('T')[0]; // 2025-10-19
+    const currentDate = new Date().toISOString().split('T')[0]; // 2025-10-20
     const SESSION_TIMEOUT = 900000; // 15 minutes in milliseconds
     let timeoutId;
 
@@ -499,7 +544,6 @@
       return false;
     };
     const logout = () => {
-      // Clear timeout and remove event listeners to prevent resetTimeout from running
       clearTimeout(timeoutId);
       document.removeEventListener('mousemove', resetTimeout);
       document.removeEventListener('keypress', resetTimeout);
@@ -552,6 +596,7 @@
         document.getElementById("date-select").value = currentDate;
         loadDashboardData();
         setInterval(loadDashboardData, 30000);
+        populateDepartmentDropdown();
       }
     });
 
@@ -661,6 +706,24 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+
+    async function populateDepartmentDropdown() {
+      const staffData = await fetchJSON(`${backendURL}/staff`);
+      departments = [...new Set(staffData.staff?.map(entry => entry.department) || [])];
+      const departmentSelect = document.getElementById("department-select");
+      const departmentSelectPDF = document.getElementById("department-select-pdf");
+      if (departmentSelect && departmentSelectPDF) {
+        departmentSelect.innerHTML = '<option value="">All Departments</option>';
+        departmentSelectPDF.innerHTML = '<option value="">All Departments</option>';
+        departments.forEach(dept => {
+          const option = document.createElement("option");
+          option.value = dept;
+          option.textContent = dept;
+          departmentSelect.appendChild(option.cloneNode(true));
+          departmentSelectPDF.appendChild(option);
+        });
+      }
     }
 
     function updateGeneralAttendanceChart(present, absent) {
@@ -879,7 +942,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-19T23:44:00Z"); // 11:44 PM GMT
+      const today = new Date("2025-10-20T21:09:00Z"); // 09:09 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -1141,7 +1204,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        const today = new Date("2025-10-19T23:44:00Z"); // 11:44 PM GMT
+        const today = new Date("2025-10-20T21:09:00Z"); // 09:09 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1227,10 +1290,114 @@
       });
     }
 
-    // Reset timeout on user activity
     document.addEventListener('mousemove', resetTimeout);
     document.addEventListener('keypress', resetTimeout);
     document.addEventListener('click', resetTimeout);
+
+    async function exportToPDF() {
+      if (!isLoggedIn()) {
+        log('Session invalid, redirecting to login');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const departmentSelect = document.getElementById("department-select-pdf");
+      const selectedDepts = Array.from(departmentSelect.selectedOptions).map(option => option.value).filter(v => v);
+      const startDate = document.getElementById("start-date").value;
+      const endDate = document.getElementById("end-date").value;
+      const month = document.getElementById("month-select").value;
+
+      let dateRange = [];
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          dateRange.push(new Date(d).toISOString().split('T')[0]);
+        }
+      } else if (month) {
+        const year = new Date().getFullYear();
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+          dateRange.push(`${year}-${month.padStart(2, '0')}-${d.toString().padStart(2, '0')}`);
+        }
+      } else {
+        log("❌ Please select a date range or month");
+        return;
+      }
+
+      const staffData = await fetchJSON(`${backendURL}/staff`);
+      const allAttendanceData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
+      const attendanceMap = {};
+      allAttendanceData.forEach(row => {
+        const dateRaw = row[0];
+        const name = row[2];
+        const timeIn = row[3];
+        const timeOut = row[4];
+        let date = dateRaw;
+        if (dateRaw) {
+          const dateObj = new Date(dateRaw);
+          if (isNaN(dateObj.getTime())) {
+            const parts = dateRaw.split(/[\/-]/);
+            if (parts.length === 3) {
+              date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+            }
+          } else {
+            date = dateObj.toISOString().split('T')[0];
+          }
+        }
+        if (date && name && (timeIn || timeOut)) {
+          if (!attendanceMap[name]) attendanceMap[name] = {};
+          attendanceMap[name][date] = { timeIn, timeOut };
+        }
+      });
+
+      const latexContent = `
+\\documentclass[a4paper,12pt]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{geometry}
+\\usepackage{longtable}
+\\usepackage{booktabs}
+\\usepackage{colortbl}
+\\geometry{a4paper, margin=1in}
+
+\\begin{document}
+
+\\section*{Attendance Report - Tolon District Assembly}
+\\small % Reduce font size to fit rows on one line
+
+\\begin{longtable}{|p{2cm}|p{2cm}|${dateRange.map(() => 'p{1.5cm}|p{1.5cm}|').join('')}|p{1.5cm}|p{1.5cm}|p{1.5cm}|p{1.5cm}|}
+\\hline
+\\rowcolor{gray!20}
+Staff Name & Department & ${dateRange.map(d => `Date ${d} Time In & Date ${d} Time Out`).join(' & ')} & Total Days & Present & Absent & \\% Turn Up \\\\
+\\hline
+\\endhead
+${staffData.staff.map(staff => {
+  const dept = staff.department;
+  if (selectedDepts.length && !selectedDepts.includes(dept) && selectedDepts[0] !== "") return "";
+  const attendance = attendanceMap[staff.name] || {};
+  const presentDays = dateRange.filter(d => attendance[d]?.timeIn).length;
+  const totalDays = dateRange.length;
+  const absentDays = totalDays - presentDays;
+  const turnUpPercent = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  return `\\hline ${staff.name} & ${dept} & ${dateRange.map(d => `${attendance[d]?.timeIn || '--'} & ${attendance[d]?.timeOut || '--'}`).join(' & ')} & ${totalDays} & ${presentDays} & ${absentDays} & ${turnUpPercent}\\% \\\\`;
+}).join('\n')}
+\\hline
+\\end{longtable}
+
+\\end{document}
+      `;
+
+      const blob = new Blob([latexContent], { type: 'text/x-tex' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'attendance_report.tex';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      log("✅ PDF LaTeX file generated for download");
+    }
   </script>
 </body>
 </html>
