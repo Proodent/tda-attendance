@@ -391,7 +391,7 @@ function loginAdmin() {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('lastActivity', Date.now());
       adminPopup.classList.remove('show');
-      window.location.href = 'stats.html';
+      window.location.href = 'stats.html'; // Redirect to a protected page
     } else {
       adminError.textContent = 'Invalid email or password.';
     }
@@ -413,3 +413,45 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
+// Session timeout logic (moved to a function to apply only on protected pages)
+function initSessionTimeout() {
+  let timeoutId;
+  const SESSION_TIMEOUT = 900000; // 15 minutes in milliseconds
+
+  const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
+  const logout = () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('lastActivity');
+    clearTimeout(timeoutId);
+    window.location.href = 'index.html'; // Redirect to landing page on logout
+  };
+
+  const resetTimeout = () => {
+    const lastActivity = localStorage.getItem('lastActivity');
+    if (lastActivity) {
+      const inactiveTime = Date.now() - parseInt(lastActivity, 10);
+      if (inactiveTime >= SESSION_TIMEOUT) {
+        logout();
+        return;
+      }
+    }
+    localStorage.setItem('lastActivity', Date.now());
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      alert('Session expired due to inactivity. Please log in again.');
+      logout();
+    }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
+  };
+
+  // Apply timeout only if logged in and on a protected page
+  if (isLoggedIn() && window.location.pathname !== '/index.html') {
+    localStorage.setItem('lastActivity', Date.now());
+    resetTimeout();
+    document.addEventListener('mousemove', resetTimeout);
+    document.addEventListener('keypress', resetTimeout);
+    document.addEventListener('click', resetTimeout);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initSessionTimeout);
