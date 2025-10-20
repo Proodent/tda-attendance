@@ -102,7 +102,7 @@ function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut'); // Fixed typo here
+  const clockOutBtn = document.getElementById('clockOut');
 
   if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
     console.error('Missing DOM elements at', new Date().toISOString(), ':', { statusEl, locationEl, clockInBtn, clockOutBtn });
@@ -388,6 +388,8 @@ function loginAdmin() {
     console.log('Login check at', new Date().toISOString(), ':', { email, password, adminLogins });
 
     if (validLogin) {
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('lastActivity', Date.now());
       adminPopup.classList.remove('show');
       window.location.href = 'stats.html';
     } else {
