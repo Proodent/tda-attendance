@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tolon District Assembly - Admin Dashboard</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    .dashboard-container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      max-width: 900px;
+      width: 90%;
+      text-align: center;
+    }
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+    }
+    .stats-card {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+    canvas {
+      max-width: 100%;
+    }
+    .logout-btn {
+      background: #F44336;
+      padding: 10px 20px;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .logout-btn:hover {
+      background: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Admin Dashboard</span>
+    </h1>
+    <div id="statsSummary" class="stats-card"></div>
+    <canvas id="attendanceChart" width="400" height="200"></canvas>
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </div>
+  <script src="script.js"></script>
+  <script>
+    // Initialize session timeout and check login status
+    document.addEventListener('DOMContentLoaded', () => {
+      const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
+      if (!isLoggedIn()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Fetch and display stats
+      async function fetchStats() {
+        try {
+          const response = await fetch('/api/attendance/stats', { mode: 'cors' });
+          if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+          const data = await response.json();
+          const summary = document.getElementById('statsSummary');
+          summary.innerHTML = `
+            <p>Total Clock-ins: ${data.totalClockIns || 0}</p>
+            <p>Total Clock-outs: ${data.totalClockOuts || 0}</p>
+            <p>Last Updated: ${new Date().toLocaleString('en-US', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          `;
+
+          // Initialize chart
+          const ctx = document.getElementById('attendanceChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: data.dailyStats?.map(d => d.date) || ['No Data'],
+              datasets: [{
+                label: 'Attendance Count',
+                data: data.dailyStats?.map(d => d.count) || [0],
+                backgroundColor: 'rgba(0, 146, 69, 0.6)',
+                borderColor: 'rgba(0, 146, 69, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              scales: {
+                y: { beginAtZero: true }
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching stats:', error);
+          document.getElementById('statsSummary').innerHTML = '<p class="text-red-500">Failed to load stats. Check server.</p>';
+        }
+      }
+
+      fetchStats();
+
+      // Logout functionality
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('lastActivity');
+        window.location.href = 'index.html';
+      });
+    });
+  </script>
+</body>
+</html>
