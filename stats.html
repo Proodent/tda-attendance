@@ -303,42 +303,25 @@
       flex-direction: column;
     }
 
-    @media (max-width: 1200px) {
-      #stats-container {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .full-width-chart {
-        grid-column: 1 / -1;
-      }
-    }
-
-    @media (max-width: 768px) {
-      header {
-        font-size: 1.25rem;
-        padding: 0.75rem;
-      }
-      header img {
-        height: 1.5rem;
-        margin: 0 0.5rem;
-      }
+    @media (max-width: 1024px) {
       #summary-tiles {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        padding: 0.75rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        padding: 1rem;
       }
       .tile {
         padding: 0.75rem;
       }
       .tile h3 {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
       }
       .tile p {
         font-size: 1.25rem;
       }
       #stats-container {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-        padding: 0.75rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        padding: 1rem;
       }
       .chart-tile {
         padding: 1rem;
@@ -353,11 +336,6 @@
       }
       .full-width-chart .chart-container {
         height: 250px;
-      }
-      #attendance-table th,
-      #attendance-table td {
-        font-size: 0.75rem;
-        padding: 0.5rem;
       }
       #filters, #pdf-export {
         flex-direction: column;
@@ -381,26 +359,112 @@
         text-align: center;
         height: 38px;
       }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.5rem;
+        padding: 0.75rem;
+      }
+      header img {
+        height: 1.5rem;
+        margin: 0 0.5rem;
+      }
+      #summary-tiles {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tile {
+        padding: 0.5rem;
+      }
+      .tile h3 {
+        font-size: 0.75rem;
+      }
+      .tile p {
+        font-size: 1rem;
+      }
+      #stats-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .chart-tile {
+        padding: 0.75rem;
+        height: 250px;
+      }
+      .chart-tile h3 {
+        font-size: 1rem;
+        height: 30px;
+      }
+      .full-width-chart {
+        height: 300px;
+      }
+      .full-width-chart .chart-container {
+        height: 200px;
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.7rem;
+        padding: 0.25rem;
+      }
       #log {
         height: 150px;
-        padding: 1rem;
+        padding: 0.75rem;
         margin: 1rem;
       }
     }
 
     @media (max-width: 480px) {
-      #summary-tiles {
-        grid-template-columns: 1fr;
-      }
-      .chart-tile {
-        height: 250px;
-      }
-      .chart-tile h3 {
-        height: 30px;
-        font-size: 1rem;
+      header {
+        font-size: 1.25rem;
       }
       header img {
         display: none;
+      }
+      #summary-tiles {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        padding: 0.5rem;
+      }
+      .tile {
+        padding: 0.25rem;
+      }
+      .tile h3 {
+        font-size: 0.6rem;
+      }
+      .tile p {
+        font-size: 0.9rem;
+      }
+      .chart-tile {
+        height: 200px;
+      }
+      .chart-tile h3 {
+        font-size: 0.9rem;
+        height: 25px;
+      }
+      .full-width-chart {
+        height: 250px;
+      }
+      .full-width-chart .chart-container {
+        height: 150px;
+      }
+      #attendance-table th,
+      #attendance-table td {
+        font-size: 0.6rem;
+        padding: 0.2rem;
+      }
+      #filters label, #pdf-export label {
+        font-size: 0.8rem;
+      }
+      #date-select, #department-select, #name-search, #department-select-pdf, #start-date, #end-date, #month-select {
+        font-size: 0.8rem;
+        height: 32px;
+      }
+      #export-btn, #clear-filter-btn, #pdf-export-btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 1rem;
+        height: 32px;
       }
     }
   </style>
@@ -993,7 +1057,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-20T22:42:00Z"); // 10:42 PM GMT
+      const today = new Date("2025-10-20T23:11:00Z"); // 11:11 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -1255,7 +1319,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        const today = new Date("2025-10-20T22:42:00Z"); // 10:42 PM GMT
+        const today = new Date("2025-10-20T23:11:00Z"); // 11:11 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1428,8 +1492,6 @@
       thead.appendChild(headerRow);
       tempTable.appendChild(thead);
 
-      let weekCounter = 0;
-      let currentWeekStart = null;
       staffData.staff.forEach(staff => {
         const dept = staff.department;
         if (selectedDept && dept !== selectedDept && selectedDept !== "") return;
@@ -1439,18 +1501,6 @@
         const absentDays = totalDays - presentDays;
         const turnUpPercent = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
         const row = document.createElement('tr');
-
-        // Determine background color based on week
-        const firstDate = new Date(dateRange[0]);
-        const rowDate = new Date(dateRange[0]); // Use the first date of the range for week calculation
-        const weekNumber = getWeekNumber(rowDate);
-        if (!currentWeekStart || rowDate.getTime() >= currentWeekStart.getTime() + 5 * 86400000) { // 5 days (Monday to Friday)
-          weekCounter++;
-          currentWeekStart = new Date(rowDate);
-        }
-        const bgColor = weekCounter % 2 === 0 ? '#ffffff' : '#f7fafc';
-
-        row.style.backgroundColor = bgColor;
         row.innerHTML = `
           <td style="border: 1px solid #ddd; padding: 8px;">${staff.name}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${dept}</td>
@@ -1470,14 +1520,14 @@
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({
-        orientation: 'landscape', // Set to landscape
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
       await html2canvas(tempTable).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const imgProps = doc.getImageProperties(imgData);
-        const pdfWidth = doc.internal.pageSize.getWidth() - 20; // Adjust for margins
+        const pdfWidth = doc.internal.pageSize.getWidth() - 20;
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         let position = 10;
         doc.addImage(imgData, 'PNG', 10, position, pdfWidth, pdfHeight);
