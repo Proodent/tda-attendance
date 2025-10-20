@@ -439,6 +439,7 @@
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
+      <p style="font-size: 0.8em; color: #666;">(Check with server for valid credentials)</p>
       <input type="email" id="adminEmail" placeholder="Enter Email" />
       <input type="password" id="adminPassword" placeholder="Enter Password" />
       <button onclick="loginAdmin()">Login</button>
@@ -451,18 +452,6 @@
     let timeoutId;
 
     const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
-    const login = (email, password) => {
-      if (email === 'admin@tolon.gov' && password === 'admin123') {
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('lastActivity', Date.now());
-        resetTimeout();
-        window.location.href = 'stats.html';
-        return true;
-      }
-      document.getElementById('adminError').textContent = 'Invalid email or password';
-      return false;
-    };
-
     const logout = () => {
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('lastActivity');
@@ -493,15 +482,6 @@
       resetTimeout();
       window.location.href = 'stats.html';
     }
-
-    window.loginAdmin = () => {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      if (login(email, password)) {
-        document.getElementById('adminPopup').classList.remove('show');
-        document.getElementById('adminError').textContent = '';
-      }
-    };
 
     document.getElementById('adminDashboard').addEventListener('click', () => {
       document.getElementById('adminPopup').classList.add('show');
