@@ -993,7 +993,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-20T22:07:00Z"); // 10:07 PM GMT
+      const today = new Date("2025-10-20T22:42:00Z"); // 10:42 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -1255,7 +1255,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        const today = new Date("2025-10-20T22:07:00Z"); // 10:07 PM GMT
+        const today = new Date("2025-10-20T22:42:00Z"); // 10:42 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1363,13 +1363,20 @@
         const start = new Date(startDate);
         const end = new Date(endDate);
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          dateRange.push(new Date(d).toISOString().split('T')[0]);
+          const day = d.getDay();
+          if (day !== 0 && day !== 6) { // Exclude Sunday (0) and Saturday (6)
+            dateRange.push(new Date(d).toISOString().split('T')[0]);
+          }
         }
       } else if (month) {
         const year = new Date().getFullYear();
         const daysInMonth = new Date(year, month, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
-          dateRange.push(`${year}-${month.padStart(2, '0')}-${d.toString().padStart(2, '0')}`);
+          const date = new Date(`${year}-${month.padStart(2, '0')}-${d.toString().padStart(2, '0')}`);
+          const day = date.getDay();
+          if (day !== 0 && day !== 6) { // Exclude Sunday (0) and Saturday (6)
+            dateRange.push(date.toISOString().split('T')[0]);
+          }
         }
       } else {
         log("❌ Please select a date range or month");
@@ -1412,7 +1419,7 @@
       headerRow.innerHTML = `
         <th style="border: 1px solid #ddd; padding: 8px;">Staff Name</th>
         <th style="border: 1px solid #ddd; padding: 8px;">Department</th>
-        ${dateRange.map(d => `<th style="border: 1px solid #ddd; padding: 8px;">Date ${d} Time In</th><th style="border: 1px solid #ddd; padding: 8px;">Date ${d} Time Out</th>`).join('')}
+        ${dateRange.map(d => `<th style="border: 1px solid #ddd; padding: 8px;">${new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}<br>Time In / Time Out</th>`).join('')}
         <th style="border: 1px solid #ddd; padding: 8px;">Total Days</th>
         <th style="border: 1px solid #ddd; padding: 8px;">Present</th>
         <th style="border: 1px solid #ddd; padding: 8px;">Absent</th>
@@ -1421,6 +1428,8 @@
       thead.appendChild(headerRow);
       tempTable.appendChild(thead);
 
+      let weekCounter = 0;
+      let currentWeekStart = null;
       staffData.staff.forEach(staff => {
         const dept = staff.department;
         if (selectedDept && dept !== selectedDept && selectedDept !== "") return;
@@ -1430,10 +1439,25 @@
         const absentDays = totalDays - presentDays;
         const turnUpPercent = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
         const row = document.createElement('tr');
+
+        // Determine background color based on week
+        const firstDate = new Date(dateRange[0]);
+        const rowDate = new Date(dateRange[0]); // Use the first date of the range for week calculation
+        const weekNumber = getWeekNumber(rowDate);
+        if (!currentWeekStart || rowDate.getTime() >= currentWeekStart.getTime() + 5 * 86400000) { // 5 days (Monday to Friday)
+          weekCounter++;
+          currentWeekStart = new Date(rowDate);
+        }
+        const bgColor = weekCounter % 2 === 0 ? '#ffffff' : '#f7fafc';
+
+        row.style.backgroundColor = bgColor;
         row.innerHTML = `
           <td style="border: 1px solid #ddd; padding: 8px;">${staff.name}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${dept}</td>
-          ${dateRange.map(d => `<td style="border: 1px solid #ddd; padding: 8px;">${attendance[d]?.timeIn || '--'}</td><td style="border: 1px solid #ddd; padding: 8px;">${attendance[d]?.timeOut || '--'}</td>`).join('')}
+          ${dateRange.map(d => {
+            const att = attendance[d] || {};
+            return `<td style="border: 1px solid #ddd; padding: 8px;">${att.timeIn || '--'} / ${att.timeOut || '--'}</td>`;
+          }).join('')}
           <td style="border: 1px solid #ddd; padding: 8px;">${totalDays}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${presentDays}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${absentDays}</td>
@@ -1445,13 +1469,22 @@
       document.body.appendChild(tempTable);
 
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      const doc = new jsPDF({
+        orientation: 'landscape', // Set to landscape
+        unit: 'mm',
+        format: 'a4'
+      });
       await html2canvas(tempTable).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const imgProps = doc.getImageProperties(imgData);
         const pdfWidth = doc.internal.pageSize.getWidth() - 20; // Adjust for margins
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        doc.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        let position = 10;
+        doc.addImage(imgData, 'PNG', 10, position, pdfWidth, pdfHeight);
+        if (pdfHeight > doc.internal.pageSize.getHeight() - 20) {
+          doc.addPage();
+          doc.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        }
         doc.save('attendance_report.pdf');
       });
 
