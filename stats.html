@@ -8,6 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -255,7 +257,7 @@
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       display: flex;
       gap: 1rem;
-      align-items: flex-end;
+      align-items: flex-start;
       flex-wrap: wrap;
     }
     #pdf-export label {
@@ -272,15 +274,7 @@
       border: 2px solid #e2e8f0;
       font-size: 0.9rem;
       width: 100%;
-      height: 38px;
-    }
-    #department-select-pdf {
-      height: auto;
-      min-height: 100px;
-    }
-    #month-select {
-      height: auto;
-      min-height: 50px;
+      height: 2.5rem; /* Equal height */
     }
     #start-date:focus, #end-date:focus, #department-select-pdf:focus, #month-select:focus {
       border-color: #48bb78;
@@ -294,12 +288,19 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 0.9rem;
-      height: 38px;
+      height: 2.5rem; /* Equal height */
       transition: background-color 0.2s;
       white-space: nowrap;
+      align-self: flex-end;
     }
     #pdf-export-btn:hover {
       background: #38a169;
+    }
+    .pdf-filter-group {
+      flex: 1;
+      min-width: 18.75%;
+      display: flex;
+      flex-direction: column;
     }
 
     @media (max-width: 1200px) {
@@ -364,7 +365,7 @@
         padding: 1rem;
         align-items: stretch;
       }
-      .filter-group {
+      .filter-group, .pdf-filter-group {
         min-width: 100%;
       }
       .button-group {
@@ -534,21 +535,21 @@
   </section>
 
   <section id="pdf-export">
-    <div class="filter-group">
-      <label for="department-select-pdf">Select Departments:</label>
-      <select id="department-select-pdf" multiple>
+    <div class="pdf-filter-group">
+      <label for="department-select-pdf">Select Department:</label>
+      <select id="department-select-pdf">
         <option value="">All Departments</option>
       </select>
     </div>
-    <div class="filter-group">
+    <div class="pdf-filter-group">
       <label for="start-date">Start Date:</label>
       <input type="date" id="start-date">
     </div>
-    <div class="filter-group">
+    <div class="pdf-filter-group">
       <label for="end-date">End Date:</label>
       <input type="date" id="end-date">
     </div>
-    <div class="filter-group">
+    <div class="pdf-filter-group">
       <label for="month-select">Select Month:</label>
       <select id="month-select">
         <option value="">All Months</option>
@@ -567,7 +568,7 @@
       </select>
     </div>
     <div class="button-group">
-      <div class="filter-group">
+      <div class="pdf-filter-group">
         <label style="visibility: hidden;">Export</label>
         <button id="pdf-export-btn" onclick="exportToPDF()">Export to PDF</button>
       </div>
@@ -992,7 +993,7 @@
       }
       if (trendChart) trendChart.destroy();
 
-      const today = new Date("2025-10-20T21:28:00Z"); // 09:28 PM GMT
+      const today = new Date("2025-10-20T22:07:00Z"); // 10:07 PM GMT
       const labels = [];
       for (let i = 0; i < 90; i++) {
         const date = new Date(today);
@@ -1254,7 +1255,7 @@
         }));
         log(`Processed trend data length: ${trendData.length}, sample: ${JSON.stringify(trendData.slice(0, 2))}`);
 
-        const today = new Date("2025-10-20T21:28:00Z"); // 09:28 PM GMT
+        const today = new Date("2025-10-20T22:07:00Z"); // 10:07 PM GMT
         const startDate = new Date(today);
         startDate.setDate(today.getDate() - 89); // 90 days back
         const weeklyMap = {};
@@ -1352,7 +1353,7 @@
       }
 
       const departmentSelect = document.getElementById("department-select-pdf");
-      const selectedDepts = Array.from(departmentSelect.selectedOptions).map(option => option.value).filter(v => v);
+      const selectedDept = departmentSelect.value;
       const startDate = document.getElementById("start-date").value;
       const endDate = document.getElementById("end-date").value;
       const month = document.getElementById("month-select").value;
@@ -1401,52 +1402,61 @@
         }
       });
 
-      const latexContent = `
-\\documentclass[a4paper,12pt]{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage{geometry}
-\\usepackage{longtable}
-\\usepackage{booktabs}
-\\usepackage{colortbl}
-\\geometry{a4paper, margin=1in}
-
-\\begin{document}
-
-\\section*{Attendance Report - Tolon District Assembly}
-\\small % Reduce font size to fit rows on one line
-
-\\begin{longtable}{|p{2cm}|p{2cm}|${dateRange.map(() => 'p{1.5cm}|p{1.5cm}|').join('')}|p{1.5cm}|p{1.5cm}|p{1.5cm}|p{1.5cm}|}
-\\hline
-\\rowcolor{gray!20}
-Staff Name & Department & ${dateRange.map(d => `Date ${d} Time In & Date ${d} Time Out`).join(' & ')} & Total Days & Present & Absent & \\% Turn Up \\\\
-\\hline
-\\endhead
-${staffData.staff.map(staff => {
-  const dept = staff.department;
-  if (selectedDepts.length && !selectedDepts.includes(dept) && selectedDepts[0] !== "") return "";
-  const attendance = attendanceMap[staff.name] || {};
-  const presentDays = dateRange.filter(d => attendance[d]?.timeIn).length;
-  const totalDays = dateRange.length;
-  const absentDays = totalDays - presentDays;
-  const turnUpPercent = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
-  return `\\hline ${staff.name} & ${dept} & ${dateRange.map(d => `${attendance[d]?.timeIn || '--'} & ${attendance[d]?.timeOut || '--'}`).join(' & ')} & ${totalDays} & ${presentDays} & ${absentDays} & ${turnUpPercent}\\% \\\\`;
-}).join('\n')}
-\\hline
-\\end{longtable}
-
-\\end{document}
+      // Create a temporary table for PDF
+      const tempTable = document.createElement('table');
+      tempTable.style.width = '100%';
+      tempTable.style.borderCollapse = 'collapse';
+      const thead = document.createElement('thead');
+      const tbody = document.createElement('tbody');
+      const headerRow = document.createElement('tr');
+      headerRow.innerHTML = `
+        <th style="border: 1px solid #ddd; padding: 8px;">Staff Name</th>
+        <th style="border: 1px solid #ddd; padding: 8px;">Department</th>
+        ${dateRange.map(d => `<th style="border: 1px solid #ddd; padding: 8px;">Date ${d} Time In</th><th style="border: 1px solid #ddd; padding: 8px;">Date ${d} Time Out</th>`).join('')}
+        <th style="border: 1px solid #ddd; padding: 8px;">Total Days</th>
+        <th style="border: 1px solid #ddd; padding: 8px;">Present</th>
+        <th style="border: 1px solid #ddd; padding: 8px;">Absent</th>
+        <th style="border: 1px solid #ddd; padding: 8px;">% Turn Up</th>
       `;
+      thead.appendChild(headerRow);
+      tempTable.appendChild(thead);
 
-      const blob = new Blob([latexContent], { type: 'text/x-tex' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'attendance_report.tex';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      log("✅ LaTeX file generated for download. Compile with a LaTeX editor to create PDF.");
+      staffData.staff.forEach(staff => {
+        const dept = staff.department;
+        if (selectedDept && dept !== selectedDept && selectedDept !== "") return;
+        const attendance = attendanceMap[staff.name] || {};
+        const presentDays = dateRange.filter(d => attendance[d]?.timeIn).length;
+        const totalDays = dateRange.length;
+        const absentDays = totalDays - presentDays;
+        const turnUpPercent = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td style="border: 1px solid #ddd; padding: 8px;">${staff.name}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${dept}</td>
+          ${dateRange.map(d => `<td style="border: 1px solid #ddd; padding: 8px;">${attendance[d]?.timeIn || '--'}</td><td style="border: 1px solid #ddd; padding: 8px;">${attendance[d]?.timeOut || '--'}</td>`).join('')}
+          <td style="border: 1px solid #ddd; padding: 8px;">${totalDays}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${presentDays}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${absentDays}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${turnUpPercent}%</td>
+        `;
+        tbody.appendChild(row);
+      });
+      tempTable.appendChild(tbody);
+      document.body.appendChild(tempTable);
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      await html2canvas(tempTable).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = doc.getImageProperties(imgData);
+        const pdfWidth = doc.internal.pageSize.getWidth() - 20; // Adjust for margins
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        doc.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        doc.save('attendance_report.pdf');
+      });
+
+      document.body.removeChild(tempTable);
+      log("✅ PDF file generated for download");
     }
   </script>
 </body>
