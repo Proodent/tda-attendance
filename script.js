@@ -417,7 +417,7 @@ window.onunload = () => {
 // Session timeout logic (moved to a function to apply only on protected pages)
 function initSessionTimeout() {
   let timeoutId;
-  const SESSION_TIMEOUT = 900000; // 15 minutes in milliseconds
+  const SESSION_TIMEOUT = 86400000; // 15 minutes in milliseconds
 
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
   const logout = () => {
@@ -455,3 +455,4 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
