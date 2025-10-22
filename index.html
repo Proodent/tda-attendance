@@ -16,7 +16,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
       overflow-x: hidden;
     }
@@ -29,7 +29,8 @@
       max-width: 600px;
       width: 90%;
       text-align: center;
-      margin: 0 auto;
+      margin: auto 0; /* Center vertically */
+      flex: 1; /* Allow container to grow and center between header and footer */
     }
 
     h1 {
@@ -322,7 +323,6 @@
 
     /* Footer styles */
     .footer {
-      margin-top: auto;
       font-size: 0.9em;
       color: #666;
       padding: 10px 0;
@@ -423,6 +423,7 @@
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
       <div id="popupRetry"></div>
+      <button class="popup-close-btn" onclick="closePopup()">Close</button>
     </div>
   </div>
   <!-- Loader Overlay -->
@@ -446,19 +447,133 @@
       <p id="adminError" class="error"></p>
     </div>
   </div>
-  <script src="script.js"></script>
   <script>
-    // No session timeout logic here since this is a public landing page
+    // Location and popup management
+    let locationErrorShown = false;
+
+    function showPopup(headerClass, message, iconClass, footerText = '', retry = '') {
+      const popup = document.getElementById('popup');
+      const header = document.getElementById('popupHeader');
+      const icon = document.getElementById('popupIcon');
+      const messageDiv = document.getElementById('popupMessage');
+      const footer = document.getElementById('popupFooter');
+      const retryDiv = document.getElementById('popupRetry');
+
+      header.className = 'popup-header ' + headerClass;
+      header.textContent = headerClass === 'success' ? 'Success' : 'Error';
+      icon.className = 'popup-icon ' + iconClass;
+      messageDiv.textContent = message;
+      footer.textContent = footerText;
+      retryDiv.innerHTML = retry;
+
+      popup.classList.add('show');
+    }
+
+    function closePopup() {
+      const popup = document.getElementById('popup');
+      popup.classList.remove('show');
+      if (document.getElementById('popupHeader').className.includes('error') && document.getElementById('popupMessage').textContent.includes('unapproved location')) {
+        locationErrorShown = true; // Prevent popup from showing again until refresh
+      }
+    }
+
+    function checkLocation() {
+      if (navigator.geolocation) {
+        showLoader();
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            document.getElementById('location').textContent = `Location: ${lat}, ${lon}`;
+            document.getElementById('status').textContent = 'Location verified';
+            hideLoader();
+            // Assume API call to validate location
+            fetch('/api/validate-location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat, lon })
+            })
+              .then(response => response.json())
+              .then(data => {
+                if (!data.isApproved && !locationErrorShown) {
+                  showPopup('error', 'You are at an unapproved location. Please move to an approved location.', 'error');
+                } else {
+                  document.getElementById('clockIn').disabled = false;
+                  document.getElementById('clockOut').disabled = false;
+                }
+              })
+              .catch(error => {
+                document.getElementById('status').textContent = 'Error verifying location';
+                if (!locationErrorShown) {
+                  showPopup('error', 'Failed to verify location. Please try again.', 'error', '', '<button onclick="checkLocation()">Retry</button>');
+                }
+              });
+          },
+          (error) => {
+            hideLoader();
+            document.getElementById('status').textContent = 'Location access denied';
+            if (!locationErrorShown) {
+              showPopup('error', 'Unable to access location. Please enable location services.', 'error', '', '<button onclick="checkLocation()">Retry</button>');
+            }
+          }
+        );
+      } else {
+        document.getElementById('status').textContent = 'Geolocation not supported';
+        if (!locationErrorShown) {
+          showPopup('error', 'Geolocation is not supported by your browser.', 'error');
+        }
+      }
+    }
+
+    function showLoader() {
+      document.getElementById('loaderOverlay').style.display = 'flex';
+    }
+
+    function hideLoader() {
+      document.getElementById('loaderOverlay').style.display = 'none';
+    }
+
+    // Clock in/out handlers (placeholder)
+    document.getElementById('clockIn').addEventListener('click', () => {
+      showLoader();
+      setTimeout(() => {
+        hideLoader();
+        showPopup('success', 'Clocked In successfully!', 'success');
+        document.getElementById('clockIn').disabled = true;
+        document.getElementById('clockOut').disabled = false;
+      }, 2000); // Simulate API call
+    });
+
+    document.getElementById('clockOut').addEventListener('click', () => {
+      showLoader();
+      setTimeout(() => {
+        hideLoader();
+        showPopup('success', 'Clocked Out successfully!', 'success');
+        document.getElementById('clockOut').disabled = true;
+        document.getElementById('clockIn').disabled = false;
+      }, 2000); // Simulate API call
+    });
+
+    // Admin dashboard
     document.getElementById('adminDashboard').addEventListener('click', () => {
       document.getElementById('adminPopup').classList.add('show');
     });
+
+    window.loginAdmin = function() {
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      const errorDiv = document.getElementById('adminError');
+      if (email === 'admin@tolon.gov' && password === 'admin123') {
+        window.location.href = 'stats.html';
+      } else {
+        errorDiv.textContent = 'Invalid email or password';
+      }
+    };
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkLocation();
+    });
   </script>
-  <script>window.loginAdmin = window.loginAdmin || function() {};</script>
 </body>
 </html>
-
-
-
-
-
-
