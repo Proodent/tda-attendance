@@ -38,26 +38,26 @@
     }
     header .logout-icon {
       position: absolute;
-      right: 1.5rem;
+      right: 0; /* Shift to extreme right */
       top: 50%;
       transform: translateY(-50%);
       padding: 0.75rem;
-      background: #f56565;
-      color: #fff;
+      color: #fff; /* Maintain text color */
       border: none;
       border-radius: 6px;
       font-size: 1.2rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: color 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 2.5rem;
       height: 2.5rem;
+      background: transparent; /* Remove background */
     }
     header .logout-icon:hover {
-      background: #e53e3e;
+      color: #e53e3e; /* Change color on hover instead of background */
     }
     header .logout-icon::before {
       content: '➡️'; /* Unicode logout symbol; replace with Font Awesome if preferred */
@@ -81,14 +81,14 @@
     }
     .tile h3 {
       color: #2d3748;
-      font-size: 0.875rem;
+      font-size: 1rem; /* Increased from 0.875rem */
       margin-bottom: 0.5rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .tile p {
-      font-size: 1.5rem;
+      font-size: 1.75rem; /* Increased from 1.5rem */
       font-weight: 700;
       margin: 0;
       color: #48bb78;
@@ -321,10 +321,10 @@
         padding: 0.75rem;
       }
       .tile h3 {
-        font-size: 0.8rem;
+        font-size: 0.9rem; /* Increased from 0.8rem */
       }
       .tile p {
-        font-size: 1.25rem;
+        font-size: 1.5rem; /* Increased from 1.25rem */
       }
       #stats-container {
         grid-template-columns: repeat(2, 1fr);
@@ -379,19 +379,19 @@
         margin: 0 0.5rem;
       }
       #summary-tiles {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr); /* 2 tiles per row on mobile */
         gap: 0.75rem;
         padding: 0.75rem;
       }
       .tile {
         padding: 0.5rem;
-        min-height: 120px; /* Increased height for better readability */
+        min-height: 120px;
       }
       .tile h3 {
-        font-size: 0.75rem;
+        font-size: 0.9rem; /* Increased from 0.75rem */
       }
       .tile p {
-        font-size: 1rem;
+        font-size: 1.25rem; /* Increased from 1rem */
       }
       #stats-container {
         grid-template-columns: 1fr;
@@ -431,22 +431,22 @@
       header img {
         height: 1.5rem;
         margin: 0 0.5rem;
-        display: inline; /* Removed display: none to show images */
+        display: inline;
       }
       #summary-tiles {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr); /* 2 tiles per row on mobile */
         gap: 0.5rem;
         padding: 0.5rem;
       }
       .tile {
         padding: 0.25rem;
-        min-height: 100px; /* Increased height for better readability */
+        min-height: 100px;
       }
       .tile h3 {
-        font-size: 0.6rem;
+        font-size: 0.8rem; /* Increased from 0.6rem */
       }
       .tile p {
-        font-size: 0.9rem;
+        font-size: 1.1rem; /* Increased from 0.9rem */
       }
       .chart-tile {
         height: 200px;
