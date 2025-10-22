@@ -36,23 +36,31 @@
       height: 5rem;
       margin: 0 5rem;
     }
-    header .logout-btn {
+    header .logout-icon {
       position: absolute;
       right: 1.5rem;
       top: 50%;
       transform: translateY(-50%);
-      padding: 0.75rem 1.5rem;
+      padding: 0.75rem;
       background: #f56565;
       color: #fff;
       border: none;
       border-radius: 6px;
-      font-size: 1rem;
+      font-size: 1.2rem;
       font-weight: 600;
       cursor: pointer;
       transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
     }
-    header .logout-btn:hover {
+    header .logout-icon:hover {
       background: #e53e3e;
+    }
+    header .logout-icon::before {
+      content: '➡️'; /* Unicode logout symbol; replace with Font Awesome if preferred */
     }
     #summary-tiles {
       display: grid;
@@ -377,6 +385,7 @@
       }
       .tile {
         padding: 0.5rem;
+        min-height: 120px; /* Increased height for better readability */
       }
       .tile h3 {
         font-size: 0.75rem;
@@ -420,7 +429,9 @@
         font-size: 1.25rem;
       }
       header img {
-        display: none;
+        height: 1.5rem;
+        margin: 0 0.5rem;
+        display: inline; /* Removed display: none to show images */
       }
       #summary-tiles {
         grid-template-columns: 1fr;
@@ -429,6 +440,7 @@
       }
       .tile {
         padding: 0.25rem;
+        min-height: 100px; /* Increased height for better readability */
       }
       .tile h3 {
         font-size: 0.6rem;
@@ -474,7 +486,7 @@
     <img src="/assets/favicon.png" alt="logo" />
     Attendance Dashboard
     <img src="/assets/favicon.png" alt="logo" />
-    <button class="logout-btn" id="logoutBtn">Logout</button>
+    <span class="logout-icon" id="logoutBtn"></span>
   </header>
 
   <section id="summary-tiles">
