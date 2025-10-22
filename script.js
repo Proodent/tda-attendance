@@ -4,6 +4,7 @@ let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRet
 let loaderEl;
 let locations = [];
 let popupTimeout = null;
+let locationErrorShown = false; // New flag to track if location error has been shown and closed
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -44,12 +45,18 @@ function showPopup(title, message, success = null) {
   popupTimeout = setTimeout(() => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
+    if (title === 'Location Error' && success === false) {
+      locationErrorShown = true; // Set flag when auto-closed
+    }
   }, 5000);
 
   const closeBtn = document.getElementById('popupCloseBtn');
   if (closeBtn) closeBtn.onclick = () => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
+    if (title === 'Location Error' && success === false) {
+      locationErrorShown = true; // Set flag when manually closed
+    }
   };
 }
 
@@ -152,7 +159,8 @@ function startLocationWatch() {
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = false;
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
-        } else {
+          locationErrorShown = false; // Reset flag when at an approved location
+        } else if (!locationErrorShown) {
           statusEl.textContent = 'Unapproved Location';
           locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
@@ -166,7 +174,9 @@ function startLocationWatch() {
         console.error('Geolocation error at', new Date().toISOString(), ':', err);
         statusEl.textContent = `Location error: ${err.message}`;
         clockInBtn.disabled = clockOutBtn.disabled = true;
-        showPopup('Location Error', `GPS failed: ${err.message}`, false);
+        if (!locationErrorShown) {
+          showPopup('Location Error', `GPS failed: ${err.message}`, false);
+        }
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
@@ -455,4 +465,3 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
-
