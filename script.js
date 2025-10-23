@@ -310,7 +310,7 @@ async function handleClock(action) {
     showPopup('Face Error', faceRes.error || 'No match.', false);
     return;
   }
-  if (faceRes.similarity < 0.85) {
+  if (faceRes.similarity < 0.7) {
     hideLoader();
     showPopup('Face Error', 'Low similarity. Try better lighting.', false);
     return;
@@ -339,7 +339,7 @@ async function handleClock(action) {
       const messages = {
         'Staff not found or inactive': `${faceRes.subject}, profile issue. Contact HR.`,
         'Not inside any registered office location': 'Not at an approved location.',
-        'Unapproved Locationww': `${faceRes.subject}, unauthorized location.`,
+        'Unapproved Location': `${faceRes.subject}, unauthorized location.`,
         'Dear': `${faceRes.subject}, ${data.message.toLowerCase()}`,
         'Invalid input': 'Invalid data. Try again.'
       };
@@ -466,5 +466,6 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
 
 
