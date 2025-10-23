@@ -427,7 +427,7 @@ window.onunload = () => {
 // Session timeout logic (moved to a function to apply only on protected pages)
 function initSessionTimeout() {
   let timeoutId;
-  const SESSION_TIMEOUT = 86400000; // 15 minutes in milliseconds
+  const SESSION_TIMEOUT = 86400000; // 24 hours in milliseconds
 
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
   const logout = () => {
@@ -461,7 +461,9 @@ function initSessionTimeout() {
     document.addEventListener('mousemove', resetTimeout);
     document.addEventListener('keypress', resetTimeout);
     document.addEventListener('click', resetTimeout);
+    document.addEventListener('scroll', resetTimeout); // Optional: also reset on scroll
   }
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
