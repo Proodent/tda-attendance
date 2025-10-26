@@ -93,9 +93,6 @@
     @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
     @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
 
-    .popup-close-btn { background: #f0f0f0; color: #666; border: 1px solid #ddd; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-    .popup-close-btn:hover { background: #e0e0e0; color: #333; }
-
     .footer { margin-top: auto; font-size: 0.9em; color: #666; padding: 10px 0; text-align: center; border-top: 1px solid #eee; width: 100%; }
     .footer a { color: #009245; text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
@@ -140,7 +137,7 @@
   <!-- Loader -->
   <div id="loaderOverlay">
     <div class="loader"></div>
-    <p>Verifying face...</p>
+    <p>Loading AI model...</p>
   </div>
 
   <!-- Footer -->
@@ -164,62 +161,65 @@
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     let faceMatcher = null;
     let isInitialized = false;
-    let currentAction = null; // 'in' or 'out'
+    let currentAction = null;
 
-    // IndexedDB for caching embeddings
-    const openDB = () => {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('tolon-faces', 1);
-        req.onupgradeneeded = () => req.result.createObjectStore('staff');
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    };
+    // IndexedDB
+    const openDB = () => new Promise((resolve, reject) => {
+      const req = indexedDB.open('tolon-faces', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('staff');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
 
-    // Load models and staff embeddings
+    // Init Face Recognition with Tiny Models + Progress
     async function initFaceRecognition() {
       if (isInitialized) return;
       showLoader("Loading AI model...");
 
-      await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-      await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+      const progress = document.createElement('div');
+      progress.style.width = '80%'; progress.style.height = '6px'; progress.style.background = '#eee';
+      progress.style.borderRadius = '3px'; progress.style.marginTop = '10px'; progress.style.overflow = 'hidden';
+      const bar = document.createElement('div');
+      bar.style.height = '100%'; bar.style.width = '0%'; bar.style.background = '#009245'; bar.style.transition = 'width 0.3s';
+      progress.appendChild(bar);
+      document.querySelector('#loaderOverlay').appendChild(progress);
 
-      const db = await openDB();
-      const tx = db.transaction('staff', 'readonly');
-      const store = tx.objectStore('staff');
-      const cached = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/models', {
+          onProgress: (p) => bar.style.width = `${p * 100}%`
+        });
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
 
-      if (cached.length > 0) {
-        const descriptors = cached.map(c => new faceapi.LabeledFaceDescriptors(c.name, c.embedding.map(parseFloat)));
-        faceMatcher = new faceapi.FaceMatcher(descriptors, 0.6);
+        const db = await openDB();
+        const tx = db.transaction('staff', 'readonly');
+        const store = tx.objectStore('staff');
+        const cached = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
+
+        if (cached.length > 0) {
+          const descriptors = cached.map(c => new faceapi.LabeledFaceDescriptors(c.name, c.embedding.map(parseFloat)));
+          faceMatcher = new faceapi.FaceMatcher(descriptors, 0.6);
+        } else {
+          const res = await fetch(`${backendURL}/staff/embeddings`);
+          const staff = await res.json();
+          const descriptors = staff.map(s => new faceapi.LabeledFaceDescriptors(s.name, s.embedding.map(parseFloat)));
+          faceMatcher = new faceapi.FaceMatcher(descriptors, 0.6);
+
+          const tx2 = db.transaction('staff', 'readwrite');
+          staff.forEach(s => tx2.store.put({ name: s.name, embedding: s.embedding }, s.id));
+          await tx2.done;
+        }
+
         hideLoader();
         isInitialized = true;
         enableButtons();
-        return;
-      }
-
-      // First time: fetch from server
-      try {
-        const res = await fetch(`${backendURL}/staff/embeddings`);
-        const staff = await res.json();
-        const descriptors = staff.map(s => new faceapi.LabeledFaceDescriptors(s.name, s.embedding.map(parseFloat)));
-        faceMatcher = new faceapi.FaceMatcher(descriptors, 0.6);
-
-        // Cache
-        const tx2 = db.transaction('staff', 'readwrite');
-        staff.forEach(s => tx2.store.put({ name: s.name, embedding: s.embedding }, s.id));
-        await tx2.done;
       } catch (e) {
-        showPopup("Error", "Failed to load staff data", "error");
+        hideLoader();
+        showPopup("Error", "AI model failed to load", "error");
       }
-
-      hideLoader();
-      isInitialized = true;
-      enableButtons();
     }
 
-    // Start camera
+    // Camera
     async function startCamera() {
       const video = document.getElementById('video');
       try {
@@ -231,7 +231,7 @@
       }
     }
 
-    // Capture and verify
+    // Verify + Clock
     async function verifyAndClock(action) {
       if (!isInitialized) return;
       currentAction = action;
@@ -245,7 +245,10 @@
       const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.7));
       const img = await faceapi.bufferToImage(blob);
 
-      const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
       hideLoader();
 
       if (!detection) {
@@ -259,7 +262,6 @@
         return;
       }
 
-      // Send only name + action
       await clockInOut(result.label, action);
     }
 
@@ -283,8 +285,9 @@
     }
 
     function showLoader(msg) {
-      document.getElementById('loaderOverlay').style.display = 'flex';
-      document.querySelector('#loaderOverlay p').textContent = msg;
+      const overlay = document.getElementById('loaderOverlay');
+      overlay.style.display = 'flex';
+      overlay.querySelector('p').textContent = msg;
     }
 
     function hideLoader() {
@@ -302,7 +305,6 @@
       setTimeout(() => popup.classList.remove('show'), 3000);
     }
 
-    // Admin login
     window.loginAdmin = async () => {
       const email = document.getElementById('adminEmail').value;
       const pass = document.getElementById('adminPassword').value;
@@ -322,6 +324,14 @@
         document.getElementById('adminError').textContent = 'Network error';
       }
     };
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .catch(err => console.log('SW failed:', err));
+      });
+    }
 
     // Init
     document.addEventListener('DOMContentLoaded', async () => {
