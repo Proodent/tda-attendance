@@ -594,30 +594,6 @@
   </section>
 
   <section id="attendance-table">
-    <div class="filter-group">
-      <label for="date-select">Select Date:</label>
-      <input type="date" id="date-select" onchange="loadDashboardData()">
-    </div>
-    <div class="filter-group">
-      <label for="department-select">Filter Department:</label>
-      <select id="department-select" onchange="filterTable()">
-        <option value="">All Departments</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label for="name-search">Search Name:</label>
-      <input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search name...">
-    </div>
-    <div class="button-group">
-      <div class="filter-group">
-        <label style="visibility: hidden;">Actions</label>
-        <button id="clear-filter-btn" onclick="clearFilters()">Clear Filter</button>
-      </div>
-      <div class="filter-group">
-        <label style="visibility: hidden;">Export</label>
-        <button id="export-btn" onclick="exportToCSV()">Export to CSV</button>
-      </div>
-    </div>
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details</h3>
     <table>
