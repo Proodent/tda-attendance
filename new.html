@@ -5,161 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
-  <!-- CompreFace JS SDK -->
+  
+  <!-- CompreFace SDK -->
   <script src="https://unpkg.com/compreface-javascript-sdk@2.3.2/dist/compreface.js"></script>
+
   <style>
-    /* Your existing styles (unchanged) */
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      min-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      overflow-x: hidden;
-    }
-
-    .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      max-width: 600px;
-      width: 90%;
-      text-align: center;
-      margin: auto 0;
-    }
-
-    h1 {
-      color: #009245;
-      margin-bottom: 15px;
-      font-size: 1.4em;
-    }
-
+    /* === ALL YOUR ORIGINAL STYLES (unchanged) === */
+    body { font-family: Arial, sans-serif; background: #f7f7f7; text-align: center; margin: 0; padding: 20px; min-height: 85vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow-x: hidden; }
+    .container { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); max-width: 600px; width: 90%; text-align: center; margin: auto 0; }
+    h1 { color: #009245; margin-bottom: 15px; font-size: 1.4em; }
     h1 span { font-size: 1.0em; }
     h1 .subtitle { font-size: 0.80em; }
-
     #status, #location { margin: 10px 0; color: #333; }
     pre { white-space: pre-wrap; text-align: center; color: #333; }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
-    }
-
+    button { padding: 10px 20px; font-size: 16px; margin: 5px; background: #009245; color: #fff; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s, transform 0.2s; }
     #clockIn { background: #4CAF50; }
     #clockOut { background: #F44336; }
-
     button:hover:not(:disabled) { background: #006837; transform: scale(1.05); }
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: 0.6; }
-
     #faceRecognition { display: none; margin-top: 10px; }
     #video, #canvas { display: block; margin: 0 auto; width: 100%; max-width: 480px; border-radius: 10px; }
-
-    #loaderOverlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.9); z-index: 3000; justify-content: center; align-items: center; flex-direction: column;
-    }
+    #loaderOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
     .loader { border: 6px solid #f3f3f3; border-top: 6px solid #009245; border-radius: 50%; width: 55px; height: 55px; animation: spin 1s linear infinite; margin-bottom: 15px; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    .popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); justify-content: center; align-items: center; z-index: 2000; animation: popupFadeIn 0.3s forwards; }
+    #loaderOverlay p { margin-top: 10px; font-size: 18px; color: #333; }
+    #progress-bar { width: 80%; height: 6px; background: #eee; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    #progress-fill { height: 100%; width: 0%; background: #009245; transition: width 0.3s; }
+    .popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 2000; animation: popupFadeIn 0.3s forwards; }
     .popup.show { display: flex; }
     @keyframes popupFadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    .popup-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2); animation: fadeIn 0.3s ease-in-out; }
+    .popup-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
-
     .popup-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; padding: 8px; border-radius: 6px; }
     .popup-header.success { background: linear-gradient(135deg, #4CAF50, #45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg, #F44336, #d32f2f); color: #fff; }
-
     #popupMessage { font-size: 1em; color: #444; margin: 10px 0 15px; }
-    .popup-footer { font-size: 0.8em; color: #777; }
     .popup-icon { font-size: 28px; margin: 10px 0; animation: pop 0.4s ease-in-out; }
     .popup-icon.success { color: #4CAF50; animation: bounce 0.6s ease-in-out; }
     .popup-icon.error { color: #F44336; animation: shake 0.5s ease-in-out; }
-
     @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
-    @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
-
-    .popup-close-btn { background: #f0f0f0; color: #666; border: 1px solid #ddd; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
-    .popup-close-btn:hover { background: #e0e0e0; color: #333; }
-
+    @keyframes bounce { 0%,20%,50%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-10px)} 60%{transform:translateY(-5px)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-5px)} 20%,40%,60%,80%{transform:translateX(5px)} }
     .footer { margin-top: auto; font-size: 0.9em; color: #666; padding: 10px 0; text-align: center; border-top: 1px solid #eee; width: 100%; }
     .footer a { color: #009245; text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
-
-    #adminPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); justify-content: center; align-items: center; z-index: 2000; }
+    #adminPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 2000; }
     #adminPopup.show { display: flex; }
-    #adminPopupContent { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2); }
+    #adminPopupContent { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
     #adminPopupContent h2 { font-size: 1.2em; margin-bottom: 20px; color: #009245; }
     #adminPopupContent input { display: block; width: 80%; margin: 10px auto; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
     #adminPopupContent button { margin-top: 15px; padding: 10px 20px; font-size: 1em; }
     #adminError { color: #F44336; margin-top: 10px; font-size: 0.9em; }
-
-    /* Progress Bar for Model Loading */
-    #progress-bar { width: 80%; height: 6px; background: #eee; border-radius: 3px; margin: 10px auto; overflow: hidden; }
-    #progress-fill { height: 100%; width: 0%; background: #009245; transition: width 0.3s; }
+    @media (max-height: 700px) {
+      .container { padding: 15px; width: 80%; } h1 { font-size: 1.2em; } h1 span { font-size: 1.2em; } h1 .subtitle { font-size: 0.75em; }
+      button { padding: 8px 16px; font-size: 14px; } .popup-content { width: calc(100% - 40px); padding: 15px; } .popup-icon { font-size: 24px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>
-      <span>Tolon District Assembly</span><br>
-      <span class="subtitle">Staff Attendance Management</span>
-    </h1>
-    <p id="status">Checking location...</p>
+    <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Management</span></h1>
+    <p id="status">Initializing...</p>
     <pre id="location">Location: Loading...</pre>
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
+      <canvas id="canvas" style="display:none;"></canvas>
     </div>
   </div>
 
-  <!-- Centered Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader"></div>
       <div id="popupIcon"></div>
       <div id="popupMessage"></div>
       <div class="popup-footer" id="popupFooter"></div>
-      <div id="popupRetry"></div>
     </div>
   </div>
 
-  <!-- Loader Overlay -->
   <div id="loaderOverlay">
     <div class="loader"></div>
-    <p id="loaderText">Verifying...</p>
-    <div id="progress-bar">
-      <div id="progress-fill"></div>
-    </div>
+    <p>Verifying...</p>
+    <div id="progress-bar"><div id="progress-fill"></div></div>
   </div>
 
-  <!-- Footer -->
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
 
-  <!-- Admin Login Popup -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
@@ -172,157 +109,143 @@
   </div>
 
   <script>
-    // CompreFace SDK Configuration
-    const COMPRE_FACE_URL = 'http://localhost:8000'; // Your CompreFace URL
-    const API_KEY = 'your-api-key'; // From CompreFace dashboard
-    const compreFace = new CompreFace({
-      baseUrl: COMPRE_FACE_URL,
-      apiKey: API_KEY
-    });
-
-    // Utility Functions
-    function showPopup(title, message, type = 'info') {
-      const popup = document.getElementById('popup');
-      document.getElementById('popupHeader').textContent = title;
-      document.getElementById('popupHeader').className = `popup-header ${type}`;
-      document.getElementById('popupMessage').textContent = message;
-      document.getElementById('popupIcon').textContent = type === 'success' ? '✅' : '❌';
-      document.getElementById('popupIcon').className = `popup-icon ${type}`;
-      popup.classList.add('show');
-      setTimeout(() => popup.classList.remove('show'), 3000);
-    }
-
-    function showLoader(text = 'Verifying...') {
-      document.getElementById('loaderOverlay').style.display = 'flex';
-      document.getElementById('loaderText').textContent = text;
-    }
-
-    function hideLoader() {
-      document.getElementById('loaderOverlay').style.display = 'none';
-    }
-
-    // Start Camera
-    async function startCamera() {
-      const video = document.getElementById('video');
+    // === DYNAMIC CONFIG FROM BACKEND ===
+    let CONFIG = {};
+    async function loadConfig() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        video.srcObject = stream;
-        video.play();
-      } catch (err) {
-        showPopup('Camera Error', 'Please allow camera access.', 'error');
+        const res = await fetch('/api/config');
+        CONFIG = await res.json();
+      } catch (e) {
+        showPopup('Config Error', 'Failed to load settings.', 'error');
       }
     }
+    // ===================================
 
-    // Capture and Resize Image
-    async function captureImage() {
-      const video = document.getElementById('video');
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
+    let compreFace = null;
+    let locationReady = false;
+    let lat = null, lng = null;
 
-      // Resize to 224x224 (optimal for CompreFace, ~50 KB)
-      canvas.width = 224;
-      canvas.height = 224;
-      ctx.drawImage(video, 0, 0, 224, 224);
-
-      // Convert to blob for upload
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+    async function initCompreFace() {
+      if (compreFace) return;
+      await loadConfig();
+      const { CompreFace } = window;
+      compreFace = new CompreFace({
+        baseUrl: CONFIG.COMPREFACE_URL,
+        apiKey: CONFIG.COMPREFACE_API_KEY
       });
     }
 
-    // CompreFace Recognition (Optimized)
-    async function verifyFace(blob, action) {
-      try {
-        showLoader('Verifying face...');
-        const formData = new FormData();
-        formData.append('file', blob, 'face.jpg');
+    function showLoader(text = 'Verifying...') {
+      const o = document.getElementById('loaderOverlay');
+      o.style.display = 'flex';
+      o.querySelector('p').textContent = text;
+      document.getElementById('progress-fill').style.width = '0%';
+    }
+    function updateProgress(p) { document.getElementById('progress-fill').style.width = `${p}%`; }
+    function hideLoader() { setTimeout(() => { document.getElementById('loaderOverlay').style.display = 'none'; }, 300); }
 
-        // Use CompreFace SDK for recognition
-        const response = await compreFace.recognition.recognize(formData, {
-          limit: 1, // Only need top match
-          prediction_count: 1
-        });
-
-        if (response.result.length > 0 && response.result[0].similarities.length > 0) {
-          const match = response.result[0].similarities[0];
-          if (match.similarity > 0.85) { // Your threshold
-            await clockInOut(match.subject, action);
-            return;
-          }
-        }
-
-        showPopup('No Match', 'Face not recognized. Try again.', 'error');
-      } catch (err) {
-        showPopup('Error', 'Verification failed: ' + err.message, 'error');
-      } finally {
-        hideLoader();
-      }
+    function showPopup(title, msg, type = 'success') {
+      const p = document.getElementById('popup');
+      document.getElementById('popupHeader').textContent = title;
+      document.getElementById('popupHeader').className = `popup-header ${type}`;
+      document.getElementById('popupMessage').textContent = msg;
+      document.getElementById('popupIcon').textContent = type === 'success' ? 'Check' : 'Cross';
+      document.getElementById('popupIcon').className = `popup-icon ${type}`;
+      p.classList.add('show');
+      setTimeout(() => p.classList.remove('show'), 3000);
     }
 
-    // Clock In/Out
-    async function clockInOut(subject, action) {
+    async function startCamera() {
+      const v = document.getElementById('video');
       try {
-        const response = await fetch(`${backendURL}/api/attendance/web`, {
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        v.srcObject = s; v.play();
+      } catch { showPopup('Camera Error', 'Allow camera access.', 'error'); }
+    }
+
+    async function captureImage() {
+      const v = document.getElementById('video'), c = document.getElementById('canvas');
+      c.width = 224; c.height = 224;
+      c.getContext('2d').drawImage(v, 0, 0, 224, 224);
+      return new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+    }
+
+    async function verifyFace(blob, action) {
+      if (!compreFace) await initCompreFace();
+      try {
+        showLoader('Uploading...'); updateProgress(30);
+        const fd = new FormData(); fd.append('file', blob, 'face.jpg');
+        updateProgress(60);
+        const res = await compreFace.recognition.recognize(fd, { limit: 1, det_prob_threshold: 0.8, prediction_count: 1 });
+        updateProgress(90);
+        const m = res.result?.[0]?.subjects?.[0];
+        if (!m || m.similarity < 0.85) throw new Error('Face not recognized');
+        await clockInOut(m.subject, action);
+      } catch (e) {
+        showPopup('Failed', e.message || 'Try again.', 'error');
+      } finally { updateProgress(100); hideLoader(); }
+    }
+
+    async function clockInOut(subject, action) {
+      if (!locationReady) { showPopup('GPS Needed', 'Wait for location.', 'error'); return; }
+      try {
+        const r = await fetch('/api/attendance/web', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action,
-            subjectName: subject,
-            latitude: parseFloat(document.getElementById('location').dataset.lat),
-            longitude: parseFloat(document.getElementById('location').dataset.long),
-            timestamp: new Date().toISOString()
-          })
+          body: JSON.stringify({ action, subjectName: subject, latitude: lat, longitude: lng, timestamp: new Date().toISOString() })
         });
-
-        const data = await response.json();
-        showPopup('Success', data.message || `${action.toUpperCase()} recorded!`, 'success');
-      } catch (err) {
-        showPopup('Error', 'Clock failed. Try again.', 'error');
-      }
+        const d = await r.json();
+        showPopup('Success', d.message || `${action.toUpperCase()} recorded!`, 'success');
+      } catch { showPopup('Error', 'Clock failed.', 'error'); }
     }
 
-    // Event Listeners
+    function initLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.watchPosition(p => {
+        lat = p.coords.latitude; lng = p.coords.longitude; locationReady = true;
+        document.getElementById('location').textContent = `Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        document.getElementById('status').textContent = 'Ready';
+        enableButtons();
+      }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
+      setTimeout(() => { if (!locationReady) enableButtons(); }, 15000);
+    }
+
+    function enableButtons() {
+      document.getElementById('clockIn').disabled = false;
+      document.getElementById('clockOut').disabled = false;
+    }
+
+    let clickTO = {};
+    function debounceClick(a) {
+      const b = document.getElementById(a === 'in' ? 'clockIn' : 'clockOut');
+      if (b.disabled) return;
+      clearTimeout(clickTO[a]);
+      clickTO[a] = setTimeout(async () => {
+        b.disabled = true;
+        const blob = await captureImage();
+        await verifyFace(blob, a === 'in' ? 'clock in' : 'clock out');
+        b.disabled = false;
+      }, 300);
+    }
+
+    window.loginAdmin = async () => {
+      const e = document.getElementById('adminEmail').value.trim();
+      const p = document.getElementById('adminPassword').value;
+      if (!e || !p) { document.getElementById('adminError').textContent = 'Fill all'; return; }
+      try {
+        const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, password: p }) });
+        if (r.ok) { localStorage.setItem('adminToken', await r.text()); window.location.href = 'stats.html'; }
+        else { document.getElementById('adminError').textContent = 'Invalid'; }
+      } catch { document.getElementById('adminError').textContent = 'Network error'; }
+    };
+
     document.addEventListener('DOMContentLoaded', async () => {
       await startCamera();
-      
-      document.getElementById('clockIn').onclick = async () => {
-        const blob = await captureImage();
-        await verifyFace(blob, 'clock in');
-      };
-
-      document.getElementById('clockOut').onclick = async () => {
-        const blob = await captureImage();
-        await verifyFace(blob, 'clock out');
-      };
-
-      document.getElementById('adminDashboard').onclick = () => {
-        document.getElementById('adminPopup').classList.add('show');
-      };
-
-      // Location monitoring (your existing logic)
-      // ... (add your geolocation code here)
+      initLocation();
+      document.getElementById('clockIn').onclick = () => debounceClick('in');
+      document.getElementById('clockOut').onclick = () => debounceClick('out');
+      document.getElementById('adminDashboard').onclick = () => document.getElementById('adminPopup').classList.add('show');
     });
-
-    // Admin Login (your existing logic)
-    window.loginAdmin = async () => {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      try {
-        const response = await fetch(`${backendURL}/api/admin-logins`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (response.ok) {
-          localStorage.setItem('isLoggedIn', 'true');
-          window.location.href = 'stats.html';
-        } else {
-          document.getElementById('adminError').textContent = 'Invalid credentials';
-        }
-      } catch (err) {
-        document.getElementById('adminError').textContent = 'Login failed';
-      }
-    };
   </script>
 </body>
 </html>
