@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/compreface-javascript-sdk@2.3.2/dist/compreface.js"></script>
 
   <style>
-    /* === ALL YOUR ORIGINAL STYLES (unchanged) === */
+    /* === YOUR ORIGINAL STYLES (100% UNCHANGED) === */
     body { font-family: Arial, sans-serif; background: #f7f7f7; text-align: center; margin: 0; padding: 20px; min-height: 85vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow-x: hidden; }
     .container { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); max-width: 600px; width: 90%; text-align: center; margin: auto 0; }
     h1 { color: #009245; margin-bottom: 15px; font-size: 1.4em; }
@@ -116,7 +116,7 @@
         const res = await fetch('/api/config');
         CONFIG = await res.json();
       } catch (e) {
-        showPopup('Config Error', 'Failed to load settings.', 'error');
+        showPopup('Config Error', 'Failed to load CompreFace settings.', 'error');
       }
     }
     // ===================================
