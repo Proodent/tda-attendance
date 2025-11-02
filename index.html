@@ -1,462 +1,384 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tolon District Assembly Staff Attendance Management</title>
-  <link rel="icon" type="image/png" href="/assets/favicon.png" />
-  <style>
-    /* General styles */
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      min-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      overflow-x: hidden;
-    }
+// Global variables
+let watchId = null;
+let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRetry;
+let loaderEl;
+let locations = [];
+let popupTimeout = null;
+let locationErrorShown = false;
 
-    .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      max-width: 600px;
-      width: 90%;
-      text-align: center;
-      margin: auto 0;
-    }
+// Utility functions
+function toRad(v) { return v * Math.PI / 180; }
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-    h1 {
-      color: #009245;
-      margin-bottom: 15px;
-      font-size: 1.4em;
-    }
+// Show popup
+function showPopup(title, message, success = null) {
+  if (!popupEl) return alert(`${title}\n\n${message}`);
+  if (popupTimeout) clearTimeout(popupTimeout);
+  popupHeader.textContent = title;
+  popupHeader.className = 'popup-header';
+  if (success === true) popupHeader.classList.add('success');
+  else if (success === false) popupHeader.classList.add('error');
+  popupMessage.innerHTML = message;
+  popupMessage.innerHTML += success === true ? '<div class="popup-icon success">✅</div>' : success === false ? '<div class="popup-icon error">❌</div>' : '';
+  popupFooter.textContent = new Date().toLocaleString('en-US', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  popupRetry.innerHTML = '<button id="popupCloseBtn" class="popup-close-btn">Close</button>';
+  popupEl.style.display = 'flex';
+  popupEl.classList.add('show');
+  popupTimeout = setTimeout(() => {
+    popupEl.classList.remove('show');
+    popupEl.style.display = 'none';
+    if (title === 'Location Error' && success === false) locationErrorShown = true;
+  }, 5000);
+  const closeBtn = document.getElementById('popupCloseBtn');
+  if (closeBtn) closeBtn.onclick = () => {
+    popupEl.classList.remove('show');
+    popupEl.style.display = 'none';
+    if (title === 'Location Error' && success === false) locationErrorShown = true;
+  };
+}
 
-    h1 span {
-      font-size: 1.0em;
-    }
+// Show loader
+function showLoader(text = "Verifying...") {
+  loaderEl.querySelector("p").textContent = text;
+  loaderEl.style.display = "flex";
+  document.getElementById('progress-fill').style.width = '0%';
+}
 
-    h1 .subtitle {
-      font-size: 0.80em;
-    }
+// Hide loader
+function hideLoader() {
+  loaderEl.style.display = "none";
+}
 
-    #status,
-    #location {
-      margin: 10px 0;
-      color: #333;
-    }
+// Fetch locations
+async function fetchLocations() {
+  try {
+    showLoader("Loading locations...");
+    const response = await fetch('/api/locations', { mode: 'cors' });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.locations)) throw new Error('Invalid location data format: ' + JSON.stringify(data));
+    locations = data.locations.map(l => ({
+      name: l.name,
+      lat: Number(l.lat),
+      long: Number(l.long),
+      radiusMeters: Number(l.radiusMeters)
+    }));
+    hideLoader();
+    return true;
+  } catch (error) {
+    hideLoader();
+    showPopup('Location Error', `Failed to load locations: ${error.message}. Check server and Locations Sheet.`, false);
+    return false;
+  }
+}
 
-    pre {
-      white-space: pre-wrap;
-      text-align: center;
-      color: #333;
-    }
+// Location watch
+function startLocationWatch() {
+  videoEl = document.getElementById('video');
+  canvasEl = document.getElementById('canvas');
+  popupEl = document.getElementById('popup');
+  popupHeader = document.getElementById('popupHeader');
+  popupMessage = document.getElementById('popupMessage');
+  popupFooter = document.getElementById('popupFooter');
+  popupRetry = document.getElementById('popupRetry');
+  loaderEl = document.getElementById('loaderOverlay');
 
-    /* Button styles */
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
+  fetchLocations().then(ok => {
+    if (!ok) {
+      document.getElementById('status').textContent = 'Location load failed.';
+      document.getElementById('clockIn').disabled = document.getElementById('clockOut').disabled = true;
+      return;
     }
+    if (!navigator.geolocation) {
+      document.getElementById('status').textContent = 'Geolocation not supported.';
+      document.getElementById('clockIn').disabled = document.getElementById('clockOut').disabled = true;
+      showPopup('Geolocation Error', 'Your browser doesn’t support geolocation.', false);
+      return;
+    }
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        let office = null;
+        for (const loc of locations) {
+          const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
+          if (distKm <= loc.radiusMeters / 1000) {
+            office = loc.name;
+            break;
+          }
+        }
+        if (office) {
+          document.getElementById('status').textContent = `At: ${office}`;
+          document.getElementById('location').textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          document.getElementById('location').dataset.lat = latitude;
+          document.getElementById('location').dataset.long = longitude;
+          document.getElementById('clockIn').disabled = false;
+          document.getElementById('clockOut').disabled = false;
+          document.getElementById('clockIn').style.opacity = document.getElementById('clockOut').style.opacity = "1";
+          locationErrorShown = false;
+        } else if (!locationErrorShown) {
+          document.getElementById('status').textContent = 'Unapproved Location';
+          document.getElementById('location').textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          document.getElementById('location').dataset.lat = latitude;
+          document.getElementById('location').dataset.long = longitude;
+          document.getElementById('clockIn').disabled = document.getElementById('clockOut').disabled = true;
+          document.getElementById('clockIn').style.opacity = document.getElementById('clockOut').style.opacity = "0.6";
+          showPopup('Location Error', 'Not at an approved office.', false);
+        }
+      },
+      err => {
+        console.error('Geolocation error at', new Date().toISOString(), ':', err);
+        document.getElementById('status').textContent = `Location error: ${err.message}`;
+        document.getElementById('clockIn').disabled = document.getElementById('clockOut').disabled = true;
+        if (!locationErrorShown) {
+          showPopup('Location Error', `GPS failed: ${err.message}`, false);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+  });
+}
 
-    #clockIn {
-      background: #4CAF50;
-    }
-
-    #clockOut {
-      background: #F44336;
-    }
-
-    button:hover:not(:disabled) {
-      background: #006837;
-      transform: scale(1.05);
-    }
-
-    #clockOut:hover:not(:disabled) {
-      background: #d32f2f;
-    }
-
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    /* Face recognition */
-    #faceRecognition {
-      display: none;
-      margin-top: 10px;
-    }
-
-    #video,
-    #canvas {
-      display: block;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 480px;
-      border-radius: 10px;
-    }
-
-    /* Loader overlay */
-    #loaderOverlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.8);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-
-    .loader {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #009245;
-      border-radius: 50%;
-      width: 55px;
-      height: 55px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-
-    @keyframes spin {
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-
-    #loaderOverlay p {
-      margin-top: 10px;
-      font-size: 18px;
-      color: #333;
-    }
-
-    /* Popup styles */
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      animation: popupFadeIn 0.3s forwards;
-    }
-
-    .popup.show {
-      display: flex;
-    }
-
-    @keyframes popupFadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
-    }
-
-    .popup-content {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-15px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .popup-header {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-      padding: 8px;
-      border-radius: 6px;
-    }
-
-    .popup-header.success {
-      background: linear-gradient(135deg, #4CAF50, #45a049);
-      color: #fff;
-    }
-
-    .popup-header.error {
-      background: linear-gradient(135deg, #F44336, #d32f2f);
-      color: #fff;
-    }
-
-    #popupMessage {
-      font-size: 1em;
-      color: #444;
-      margin: 10px 0 15px;
-    }
-
-    .popup-footer {
-      font-size: 0.8em;
-      color: #777;
-    }
-
-    .popup-icon {
-      font-size: 28px;
-      margin: 10px 0;
-      animation: pop 0.4s ease-in-out;
-    }
-
-    .popup-icon.success {
-      color: #4CAF50;
-      animation: bounce 0.6s ease-in-out;
-    }
-
-    .popup-icon.error {
-      color: #F44336;
-      animation: shake 0.5s ease-in-out;
-    }
-
-    @keyframes pop {
-      from {
-        transform: scale(0.6);
-        opacity: 0;
-      }
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    @keyframes bounce {
-      0%, 20%, 50%, 80%, 100% {
-        transform: translateY(0);
-      }
-      40% {
-        transform: translateY(-10px);
-      }
-      60% {
-        transform: translateY(-5px);
-      }
-    }
-
-    @keyframes shake {
-      0%, 100% {
-        transform: translateX(0);
-      }
-      10%, 30%, 50%, 70%, 90% {
-        transform: translateX(-5px);
-      }
-      20%, 40%, 60%, 80% {
-        transform: translateX(5px);
-      }
-    }
-
-    .popup-close-btn {
-      background: #f0f0f0;
-      color: #666;
-      border: 1px solid #ddd;
-      padding: 8px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: background 0.3s;
-    }
-
-    .popup-close-btn:hover {
-      background: #e0e0e0;
-      color: #333;
-    }
-
-    /* Responsive design */
-    @media (max-height: 700px) {
-      .container {
-        padding: 15px;
-        width: 80%;
-      }
-      h1 {
-        font-size: 1.2em;
-      }
-      h1 span {
-        font-size: 1.2em;
-      }
-      h1 .subtitle {
-        font-size: 0.75em;
-      }
-      button {
-        padding: 8px 16px;
-        font-size: 14px;
-      }
-      .popup-content {
-        width: calc(100% - 40px);
-        padding: 15px;
-      }
-      .popup-icon {
-        font-size: 24px;
-      }
-    }
-
-    /* Footer styles */
-    .footer {
-      margin-top: auto;
-      font-size: 0.9em;
-      color: #666;
-      padding: 10px 0;
-      text-align: center;
-      border-top: 1px solid #eee;
-      width: 100%;
-    }
-
-    .footer a {
-      color: #009245;
-      text-decoration: none;
-    }
-
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Admin Login Popup */
-    #adminPopup {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      animation: popupFadeIn 0.3s forwards;
-    }
-
-    #adminPopup.show {
-      display: flex;
-    }
-
-    #adminPopupContent {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-      animation: fadeIn 0.3s ease-in-out;
-    }
-
-    #adminPopupContent h2 {
-      font-size: 1.2em;
-      margin-bottom: 20px;
-      color: #009245;
-    }
-
-    #adminPopupContent input {
-      display: block;
-      width: 80%;
-      margin: 10px auto;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 1em;
-    }
-
-    #adminPopupContent button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 1em;
-    }
-
-    #adminPopupContent .error {
-      color: #F44336;
-      margin-top: 10px;
-      font-size: 0.9em;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>
-      <span>Tolon District Assembly</span><br>
-      <span class="subtitle">Staff Attendance Management</span>
-    </h1>
-    <p id="status">Checking location...</p>
-    <pre id="location">Location: Loading...</pre>
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-    </div>
-  </div>
-  <!-- Centered Popup -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <div class="popup-header" id="popupHeader"></div>
-      <div id="popupIcon"></div>
-      <div id="popupMessage"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div id="popupRetry"></div>
-    </div>
-  </div>
-  <!-- Loader Overlay -->
-  <div id="loaderOverlay">
-    <div class="loader"></div>
-    <p>Verifying...</p>
-  </div>
-  <!-- Footer -->
-  <div class="footer">
-    <div><button id="adminDashboard">Admin Dashboard</button></div>
-    <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
-  </div>
-  <!-- Admin Login Popup -->
-  <div id="adminPopup" class="popup">
-    <div id="adminPopupContent">
-      <h2>Admin Login</h2>
-      <p style="font-size: 0.8em; color: #666;">(Check with server for valid credentials)</p>
-      <input type="email" id="adminEmail" placeholder="Enter Email" />
-      <input type="password" id="adminPassword" placeholder="Enter Password" />
-      <button onclick="loginAdmin()">Login</button>
-      <p id="adminError" class="error"></p>
-    </div>
-  </div>
-  <script src="script.js"></script>
-  <script>
-    // No session timeout logic here since this is a public landing page
-    document.getElementById('adminDashboard').addEventListener('click', () => {
-      document.getElementById('adminPopup').classList.add('show');
+// Start video for facial recognition
+async function startVideo() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    videoEl.srcObject = stream;
+    videoEl.style.transform = 'scaleX(-1)';
+    await videoEl.play();
+    return true;
+  } catch (err) {
+    console.error('Camera error at', new Date().toISOString(), ':', err);
+    showPopup('Camera Error', `Access denied: ${err.message}`, false);
+    return false;
+  }
+}
+// Stop video stream
+function stopVideo() {
+  if (videoEl && videoEl.srcObject) {
+    videoEl.srcObject.getTracks().forEach(t => t.stop());
+    videoEl.srcObject = null;
+  }
+}
+// Validate face via CompreFace proxy
+async function validateFaceWithProxy(base64) {
+  try {
+    console.log('Sending face data to proxy at', new Date().toISOString());
+    const response = await fetch('/api/proxy/face-recognition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: base64 })
     });
+    console.log('Proxy response status at', new Date().toISOString(), ':', response.status);
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('Proxy error response at', new Date().toISOString(), ':', text);
+      return { ok: false, error: `Service unavailable: ${text}` };
+    }
+    const data = await response.json();
+    console.log('Face recognition data at', new Date().toISOString(), ':', data);
+    if (data?.result?.length && data.result[0].subjects?.length) {
+      const top = data.result[0].subjects[0];
+      return { ok: true, subject: top.subject, similarity: Number(top.similarity) || 0 };
+    }
+    return { ok: false, error: data?.message || 'No match found' };
+  } catch (err) {
+    console.error('Face validation error at', new Date().toISOString(), ':', err);
+    return { ok: false, error: err.message || 'Service error' };
+  }
+}
+// Handle clock in/out
+async function handleClock(action) {
+  const locationEl = document.getElementById('location');
+  const lat = Number(locationEl.dataset.lat);
+  const long = Number(locationEl.dataset.long);
+  if (!lat || !long) {
+    console.error('No GPS data available at', new Date().toISOString(), ':', { lat, long });
+    showPopup('Location Error', 'No GPS data.', false);
+    return;
+  }
+  let office = null;
+  for (const loc of locations) {
+    const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
+    if (distKm <= loc.radiusMeters / 1000) {
+      office = loc.name;
+      break;
+    }
+  }
+  if (!office) {
+    console.error('Not at an approved office at', new Date().toISOString(), ':', { lat, long, locations });
+    showPopup('Location Error', 'Not at an approved office.', false);
+    return;
+  }
+  document.getElementById('faceRecognition').style.display = 'block';
+  const started = await startVideo();
+  if (!started) return;
+  await new Promise(r => setTimeout(r, 1000));
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 640;
+  tempCanvas.height = 480;
+  const ctx = tempCanvas.getContext('2d');
+  ctx.translate(tempCanvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
+  const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
+  console.log('Captured face image length at', new Date().toISOString(), ':', base64.length);
+  stopVideo();
+  document.getElementById('faceRecognition').style.display = 'none';
+  showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
+  const faceRes = await validateFaceWithProxy(base64);
+  console.log('Face validation result at', new Date().toISOString(), ':', faceRes);
+  if (!faceRes.ok) {
+    hideLoader();
+    showPopup('Face Error', faceRes.error || 'No match.', false);
+    return;
+  }
+  if (faceRes.similarity < 0.85) {
+    hideLoader();
+    showPopup('Face Error', 'Low similarity. Try better lighting.', false);
+    return;
+  }
+  try {
+    const response = await fetch('/api/attendance/web', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        subjectName: faceRes.subject,
+        latitude: lat,
+        longitude: long,
+        timestamp: new Date().toISOString()
+      })
+    });
+    console.log('Attendance response status at', new Date().toISOString(), ':', response.status);
+    const data = await response.json();
+    console.log('Attendance response data at', new Date().toISOString(), ':', data);
+    hideLoader();
+    if (data.success) {
+      showPopup('Verification Successful', `Dear ${faceRes.subject}, ${action} recorded at ${office}.`, true);
+    } else {
+      const messages = {
+        'Staff not found or inactive': `${faceRes.subject}, profile issue. Contact HR.`,
+        'Not inside any registered office location': 'Not at an approved location.',
+        'Unapproved Location': `${faceRes.subject}, unauthorized location.`,
+        'Dear': `${faceRes.subject}, ${data.message.toLowerCase()}`,
+        'Invalid input': 'Invalid data. Try again.'
+      };
+      showPopup('Attendance Error', messages[data.message] || data.message || 'Not logged.', false);
+    }
+  } catch (err) {
+    console.error('Attendance error at', new Date().toISOString(), ':', err);
+    hideLoader();
+    showPopup('Server Error', `Connection failed: ${err.message}`, false);
+  }
+}
+// Fetch admin logins from server
+async function fetchAdminLogins() {
+  try {
+    showLoader('Fetching admin logins...');
+    const response = await fetch('/api/admin-logins', { mode: 'cors' });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
+    const data = await response.json();
+    console.log('Admin logins data at', new Date().toISOString(), ':', data);
+    hideLoader();
+    return data.success ? data.logins : [];
+  } catch (error) {
+    console.error('Admin fetch error at', new Date().toISOString(), ':', error);
+    hideLoader();
+    showPopup('Admin Error', `Failed to fetch admin logins: ${error.message}. Check server and Admin Logins sheet.`, false);
+    return [];
+  }
+}
+// Handle admin login
+function loginAdmin() {
+  const email = document.getElementById('adminEmail')?.value.trim();
+  const password = document.getElementById('adminPassword')?.value.trim();
+  const adminError = document.getElementById('adminError');
+  const adminPopup = document.getElementById('adminPopup');
+  if (!email || !password || !adminError || !adminPopup) {
+    console.error('Missing login elements at', new Date().toISOString(), ':', { email, password, adminError, adminPopup });
+    showPopup('Init Error', 'Login form incomplete. Reload.', false);
+    return;
+  }
+  if (!email || !password) {
+    adminError.textContent = 'Please fill in both fields.';
+    return;
+  }
+  fetchAdminLogins().then(adminLogins => {
+    if (adminLogins.length === 0) {
+      adminError.textContent = 'No admin logins found. Check server configuration.';
+      return;
+    }
+    const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
+    console.log('Login check at', new Date().toISOString(), ':', { email, password, adminLogins });
+    if (validLogin) {
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('lastActivity', Date.now());
+      adminPopup.classList.remove('show');
+      window.location.href = 'stats.html'; // Redirect to a protected page
+    } else {
+      adminError.textContent = 'Invalid email or password.';
+    }
+  });
+}
+// Close admin popup if clicked outside
+document.addEventListener('DOMContentLoaded', () => {
+  const adminPopup = document.getElementById('adminPopup');
+  if (adminPopup) {
+    adminPopup.addEventListener('click', e => {
+      if (e.target === adminPopup) adminPopup.classList.remove('show');
+    });
+  }
+});
+document.addEventListener('DOMContentLoaded', startLocationWatch);
+window.onunload = () => {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  stopVideo();
+};
+// Session timeout logic (moved to a function to apply only on protected pages)
+function initSessionTimeout() {
+  let timeoutId;
+  const SESSION_TIMEOUT = 86400000; // 24 hours in milliseconds
+  const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
+  const logout = () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('lastActivity');
+    clearTimeout(timeoutId);
+    window.location.href = 'index.html'; // Redirect to landing page on logout
+  };
+  const resetTimeout = () => {
+    const lastActivity = localStorage.getItem('lastActivity');
+    if (lastActivity) {
+      const inactiveTime = Date.now() - parseInt(lastActivity, 10);
+      if (inactiveTime >= SESSION_TIMEOUT) {
+        logout();
+        return;
+      }
+    }
+    localStorage.setItem('lastActivity', Date.now());
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      alert('Session expired due to inactivity. Please log in again.');
+      logout();
+    }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
+  };
+  // Apply timeout only if logged in and on a protected page
+  if (isLoggedIn() && window.location.pathname !== '/index.html') {
+    localStorage.setItem('lastActivity', Date.now());
+    resetTimeout();
+    document.addEventListener('mousemove', resetTimeout);
+    document.addEventListener('keypress', resetTimeout);
+    document.addEventListener('click', resetTimeout);
+  }
+}
+document.addEventListener('DOMContentLoaded', initSessionTimeout); 
+
   </script>
-  <script>window.loginAdmin = window.loginAdmin || function() {};</script>
 </body>
 </html>
-
-
-
-
