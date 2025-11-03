@@ -6,57 +6,239 @@
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* === YOUR ORIGINAL STYLES (unchanged) === */
-    body{font-family:Arial,sans-serif;background:#f7f7f7;text-align:center;margin:0;padding:20px;min-height:85vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow-x:hidden}
-    .container{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:600px;width:90%;margin:auto 0}
-    h1{color:#009245;margin-bottom:15px;font-size:1.4em}
-    h1 span{font-size:1em}
-    h1 .subtitle{font-size:.8em}
-    #status,#location{margin:10px 0;color:#333}
-    pre{white-space:pre-wrap;text-align:center;color:#333}
-    button{padding:10px 20px;font-size:16px;margin:5px;background:#009245;color:#fff;border:none;border-radius:5px;cursor:pointer;transition:.3s}
-    #clockIn{background:#4CAF50}
-    #clockOut{background:#F44336}
-    button:hover:not(:disabled){background:#006837;transform:scale(1.05)}
-    #clockOut:hover:not(:disabled){background:#d32f2f}
-    button:disabled{background:#ccc;cursor:not-allowed;opacity:.6}
-    #faceRecognition{display:none;margin-top:10px}
-    #video,#canvas{display:block;margin:0 auto;width:100%;max-width:480px;border-radius:10px}
-    #loaderOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.8);z-index:3000;justify-content:center;align-items:center;flex-direction:column}
-    .loader{border:6px solid #f3f3f3;border-top:6px solid #009245;border-radius:50%;width:55px;height:55px;animation:spin 1s linear infinite;margin-bottom:15px}
-    @keyframes spin{100%{transform:rotate(360deg)}}
-    #loaderOverlay p{margin-top:10px;font-size:18px;color:#333}
-    .footer{margin-top:auto;font-size:.9em;color:#666;padding:10px 0;border-top:1px solid #eee;width:100%}
-    .footer a{color:#009245;text-decoration:none}
-    .footer a:hover{text-decoration:underline}
-
-    /* === POPUP FIX: unique classes + close button === */
-    .popup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000}
-    .popup.show{display:flex}
-    .popup-content{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2);animation:fadeIn .3s}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-15px)}to{opacity:1;transform:translateY(0)}}
-    .popup-header{font-size:1.2em;font-weight:bold;margin-bottom:10px;padding:8px;border-radius:6px}
-    .popup-header.success{background:linear-gradient(135deg,#4CAF50,#45a049);color:#fff}
-    .popup-header.error{background:linear-gradient(135deg,#F44336,#d32f2f);color:#fff}
-    #popupMessage{font-size:1em;color:#444;margin:10px 0 15px}
-    .popup-close-btn{background:#f0f0f0;color:#666;border:1px solid #ddd;padding:8px 15px;border-radius:5px;cursor:pointer;margin-top:10px}
-    .popup-close-btn:hover{background:#e0e0e0;color:#333}
-
-    /* === ADMIN POPUP (now unique) === */
-    #adminPopupContent h2{font-size:1.2em;margin-bottom:20px;color:#009245}
-    #adminPopupContent input{display:block;width:80%;margin:10px auto;padding:10px;border:1px solid #ccc;border-radius:5px;font-size:1em}
-    #adminPopupContent button{margin-top:15px;padding:10px 20px;font-size:1em}
-    #adminPopupContent .error{color:#F44336;margin-top:10px;font-size:.9em}
-
-    /* === NEW: CLOCK + DATE + GPS === */
-    .time-box{margin:15px 0}
-    .label-current{font-size:1em;color:#333;margin:8px 0 4px}
-    #liveClock{font-size:1.8em;font-weight:700;letter-spacing:3px;color:#009245;background:linear-gradient(135deg,#e8f5e8,#fff);padding:12px 20px;border-radius:30px;box-shadow:0 6px 15px rgba(0,147,69,.15),inset 0 3px 6px rgba(255,255,255,.9);display:inline-block;min-width:210px}
-    #liveClock span{display:inline-block;min-width:1.2ch;text-align:center}
-    .colon{color:#006837;font-weight:500}
-    #liveDate{font-size:1.1em;color:#444;margin-top:8px;font-weight:600;letter-spacing:1px}
-    #gpsCoords{font-size:1em;color:#555;margin:8px 0 15px}
-    #location{display:none} /* hide old text */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin: auto 0;
+    }
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+    }
+    h1 span {
+      font-size: 1em;
+    }
+    h1 .subtitle {
+      font-size: .8em;
+    }
+    #status, #location {
+      margin: 10px 0;
+      color: #333;
+    }
+    pre {
+      white-space: pre-wrap;
+      text-align: center;
+      color: #333;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: .3s;
+    }
+    #clockIn {
+      background: #4CAF50;
+    }
+    #clockOut {
+      background: #F44336;
+    }
+    button:hover:not(:disabled) {
+      background: #006837;
+      transform: scale(1.05);
+    }
+    #clockOut:hover:not(:disabled) {
+      background: #d32f2f;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      opacity: .6;
+    }
+    #faceRecognition {
+      display: none;
+      margin-top: 10px;
+    }
+    #video, #canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 10px;
+    }
+    .footer {
+      margin-top: auto;
+      font-size: .9em;
+      color: #666;
+      padding: 10px 0;
+      border-top: 1px solid #eee;
+      width: 100%;
+    }
+    .footer a {
+      color: #009245;
+      text-decoration: none;
+    }
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .popup.show {
+      display: flex;
+    }
+    .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+      animation: fadeIn .3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-15px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .popup-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .popup-header.success {
+      background: linear-gradient(135deg,#4CAF50,#45a049);
+      color: #fff;
+    }
+    .popup-header.error {
+      background: linear-gradient(135deg,#F44336,#d32f2f);
+      color: #fff;
+    }
+    #popupMessage {
+      font-size: 1em;
+      color: #444;
+      margin: 10px 0 15px;
+    }
+    .popup-close-btn {
+      background: #f0f0f0;
+      color: #666;
+      border: 1px solid #ddd;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .popup-close-btn:hover {
+      background: #e0e0e0;
+      color: #333;
+    }
+    #adminPopupContent h2 {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      color: #009245;
+    }
+    #adminPopupContent input {
+      display: block;
+      width: 80%;
+      margin: 10px auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    #adminPopupContent button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+    }
+    #adminPopupContent .error {
+      color: #F44336;
+      margin-top: 10px;
+      font-size: .9em;
+    }
+    .time-box {
+      margin: 18px 0;
+    }
+    .label-current {
+      font-size: 1em;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    #liveClock {
+      font-size: 1.9em;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #009245;
+      background: linear-gradient(135deg,#e8f5e8,#fff);
+      padding: 12px 22px;
+      border-radius: 32px;
+      box-shadow: 0 6px 16px rgba(0,147,69,.18), inset 0 3px 6px rgba(255,255,255,.9);
+      display: inline-block;
+      min-width: 260px;
+    }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.3ch;
+      text-align: center;
+    }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
+    #liveDate {
+      font-size: 1.15em;
+      color: #444;
+      margin-top: 9px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    #ampm {
+      font-size: .65em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 6px;
+    }
+    #gpsCoords {
+      font-size: 1em;
+      color: #555;
+      margin: 10px 0 16px;
+    }
+    #location {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -64,19 +246,17 @@
     <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Management</span></h1>
     <p id="status">Checking location...</p>
 
-    <!-- CLOCK + DATE -->
     <div class="time-box">
       <div class="label-current">Current Time</div>
-      <div id="liveClock">00 : 00 : 00</div>
-      <div id="liveDate">Loading...</div>
+      <div id="liveClock">12 : 00 : 00 <span id="ampm">AM</span></div>
+      <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- GPS -->
     <p id="gpsCoords"></p>
     <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
+    <button id="clockIn">Clock In</button>
+    <button id="clockOut">Clock Out</button>
     <p id="message"></p>
 
     <div id="faceRecognition">
@@ -85,7 +265,6 @@
     </div>
   </div>
 
-  <!-- CLOCK IN/OUT POPUP -->
   <div id="resultPopup" class="popup">
     <div class="popup-content">
       <div id="popupHeader" class="popup-header success">Success</div>
@@ -94,7 +273,6 @@
     </div>
   </div>
 
-  <!-- ADMIN LOGIN POPUP -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
@@ -106,7 +284,6 @@
     </div>
   </div>
 
-  <!-- FOOTER -->
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
@@ -114,50 +291,47 @@
 
   <script src="script.js"></script>
   <script>
-    /* === POPUP HELPERS === */
     function showPopup(id, header, msg, type='success') {
       document.getElementById('popupHeader').textContent = header;
       document.getElementById('popupHeader').className = 'popup-header ' + type;
       document.getElementById('popupMessage').textContent = msg;
       document.getElementById(id).classList.add('show');
     }
-    function closePopup(id) {
-      document.getElementById(id).classList.remove('show');
-    }
+    function closePopup(id) { document.getElementById(id).classList.remove('show'); }
 
-    /* === DEMO CLOCK IN/OUT (replace with your script.js logic) === */
     document.getElementById('clockIn').onclick = () => {
-      const t = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
       showPopup('resultPopup', 'Clock In Success', `You clocked in at ${t}`, 'success');
       document.getElementById('clockIn').disabled = true;
       document.getElementById('clockOut').disabled = false;
     };
     document.getElementById('clockOut').onclick = () => {
-      const t = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
       showPopup('resultPopup', 'Clock Out Success', `You clocked out at ${t}`, 'success');
       document.getElementById('clockOut').disabled = true;
       document.getElementById('clockIn').disabled = false;
     };
 
-    /* === ADMIN DASHBOARD === */
     document.getElementById('adminDashboard').onclick = () => 
       document.getElementById('adminPopup').classList.add('show');
 
-    /* === LIVE CLOCK + DATE === */
+    // 12-HOUR + AM/PM + DATE
     function updateClock() {
       const now = new Date();
-      const h = now.getHours().toString().padStart(2,'0');
+      let h = now.getHours();
       const m = now.getMinutes().toString().padStart(2,'0');
       const s = now.getSeconds().toString().padStart(2,'0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
       const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
       document.getElementById('liveClock').innerHTML = 
-        `<span>${h}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span>`;
+        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
       document.getElementById('liveDate').textContent = dateStr;
     }
     updateClock();
     setInterval(updateClock, 500);
 
-    /* === GPS (shows only when ready) === */
+    // GPS
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
