@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tolon District Assembly Staff Attendance Management</title>
+  <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
     /* === ONE PROPERTY PER LINE === */
@@ -31,13 +31,12 @@
       margin: auto 0;
     }
     h1 {
-      /* color: #009245; */
-      color: #242424;
+      color: #009245;
       margin-bottom: 15px;
       font-size: 1.4em;
     }
     h1 span {
-      font-size: 1em;
+      font-size: .8em;
     }
     h1 .subtitle {
       color: #242424;
@@ -51,11 +50,11 @@
       margin: 10px 0;
       color: #333;
     }
-    pre {
+    /* pre {
       white-space: pre-wrap;
       text-align: center;
       color: #333;
-    }
+    } */
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -295,7 +294,7 @@
       border-radius: 5px;
       /* box-shadow: 0 4px 10px rgba(0,147,69,.15), inset 0 2px 4px rgba(255,255,255,.9); */
       display: inline-block;
-      min-width: 150px;
+      min-width: 140px;
     }
     #liveClock span {
       display: inline-block;
@@ -332,7 +331,7 @@
   <div class="container">
     <h1>
       <span>Tolon District Assembly</span><br>
-      <span class="subtitle">Staff Attendance Management</span>
+      <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
     <!-- GPS FIRST -->
@@ -348,7 +347,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
+    <!-- <pre id="location" data-lat="" data-long="">Location: Loading...</pre> -->
 
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
@@ -423,6 +422,7 @@
   </script>
 </body>
 </html>
+
 
 
 
