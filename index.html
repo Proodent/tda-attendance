@@ -6,71 +6,37 @@
   <title>Tolon District Assembly Staff Attendance</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* === EXISTING STYLES (unchanged) === */
     body{font-family:Arial,sans-serif;background:#f7f7f7;text-align:center;margin:0;padding:20px;min-height:85vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow-x:hidden}
-    .container{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:600px;width:90%;text-align:center;margin:auto 0}
+    .container{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:600px;width:90%;margin:auto 0}
     h1{color:#009245;margin-bottom:15px;font-size:1.4em}
     h1 span{font-size:1em}
     h1 .subtitle{font-size:.8em}
-    #status,#location{margin:10px 0;color:#333}
-    pre{white-space:pre-wrap;text-align:center;color:#333}
-    button{padding:10px 20px;font-size:16px;margin:5px;background:#009245;color:#fff;border:none;border-radius:5px;cursor:pointer;transition:background .3s,transform .2s}
+    button{padding:10px 20px;font-size:16px;margin:5px;background:#009245;color:#fff;border:none;border-radius:5px;cursor:pointer;transition:.3s}
     #clockIn{background:#4CAF50}
     #clockOut{background:#F44336}
-    button:hover:not(:disabled){background:#006837;transform:scale(1.05)}
+    button:hover:not(:disabled){transform:scale(1.05)}
     #clockOut:hover:not(:disabled){background:#d32f2f}
     button:disabled{background:#ccc;cursor:not-allowed;opacity:.6}
-    #faceRecognition{display:none;margin-top:10px}
-    #video,#canvas{display:block;margin:0 auto;width:100%;max-width:480px;border-radius:10px}
-    #loaderOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.8);z-index:3000;justify-content:center;align-items:center;flex-direction:column}
-    .loader{border:6px solid #f3f3f3;border-top:6px solid #009245;border-radius:50%;width:55px;height:55px;animation:spin 1s linear infinite;margin-bottom:15px}
-    @keyframes spin{100%{transform:rotate(360deg)}}
-    #loaderOverlay p{margin-top:10px;font-size:18px;color:#333}
-    .popup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000}
-    .popup.show{display:flex}
-    .popup-content{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2)}
-    .footer{margin-top:auto;font-size:.9em;color:#666;padding:10px 0;text-align:center;border-top:1px solid #eee;width:100%}
-    .footer a{color:#009245;text-decoration:none}
-    .footer a:hover{text-decoration:underline}
-    #adminPopup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000}
-    #adminPopup.show{display:flex}
-    #adminPopupContent{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2)}
-    #adminPopupContent h2{font-size:1.2em;margin-bottom:20px;color:#009245}
-    #adminPopupContent input{display:block;width:80%;margin:10px auto;padding:10px;border:1px,border-radius:5px;font-size:1em}
-    #adminPopupContent button{margin-top:15px;padding:10px 20px;font-size:1em}
-    #adminPopupContent .error{color:#F44336;margin-top:10px;font-size:.9em}
 
-    /* === NEW ELEGANT CLOCK + DATE === */
-    .time-wrapper{
-      margin: 15px 0;
-    }
-    #liveClock{
-      font-size: 2.2em;
-      font-weight: 700;
-      letter-spacing: 3px;
-      color: #009245;
-      background: linear-gradient(135deg, #e8f5e8, #ffffff);
-      padding: 12px 20px;
-      border-radius: 30px;
-      box-shadow: 0 6px 15px rgba(0,147,69,.15), inset 0 3px 6px rgba(255,255,255,.9);
-      display: inline-block;
-      min-width: 210px;
-    }
-    #liveClock span{display: inline-block;min-width: 1.2ch;text-align: center}
-    .colon{color: #006837;font-weight: 500}
-    #liveDate{
-      font-size: 1.1em;
-      color: #444;
-      margin-top: 8px;
-      font-weight: 600;
-      letter-spacing: 1px;
-    }
-    #gpsCoords{
-      font-size: 1em;
-      color: #555;
-      margin: 8px 0 15px;
-    }
+    /* ===== POPUPS — UNIQUE CLASSES ===== */
+    .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000}
+    .modal.show{display:flex}
+    .modal-content{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2);animation:fadeIn .3s}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(-15px)}to{opacity:1;transform:translateY(0)}}
+    .modal-header{font-weight:bold;padding:8px;border-radius:6px;margin-bottom:10px}
+    .success{background:#4CAF50;color:#fff}
+    .error{background:#F44336;color:#fff}
+
+    /* ===== CLOCK + DATE ===== */
+    .time-wrapper{margin:15px 0}
+    #liveClock{font-size:2.2em;font-weight:700;letter-spacing:3px;color:#009245;background:linear-gradient(135deg,#e8f5e8,#fff);padding:12px 20px;border-radius:30px;box-shadow:0 6px 15px rgba(0,147,69,.15),inset 0 3px 6px rgba(255,255,255,.9);display:inline-block;min-width:210px}
+    #liveClock span{min-width:1.2ch;display:inline-block;text-align:center}
+    .colon{color:#006837;font-weight:500}
+    #liveDate{font-size:1.1em;color:#444;margin-top:8px;font-weight:600}
+    #gpsCoords{font-size:1em;color:#555;margin:8px 0 15px}
     #location{display:none}
+    .footer{margin-top:auto;font-size:.9em;color:#666;padding:10px 0;border-top:1px solid #eee;width:100%}
+    .footer a{color:#009245;text-decoration:none}
   </style>
 </head>
 <body>
@@ -79,69 +45,98 @@
     <p id="status">Checking location...</p>
 
     <div class="time-wrapper">
-      <p style="margin:8px 0 4px; color:#333; font-size:1em;">Current Time</p>
+      <p style="margin:8px 0 4px;color:#333">Current Time</p>
       <div id="liveClock">00 : 00 : 00</div>
-      <div id="liveDate">Monday, 01 January 2024</div>
+      <div id="liveDate">Loading...</div>
     </div>
 
     <p id="gpsCoords"></p>
     <pre id="location">Location: Loading...</pre>
 
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
+    <button id="clockIn">Clock In</button>
+    <button id="clockOut">Clock Out</button>
     <p id="message"></p>
+  </div>
 
-    <div id="faceRecognition">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
+  <!-- ===== CLOCK IN/OUT POPUP ===== -->
+  <div id="clockPopup" class="modal">
+    <div class="modal-content">
+      <div id="popupHeader" class="modal-header success">Success</div>
+      <div id="popupMessage">Clock In recorded at 08:13 AM</div>
+      <button onclick="closePopup('clockPopup')" class="popup-close-btn" style="margin-top:15px;padding:8px 16px;background:#f0f0f0;border:1px solid #ddd;border-radius:5px;cursor:pointer">OK</button>
     </div>
   </div>
 
-  <!-- Popups & Footer (unchanged) -->
-  <div id="popup" class="popup">...</div>
-  <div id="loaderOverlay"><div class="loader"></div><p>Verifying...</p></div>
+  <!-- ===== ADMIN POPUP ===== -->
+  <div id="adminPopup" class="modal">
+    <div class="modal-content">
+      <h2 style="color:#009245;margin:0 0 15px">Admin Login</h2>
+      <input type="email" id="adminEmail" placeholder="Email" style="width:80%;padding:10px;margin:8px auto;display:block;border:1px solid #ccc;border-radius:5px"/>
+      <input type="password" id="adminPassword" placeholder="Password" style="width:80%;padding:10px;margin:8px auto;display:block;border:1px solid #ccc;border-radius:5px"/>
+      <button onclick="alert('Login success! (demo)');closePopup('adminPopup')" style="padding:10px 20px;background:#009245;color:#fff;border:none;border-radius:5px;cursor:pointer">Login</button>
+      <p id="adminError" style="color:#F44336;margin-top:8px;font-size:.9em"></p>
+    </div>
+  </div>
+
   <div class="footer">
-    <div><button id="adminDashboard">Admin Dashboard</button></div>
+    <button id="adminDashboard">Admin Dashboard</button>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
-  <div id="adminPopup" class="popup">...</div>
 
-  <script src="script.js"></script>
   <script>
-    // Admin popup
+    // === SHOW/HIDE ANY POPUP ===
+    function showPopup(id, header, msg, type='success') {
+      const popup = document.getElementById(id);
+      document.getElementById('popupHeader').textContent = header;
+      document.getElementById('popupHeader').className = 'modal-header ' + (type==='success'?'success':'error');
+      document.getElementById('popupMessage').textContent = msg;
+      popup.classList.add('show');
+    }
+    function closePopup(id) {
+      document.getElementById(id).classList.remove('show');
+    }
+
+    // === CLOCK IN / OUT (demo) ===
+    document.getElementById('clockIn').onclick = () => {
+      const now = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      showPopup('clockPopup', 'Clock In Success', `You clocked in at ${now}`, 'success');
+      document.getElementById('clockIn').disabled = true;
+      document.getElementById('clockOut').disabled = false;
+    };
+    document.getElementById('clockOut').onclick = () => {
+      const now = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+      showPopup('clockPopup', 'Clock Out Success', `You clocked out at ${now}`, 'success');
+      document.getElementById('clockOut').disabled = true;
+      document.getElementById('clockIn').disabled = false;
+    };
+
+    // === ADMIN DASHBOARD ===
     document.getElementById('adminDashboard').onclick = () => 
       document.getElementById('adminPopup').classList.add('show');
 
-    // === REAL-TIME CLOCK + DATE ===
+    // === LIVE CLOCK + DATE ===
     function updateTime() {
       const now = new Date();
-      const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
-      const dateStr = now.toLocaleDateString('en-GB', opts); // Monday, 03 November 2025
-
       const h = now.getHours().toString().padStart(2,'0');
       const m = now.getMinutes().toString().padStart(2,'0');
       const s = now.getSeconds().toString().padStart(2,'0');
-
-      document.getElementById('liveClock').innerHTML = 
-        `<span>${h}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span>`;
+      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      document.getElementById('liveClock').innerHTML = `<span>${h}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span>`;
       document.getElementById('liveDate').textContent = dateStr;
     }
     updateTime();
     setInterval(updateTime, 500);
 
-    // === GPS (only shows when ready) ===
-    document.addEventListener('DOMContentLoaded', () => {
-      const gpsEl = document.getElementById('gpsCoords');
-      const locEl = document.getElementById('location');
-      const updateGPS = () => {
-        const lat = locEl.dataset.lat;
-        const lng = locEl.dataset.long;
-        gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : '';
-      };
-      updateGPS();
-      new MutationObserver(updateGPS).observe(locEl, { attributes: true });
-    });
+    // === GPS (only when ready) ===
+    const gpsEl = document.getElementById('gpsCoords');
+    const locEl = document.getElementById('location');
+    const updateGPS = () => {
+      const lat = locEl.dataset.lat;
+      const lng = locEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : '';
+    };
+    updateGPS();
+    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
   </script>
-  <script>window.loginAdmin = window.loginAdmin || function(){};</script>
 </body>
 </html>
