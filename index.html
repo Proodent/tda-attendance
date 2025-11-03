@@ -6,96 +6,365 @@
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* ==== KEEP ALL YOUR ORIGINAL STYLES (unchanged) ==== */
-    body{font-family:Arial,sans-serif;background:#f7f7f7;text-align:center;margin:0;padding:20px;min-height:85vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow-x:hidden}
-    .container{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-width:600px;width:90%;text-align:center;margin:auto 0}
-    h1{color:#009245;margin-bottom:15px;font-size:1.4em}
-    h1 span{font-size:1em}
-    h1 .subtitle{font-size:.80em}
-    #status{margin:10px 0;color:#333}
-    button{padding:10px 20px;font-size:16px;margin:5px;background:#009245;color:#fff;border:none;border-radius:5px;cursor:pointer;transition:background .3s,transform .2s}
-    #clockIn{background:#4CAF50}
-    #clockOut{background:#F44336}
-    button:hover:not(:disabled){background:#006837;transform:scale(1.05)}
-    #clockOut:hover:not(:disabled){background:#d32f2f}
-    button:disabled{background:#ccc;cursor:not-allowed;opacity:.6}
-    #faceRecognition{display:none;margin-top:10px}
-    #video,#canvas{display:block;margin:0 auto;width:100%;max-width:480px;border-radius:10px}
-    #loaderOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.8);z-index:3000;justify-content:center;align-items:center;flex-direction:column}
-    .loader{border:6px solid #f3f3f3;border-top:6px solid #009245;border-radius:50%;width:55px;height:55px;animation:spin 1s linear infinite;margin-bottom:15px}
-    @keyframes spin{100%{transform:rotate(360deg)}}
-    #loaderOverlay p{margin-top:10px;font-size:18px;color:#333}
-    .popup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000;animation:popupFadeIn .3s forwards}
-    .popup.show{display:flex}
-    @keyframes popupFadeIn{from{opacity:0}to{opacity:1}}
-    .popup-content{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2);animation:fadeIn .3s ease-in-out}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-15px)}to{opacity:1;transform:translateY(0)}}
-    .popup-header{font-size:1.2em;font-weight:bold;margin-bottom:10px;padding:8px;border-radius:6px}
-    .popup-header.success{background:linear-gradient(135deg,#4CAF50,#45a049);color:#fff}
-    .popup-header.error{background:linear-gradient(135deg,#F44336,#d32f2f);color:#fff}
-    #popupMessage{font-size:1em;color:#444;margin:10px 0 15px}
-    .popup-footer{font-size:.8em;color:#777}
-    .popup-icon{font-size:28px;margin:10px 0;animation:pop .4s ease-in-out}
-    .popup-icon.success{color:#4CAF50;animation:bounce .6s ease-in-out}
-    .popup-icon.error{color:#F44336;animation:shake .5s ease-in-out}
-    @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
-    @keyframes bounce{0%,20%,50%,80%,100%{transform:translateY(0)}40%{transform:translateY(-10px)}60%{transform:translateY(-5px)}}
-    @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-5px)}20%,40%,60%,80%{transform:translateX(5px)}}
-    .popup-close-btn{background:#f0f0f0;color:#666;border:1px solid #ddd;padding:8px 15px;border-radius:5px;cursor:pointer;margin-top:10px;transition:background .3s}
-    .popup-close-btn:hover{background:#e0e0e0;color:#333}
-    .footer{margin-top:auto;font-size:.9em;color:#666;padding:10px 0;text-align:center;border-top:1px solid #eee;width:100%}
-    .footer a{color:#009245;text-decoration:none}
-    .footer a:hover{text-decoration:underline}
-    #adminPopup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);justify-content:center;align-items:center;z-index:2000;animation:popupFadeIn .3s forwards}
-    #adminPopup.show{display:flex}
-    #adminPopupContent{background:#fff;padding:25px;border-radius:12px;width:90%;max-width:380px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.2);animation:fadeIn .3s ease-in-out}
-    #adminPopupContent h2{font-size:1.2em;margin-bottom:20px;color:#009245}
-    #adminPopupContent input{display:block;width:80%;margin:10px auto;padding:10px;border:1px solid #ccc;border-radius:5px;font-size:1em}
-    #adminPopupContent button{margin-top:15px;padding:10px 20px;font-size:1em}
-    #adminPopupContent .error{color:#F44336;margin-top:10px;font-size:.9em}
-    @media (max-height:700px){
-      .container{padding:15px;width:80%}
-      h1{font-size:1.2em}
-      h1 span{font-size:1.2em}
-      h1 .subtitle{font-size:.75em}
-      button{padding:8px 16px;font-size:14px}
-      .popup-content{width:calc(100% - 40px);padding:15px}
-      .popup-icon{font-size:24px}
+    /* General styles */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
     }
-
-    /* ==== NEW: LIVE CLOCK (exact match to your screenshot) ==== */
-    #liveClock{
-      font-family:'Segoe UI',Arial,sans-serif;
-      font-size:3.8rem;
-      font-weight:700;
-      letter-spacing:8px;
-      color:#009245;
-      background:linear-gradient(135deg,#e8f9e8,#f8fff8);
-      padding:20px 40px;
-      border-radius:50px;
-      display:inline-block;
-      margin:25px 0;
-      box-shadow:
-        0 8px 20px rgba(0,146,69,.15),
-        inset 0 4px 10px rgba(255,255,255,.8);
-      user-select:none;
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin: auto 0;
     }
-    #liveClock span{
-      display:inline-block;
-      min-width:1ch;
-      text-align:center;
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
     }
-    .colon{
-      animation:blink 1s infinite;
-      font-weight:400;
+    h1 span {
+      font-size: 1.0em;
     }
-    @keyframes blink{
-      0%,100%{opacity:1}
-      50%{opacity:0.3}
+    h1 .subtitle {
+      font-size: 0.80em;
     }
-
-    /* Hide old location text (still kept for script.js) */
-    #location{display:none}
+    #status,
+    #location {
+      margin: 10px 0;
+      color: #333;
+    }
+    pre {
+      white-space: pre-wrap;
+      text-align: center;
+      color: #333;
+    }
+    /* Button styles */
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    #clockIn {
+      background: #4CAF50;
+    }
+    #clockOut {
+      background: #F44336;
+    }
+    button:hover:not(:disabled) {
+      background: #006837;
+      transform: scale(1.05);
+    }
+    #clockOut:hover:not(:disabled) {
+      background: #d32f2f;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    /* Face recognition */
+    #faceRecognition {
+      display: none;
+      margin-top: 10px;
+    }
+    #video,
+    #canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 10px;
+    }
+    /* Loader overlay */
+    #loaderOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #009245;
+      border-radius: 50%;
+      width: 55px;
+      height: 55px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    #loaderOverlay p {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #333;
+    }
+    /* Progress bar */
+    #progress-bar {
+      width: 80%;
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #009245;
+      transition: width 0.3s;
+    }
+    /* Popup styles */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      animation: popupFadeIn 0.3s forwards;
+    }
+    .popup.show {
+      display: flex;
+    }
+    @keyframes popupFadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .popup-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .popup-header.success {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: #fff;
+    }
+    .popup-header.error {
+      background: linear-gradient(135deg, #F44336, #d32f2f);
+      color: #fff;
+    }
+    #popupMessage {
+      font-size: 1em;
+      color: #444;
+      margin: 10px 0 15px;
+    }
+    .popup-footer {
+      font-size: 0.8em;
+      color: #777;
+    }
+    .popup-icon {
+      font-size: 28px;
+      margin: 10px 0;
+      animation: pop 0.4s ease-in-out;
+    }
+    .popup-icon.success {
+      color: #4CAF50;
+      animation: bounce 0.6s ease-in-out;
+    }
+    .popup-icon.error {
+      color: #F44336;
+      animation: shake 0.5s ease-in-out;
+    }
+    @keyframes pop {
+      from {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
+    }
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+      }
+      20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+      }
+    }
+    .popup-close-btn {
+      background: #f0f0f0;
+      color: #666;
+      border: 1px solid #ddd;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+    .popup-close-btn:hover {
+      background: #e0e0e0;
+      color: #333;
+    }
+    /* Responsive design */
+    @media (max-height: 700px) {
+      .container {
+        padding: 15px;
+        width: 80%;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      h1 span {
+        font-size: 1.2em;
+      }
+      h1 .subtitle {
+        font-size: 0.75em;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      .popup-content {
+        width: calc(100% - 40px);
+        padding: 15px;
+      }
+      .popup-icon {
+        font-size: 24px;
+      }
+    }
+    /* Footer styles */
+    .footer {
+      margin-top: auto;
+      font-size: 0.9em;
+      color: #666;
+      padding: 10px 0;
+      text-align: center;
+      border-top: 1px solid #eee;
+      width: 100%;
+    }
+    .footer a {
+      color: #009245;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    /* Admin Login Popup */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      animation: popupFadeIn 0.3s forwards;
+    }
+    #adminPopup.show {
+      display: flex;
+    }
+    #adminPopupContent {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    #adminPopupContent h2 {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      color: #009245;
+    }
+    #adminPopupContent input {
+      display: block;
+      width: 80%;
+      margin: 10px auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    #adminPopupContent button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+    }
+    #adminPopupContent .error {
+      color: #F44336;
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
@@ -104,58 +373,57 @@
       <span>Tolon District Assembly</span><br>
       <span class="subtitle">Staff Attendance Management</span>
     </h1>
-
     <p id="status">Checking location...</p>
-
-    <!-- LIVE CLOCK (replaces Location line) -->
-    <div id="liveClock">
-      <span>00</span><span class="colon">:</span><span>00</span><span class="colon">:</span><span>00</span>
-    </div>
-
-    <!-- Keep this hidden for script.js -->
+    <p>Current Time</p>
+    <div id="liveClock">00 : 00 : 00</div>
+    <p id="gpsCoords">GPS: Loading...</p>
     <pre id="location">Location: Loading...</pre>
-
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
-
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
       <canvas id="canvas"></canvas>
     </div>
   </div>
-
-  <!-- Popups & Footer (unchanged) -->
-  <div id="popup" class="popup">...</div>
-  <div id="loaderOverlay"><div class="loader"></div><p>Verifying...</p></div>
+  <!-- Centered Popup -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-header" id="popupHeader"></div>
+      <div id="popupIcon"></div>
+      <div id="popupMessage"></div>
+      <div class="popup-footer" id="popupFooter"></div>
+      <div id="popupRetry"></div>
+    </div>
+  </div>
+  <!-- Loader Overlay -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying...</p>
+  </div>
+  <!-- Footer -->
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
-  <div id="adminPopup" class="popup">...</div>
-
+  <!-- Admin Login Popup -->
+  <div id="adminPopup" class="popup">
+    <div id="adminPopupContent">
+      <h2>Admin Login</h2>
+      <p style="font-size: 0.8em; color: #666;">(Check with server for valid credentials)</p>
+      <input type="email" id="adminEmail" placeholder="Enter Email" />
+      <input type="password" id="adminPassword" placeholder="Enter Password" />
+      <button onclick="loginAdmin()">Login</button>
+      <p id="adminError" class="error"></p>
+    </div>
+  </div>
   <script src="script.js"></script>
   <script>
-    // LIVE CLOCK — updates every 500ms
-    function updateClock(){
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2,'0');
-      const m = String(now.getMinutes()).padStart(2,'0');
-      const s = String(now.getSeconds()).padStart(2,'0');
-      document.getElementById('liveClock').innerHTML = `
-        <span>${h}</span><span class="colon">:</span>
-        <span>${m}</span><span class="colon">:</span>
-        <span>${s}</span>
-      `;
-    }
-    updateClock();
-    setInterval(updateClock, 500);
-
-    // Admin button
+    // No session timeout logic here since this is a public landing page
     document.getElementById('adminDashboard').addEventListener('click', () => {
       document.getElementById('adminPopup').classList.add('show');
     });
   </script>
-  <script>window.loginAdmin = window.loginAdmin || function(){};</script>
+  <script>window.loginAdmin = window.loginAdmin || function() {};</script>
 </body>
 </html>
