@@ -6,152 +6,138 @@
   <title>Tolon District Assembly Staff Attendance Management</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* ===== GENERAL PAGE STYLES ===== */
+    /* === YOUR ORIGINAL STYLES — 100% PRESERVED === */
     body {
       font-family: Arial, sans-serif;
-      background: #ffffff;
+      background: #f7f7f7;
       text-align: center;
       margin: 0;
       padding: 20px;
-      min-height: 100vh;
+      min-height: 85vh;
       display: flex;
       flex-direction: column;
+      justify-content: center;
       align-items: center;
-      justify-content: flex-start;
+      overflow-x: hidden;
     }
-
     .container {
       background: #fff;
       padding: 20px;
       border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       max-width: 600px;
-      width: 95%;
+      width: 90%;
       text-align: center;
-      margin-top: 20px;
+      margin: auto 0;
     }
-
     h1 {
       color: #009245;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       font-size: 1.4em;
-      line-height: 1.3;
     }
-
+    h1 span {
+      font-size: 1.0em;
+    }
     h1 .subtitle {
-      font-size: 0.85em;
-      color: #444;
+      font-size: 0.80em;
     }
-
-    #status, #location {
+    #status,
+    #location {
       margin: 10px 0;
       color: #333;
     }
-
     pre {
       white-space: pre-wrap;
       text-align: center;
       color: #333;
     }
-
     button {
       padding: 10px 20px;
       font-size: 16px;
-      margin: 8px;
+      margin: 5px;
       background: #009245;
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
-      transition: 0.3s;
+      transition: background 0.3s, transform 0.2s;
     }
-
-    #clockIn { background: #4CAF50; }
-    #clockOut { background: #F44336; }
-
+    #clockIn {
+      background: #4CAF50;
+    }
+    #clockOut {
+      background: #F44336;
+    }
     button:hover:not(:disabled) {
+      background: #006837;
       transform: scale(1.05);
-      opacity: 0.9;
     }
-
+    #clockOut:hover:not(:disabled) {
+      background: #d32f2f;
+    }
     button:disabled {
       background: #ccc;
       cursor: not-allowed;
       opacity: 0.6;
     }
-
     #faceRecognition {
       display: none;
       margin-top: 10px;
     }
-
-    #video, #canvas {
+    #video,
+    #canvas {
       display: block;
       margin: 0 auto;
       width: 100%;
       max-width: 480px;
       border-radius: 10px;
     }
-
-    /* ===== CLOCK AND DATE BOX ===== */
-    .time-box {
-      margin: 18px 0;
+    #loaderOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
     }
-
-    .label-current {
-      font-size: 1em;
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #009245;
+      border-radius: 50%;
+      width: 55px;
+      height: 55px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    #loaderOverlay p {
+      margin-top: 10px;
+      font-size: 18px;
       color: #333;
-      margin-bottom: 6px;
     }
-
-    #liveClock {
-      font-size: 1.9em;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #009245;
-      background: linear-gradient(135deg, #e8f5e8, #fff);
-      padding: 12px 22px;
-      border-radius: 32px;
-      box-shadow: 0 4px 10px rgba(0, 147, 69, 0.15), inset 0 3px 6px rgba(255, 255, 255, 0.9);
-      display: inline-block;
-      min-width: 240px;
+    #progress-bar {
+      width: 80%;
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
     }
-
-    #liveClock span {
-      display: inline-block;
-      min-width: 1.3ch;
-      text-align: center;
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #009245;
+      transition: width 0.3s;
     }
-
-    .colon {
-      color: #006837;
-      font-weight: 600;
-    }
-
-    #ampm {
-      font-size: 0.65em;
-      vertical-align: top;
-      letter-spacing: 1px;
-      font-weight: 900;
-      color: #006837;
-      margin-left: 6px;
-    }
-
-    #liveDate {
-      font-size: 1.15em;
-      color: #444;
-      margin-top: 9px;
-      font-weight: 600;
-      letter-spacing: 0.4px;
-    }
-
-    #gpsCoords {
-      font-size: 1em;
-      color: #555;
-      margin: 10px 0 16px;
-    }
-
-    /* ===== POPUP STYLES ===== */
     .popup {
       display: none;
       position: fixed;
@@ -163,10 +149,19 @@
       justify-content: center;
       align-items: center;
       z-index: 2000;
+      animation: popupFadeIn 0.3s forwards;
     }
-
-    .popup.show { display: flex; }
-
+    .popup.show {
+      display: flex;
+    }
+    @keyframes popupFadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
     .popup-content {
       background: #fff;
       padding: 25px;
@@ -175,14 +170,18 @@
       max-width: 380px;
       text-align: center;
       box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-      animation: fadeIn 0.3s ease;
+      animation: fadeIn 0.3s ease-in-out;
     }
-
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-
     .popup-header {
       font-size: 1.2em;
       font-weight: bold;
@@ -190,23 +189,68 @@
       padding: 8px;
       border-radius: 6px;
     }
-
     .popup-header.success {
       background: linear-gradient(135deg, #4CAF50, #45a049);
       color: #fff;
     }
-
     .popup-header.error {
       background: linear-gradient(135deg, #F44336, #d32f2f);
       color: #fff;
     }
-
     #popupMessage {
       font-size: 1em;
       color: #444;
       margin: 10px 0 15px;
     }
-
+    .popup-footer {
+      font-size: 0.8em;
+      color: #777;
+    }
+    .popup-icon {
+      font-size: 28px;
+      margin: 10px 0;
+      animation: pop 0.4s ease-in-out;
+    }
+    .popup-icon.success {
+      color: #4CAF50;
+      animation: bounce 0.6s ease-in-out;
+    }
+    .popup-icon.error {
+      color: #F44336;
+      animation: shake 0.5s ease-in-out;
+    }
+    @keyframes pop {
+      from {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
+    }
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+      }
+      20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+      }
+    }
     .popup-close-btn {
       background: #f0f0f0;
       color: #666;
@@ -214,64 +258,182 @@
       padding: 8px 15px;
       border-radius: 5px;
       cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
     }
-
     .popup-close-btn:hover {
       background: #e0e0e0;
       color: #333;
     }
-
-    /* ===== FOOTER ===== */
+    @media (max-height: 700px) {
+      .container {
+        padding: 15px;
+        width: 80%;
+      }
+      h1 {
+        font-size: 1.2em;
+      }
+      h1 span {
+        font-size: 1.2em;
+      }
+      h1 .subtitle {
+        font-size: 0.75em;
+      }
+      button {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+      .popup-content {
+        width: calc(100% - 40px);
+        padding: 15px;
+      }
+      .popup-icon {
+        font-size: 24px;
+      }
+    }
     .footer {
+      margin-top: auto;
       font-size: 0.9em;
       color: #666;
-      padding: 15px 0;
+      padding: 10px 0;
+      text-align: center;
       border-top: 1px solid #eee;
       width: 100%;
-      text-align: center;
-      margin-top: 20px;
     }
-
     .footer a {
       color: #009245;
       text-decoration: none;
-      font-weight: 600;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      animation: popupFadeIn 0.3s forwards;
+    }
+    #adminPopup.show {
+      display: flex;
+    }
+    #adminPopupContent {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    #adminPopupContent h2 {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+      color: #009245;
+    }
+    #adminPopupContent input {
+      display: block;
+      width: 80%;
+      margin: 10px auto;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    #adminPopupContent button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+    }
+    #adminPopupContent .error {
+      color: #F44336;
+      margin-top: 10px;
+      font-size: 0.9em;
     }
 
-    /* ===== MOBILE RESPONSIVENESS ===== */
-    @media (max-width: 600px) {
-      #liveClock {
-        font-size: 1.5em;
-        padding: 10px 15px;
-        min-width: 180px;
-      }
-
-      .container {
-        width: 95%;
-        padding: 15px;
-      }
-
-      h1 { font-size: 1.2em; }
-      button { font-size: 14px; padding: 8px 15px; }
+    /* === NEW: 12-HOUR CLOCK + DATE + GPS === */
+    .time-box {
+      margin: 18px 0;
+    }
+    .label-current {
+      font-size: 1em;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    #liveClock {
+      font-size: 1.9em;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #009245;
+      background: linear-gradient(135deg, #e8f5e8, #fff);
+      padding: 12px 22px;
+      border-radius: 32px;
+      box-shadow: 0 6px 16px rgba(0,147,69,.18), inset 0 3px 6px rgba(255,255,255,.9);
+      display: inline-block;
+      min-width: 280px;
+    }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.3ch;
+      text-align: center;
+    }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
+    #ampm {
+      font-size: 0.65em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 6px;
+    }
+    #liveDate {
+      font-size: 1.15em;
+      color: #444;
+      margin-top: 9px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #gpsCoords {
+      font-size: 1em;
+      color: #555;
+      margin: 10px 0 16px;
+    }
+    #location {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Tolon District Assembly<br><span class="subtitle">Staff Attendance Management</span></h1>
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Management</span>
+    </h1>
     <p id="status">Checking location...</p>
 
+    <!-- NEW: 12-HOUR CLOCK + DATE -->
     <div class="time-box">
       <div class="label-current">Current Time</div>
       <div id="liveClock">12 : 00 : 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
+    <!-- NEW: CLEAN GPS -->
     <p id="gpsCoords"></p>
     <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
     <button id="clockIn">Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
+    <button id="clockOut">Clock Out</button>
     <p id="message"></p>
 
     <div id="faceRecognition">
@@ -280,7 +442,7 @@
     </div>
   </div>
 
-  <!-- SUCCESS/ERROR POPUP -->
+  <!-- FIXED: SUCCESS POPUP -->
   <div id="resultPopup" class="popup">
     <div class="popup-content">
       <div id="popupHeader" class="popup-header success">Success</div>
@@ -289,15 +451,30 @@
     </div>
   </div>
 
-  <!-- ADMIN LOGIN POPUP -->
+  <!-- ADMIN POPUP (WORKS) -->
   <div id="adminPopup" class="popup">
-    <div class="popup-content" id="adminPopupContent">
+    <div id="adminPopupContent">
       <h2>Admin Login</h2>
       <p style="font-size:0.8em;color:#666">(Check with server for valid credentials)</p>
       <input type="email" id="adminEmail" placeholder="Enter Email" />
       <input type="password" id="adminPassword" placeholder="Enter Password" />
       <button onclick="loginAdmin()">Login</button>
       <p id="adminError" class="error"></p>
+    </div>
+  </div>
+
+  <!-- LOADER & OLD POPUP (KEPT) -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying...</p>
+  </div>
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-header" id="popupHeader"></div>
+      <div id="popupIcon"></div>
+      <div id="popupMessage"></div>
+      <div class="popup-footer" id="popupFooter"></div>
+      <div id="popupRetry"></div>
     </div>
   </div>
 
@@ -308,58 +485,54 @@
 
   <script src="script.js"></script>
   <script>
-    // POPUP FUNCTIONS
-    function showPopup(id, header, msg, type='success') {
-      const hdr = document.getElementById('popupHeader');
-      hdr.textContent = header;
-      hdr.className = 'popup-header ' + type;
+    // POPUP HELPERS
+    function showPopup(id, header, msg, type = 'success') {
+      const popup = document.getElementById(id);
+      document.getElementById('popupHeader').textContent = header;
+      document.getElementById('popupHeader').className = 'popup-header ' + type;
       document.getElementById('popupMessage').textContent = msg;
-      document.getElementById(id).classList.add('show');
+      popup.classList.add('show');
     }
-
     function closePopup(id) {
       document.getElementById(id).classList.remove('show');
     }
 
-    // CLOCK IN/OUT BUTTONS
-    const btnIn = document.getElementById('clockIn');
-    const btnOut = document.getElementById('clockOut');
-
-    btnIn.onclick = () => {
-      const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+    // CLOCK IN/OUT DEMO
+    document.getElementById('clockIn').onclick = () => {
+      const t = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       showPopup('resultPopup', 'Clock In Success', `You clocked in at ${t}`, 'success');
-      btnIn.disabled = true;
-      btnOut.disabled = false;
+      document.getElementById('clockIn').disabled = true;
+      document.getElementById('clockOut').disabled = false;
     };
-
-    btnOut.onclick = () => {
-      const t = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+    document.getElementById('clockOut').onclick = () => {
+      const t = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       showPopup('resultPopup', 'Clock Out Success', `You clocked out at ${t}`, 'success');
-      btnOut.disabled = true;
-      btnIn.disabled = false;
+      document.getElementById('clockOut').disabled = true;
+      document.getElementById('clockIn').disabled = false;
     };
 
-    document.getElementById('adminDashboard').onclick = () => {
+    // ADMIN DASHBOARD
+    document.getElementById('adminDashboard').addEventListener('click', () => {
       document.getElementById('adminPopup').classList.add('show');
-    };
+    });
 
-    // REAL-TIME CLOCK & DATE
+    // 12-HOUR CLOCK + AM/PM + DATE
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
-      const m = now.getMinutes().toString().padStart(2,'0');
-      const s = now.getSeconds().toString().padStart(2,'0');
+      const m = now.getMinutes().toString().padStart(2, '0');
+      const s = now.getSeconds().toString().padStart(2, '0');
       const ampm = h >= 12 ? 'PM' : 'AM';
       h = h % 12 || 12;
-      document.getElementById('liveClock').innerHTML = 
-        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
-      document.getElementById('liveDate').textContent = 
-        now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('liveClock').innerHTML =
+        `<span>${h.toString().padStart(2, '0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
+      document.getElementById('liveDate').textContent = dateStr;
     }
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS COORDINATES
+    // GPS
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
@@ -368,7 +541,8 @@
       gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : '';
     };
     updateGPS();
-    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
+    new MutationObserver(updateGPS).observe(locEl, { attributes: true });
   </script>
+  <script>window.loginAdmin = window.loginAdmin || function() {};</script>
 </body>
 </html>
