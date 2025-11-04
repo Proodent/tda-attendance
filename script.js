@@ -4,15 +4,7 @@ let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRet
 let loaderEl;
 let locations = [];
 let popupTimeout = null;
-let locationErrorShown = false;
-
-// === NEW: FASTER & MORE ACCURATE SETTINGS ===
-const FACE_OPTIONS = {
-  similarityThreshold: 0.90,      // 90%+ match only
-  detect_faces: false,            // Skip detection (we crop ourselves)
-  limit: 1,                       // Only top match
-  det_prob_threshold: 0.85       // Reject low-quality faces
-};
+let locationErrorShown = false; // New flag to track if location error has been shown and closed
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -29,35 +21,41 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
 function showPopup(title, message, success = null) {
   if (!popupEl) return alert(`${title}\n\n${message}`);
   if (popupTimeout) clearTimeout(popupTimeout);
+
   popupHeader.textContent = title;
   popupHeader.className = 'popup-header';
   if (success === true) popupHeader.classList.add('success');
   else if (success === false) popupHeader.classList.add('error');
+
   popupMessage.innerHTML = message;
   popupMessage.innerHTML += success === true
     ? '<div class="popup-icon success">✅</div>'
     : success === false
       ? '<div class="popup-icon error">❌</div>'
       : '';
+
   popupFooter.textContent = new Date().toLocaleString('en-US', {
     weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
+
   popupRetry.innerHTML = '<button id="popupCloseBtn" class="popup-close-btn">Close</button>';
   popupEl.style.display = 'flex';
   popupEl.classList.add('show');
+
   popupTimeout = setTimeout(() => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
     if (title === 'Location Error' && success === false) {
-      locationErrorShown = true;
+      locationErrorShown = true; // Set flag when auto-closed
     }
   }, 5000);
+
   const closeBtn = document.getElementById('popupCloseBtn');
   if (closeBtn) closeBtn.onclick = () => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
     if (title === 'Location Error' && success === false) {
-      locationErrorShown = true;
+      locationErrorShown = true; // Set flag when manually closed
     }
   };
 }
@@ -112,11 +110,13 @@ function startLocationWatch() {
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
+
   if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
     console.error('Missing DOM elements at', new Date().toISOString(), ':', { statusEl, locationEl, clockInBtn, clockOutBtn });
     showPopup('Init Error', 'Required elements not found. Reload the page.', false);
     return;
   }
+
   console.log('Initializing location watch at', new Date().toISOString());
   videoEl = document.getElementById('video');
   canvasEl = document.getElementById('canvas');
@@ -125,6 +125,7 @@ function startLocationWatch() {
   popupMessage = document.getElementById('popupMessage');
   popupFooter = document.getElementById('popupFooter');
   popupRetry = document.getElementById('popupRetry');
+
   fetchLocations().then(ok => {
     console.log('fetchLocations completed with result:', ok);
     if (!ok) {
@@ -132,12 +133,14 @@ function startLocationWatch() {
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
+
     if (!navigator.geolocation) {
       statusEl.textContent = 'Geolocation not supported.';
       clockInBtn.disabled = clockOutBtn.disabled = true;
       showPopup('Geolocation Error', 'Your browser doesn’t support geolocation.', false);
       return;
     }
+
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
@@ -156,7 +159,7 @@ function startLocationWatch() {
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = false;
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
-          locationErrorShown = false;
+          locationErrorShown = false; // Reset flag when at an approved location
         } else if (!locationErrorShown) {
           statusEl.textContent = 'Unapproved Location';
           locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
@@ -177,8 +180,10 @@ function startLocationWatch() {
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
+
     clockInBtn.addEventListener('click', () => handleClock('clock in'));
     clockOutBtn.addEventListener('click', () => handleClock('clock out'));
+
     const adminDashboardBtn = document.getElementById('adminDashboard');
     if (adminDashboardBtn) {
       adminDashboardBtn.addEventListener('click', () => {
@@ -224,42 +229,31 @@ function stopVideo() {
   }
 }
 
-// === FASTER & MORE ACCURATE FACE VALIDATION ===
+// Validate face via CompreFace proxy
 async function validateFaceWithProxy(base64) {
   try {
-    console.log('Sending face to proxy (skip-detect) …', new Date().toISOString());
-
+    console.log('Sending face data to proxy at', new Date().toISOString());
     const response = await fetch('/api/proxy/face-recognition', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        file: base64,
-        ...FACE_OPTIONS
-      })
+      body: JSON.stringify({ file: base64 })
     });
-
+    console.log('Proxy response status at', new Date().toISOString(), ':', response.status);
     if (!response.ok) {
-      const txt = await response.text();
-      return { ok: false, error: `Service error ${response.status}: ${txt}` };
+      const text = await response.text();
+      console.error('Proxy error response at', new Date().toISOString(), ':', text);
+      return { ok: false, error: `Service unavailable: ${text}` };
     }
-
     const data = await response.json();
-
-    if (!data?.result?.[0]?.subjects?.[0]) {
-      return { ok: false, error: 'No subject found' };
+    console.log('Face recognition data at', new Date().toISOString(), ':', data);
+    if (data?.result?.length && data.result[0].subjects?.length) {
+      const top = data.result[0].subjects[0];
+      return { ok: true, subject: top.subject, similarity: Number(top.similarity) || 0 };
     }
-
-    const top = data.result[0].subjects[0];
-    const sim = Number(top.similarity) || 0;
-
-    if (sim < FACE_OPTIONS.similarityThreshold) {
-      return { ok: false, error: `Similarity ${(sim*100).toFixed(1)}% < ${FACE_OPTIONS.similarityThreshold*100}%` };
-    }
-
-    return { ok: true, subject: top.subject, similarity: sim };
+    return { ok: false, error: data?.message || 'No match found' };
   } catch (err) {
-    console.error('Face proxy error', err);
-    return { ok: false, error: err.message };
+    console.error('Face validation error at', new Date().toISOString(), ':', err);
+    return { ok: false, error: err.message || 'Service error' };
   }
 }
 
@@ -273,6 +267,7 @@ async function handleClock(action) {
     showPopup('Location Error', 'No GPS data.', false);
     return;
   }
+
   let office = null;
   for (const loc of locations) {
     const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
@@ -286,31 +281,41 @@ async function handleClock(action) {
     showPopup('Location Error', 'Not at an approved office.', false);
     return;
   }
+
   document.getElementById('faceRecognition').style.display = 'block';
   const started = await startVideo();
   if (!started) return;
+
   await new Promise(r => setTimeout(r, 1000));
 
-  // === RESIZE TO 224x224 + 80% JPEG (40KB) ===
-  const img = new Image();
-  img.src = 'data:image/jpeg;base64,' + base64;
-  await new Promise(r => img.onload = r);
-
-  const small = document.createElement('canvas');
-  small.width = 224; small.height = 224;
-  small.getContext('2d').drawImage(img, 0, 0, 224, 224);
-  const tinyBase64 = small.toDataURL('image/jpeg', 0.8).split(',')[1];
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 640;
+  tempCanvas.height = 480;
+  const ctx = tempCanvas.getContext('2d');
+  ctx.translate(tempCanvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
+  const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
+  console.log('Captured face image length at', new Date().toISOString(), ':', base64.length);
 
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
+
   showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
-  const faceRes = await validateFaceWithProxy(tinyBase64);
+
+  const faceRes = await validateFaceWithProxy(base64);
   console.log('Face validation result at', new Date().toISOString(), ':', faceRes);
   if (!faceRes.ok) {
     hideLoader();
     showPopup('Face Error', faceRes.error || 'No match.', false);
     return;
   }
+  if (faceRes.similarity < 0.9) {
+    hideLoader();
+    showPopup('Face Error', 'Low similarity. Try better lighting.', false);
+    return;
+  }
+
   try {
     const response = await fetch('/api/attendance/web', {
       method: 'POST',
@@ -327,6 +332,7 @@ async function handleClock(action) {
     const data = await response.json();
     console.log('Attendance response data at', new Date().toISOString(), ':', data);
     hideLoader();
+
     if (data.success) {
       showPopup('Verification Successful', `Dear ${faceRes.subject}, ${action} recorded at ${office}.`, true);
     } else {
@@ -349,7 +355,7 @@ async function handleClock(action) {
 // Fetch admin logins from server
 async function fetchAdminLogins() {
   try {
-    showLoader('Fetching admin logins...');
+    showLoader('Logging in...');
     const response = await fetch('/api/admin-logins', { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
@@ -370,27 +376,32 @@ function loginAdmin() {
   const password = document.getElementById('adminPassword')?.value.trim();
   const adminError = document.getElementById('adminError');
   const adminPopup = document.getElementById('adminPopup');
+
   if (!email || !password || !adminError || !adminPopup) {
     console.error('Missing login elements at', new Date().toISOString(), ':', { email, password, adminError, adminPopup });
     showPopup('Init Error', 'Login form incomplete. Reload.', false);
     return;
   }
+
   if (!email || !password) {
     adminError.textContent = 'Please fill in both fields.';
     return;
   }
+
   fetchAdminLogins().then(adminLogins => {
     if (adminLogins.length === 0) {
       adminError.textContent = 'No admin logins found. Check server configuration.';
       return;
     }
+
     const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
     console.log('Login check at', new Date().toISOString(), ':', { email, password, adminLogins });
+
     if (validLogin) {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('lastActivity', Date.now());
       adminPopup.classList.remove('show');
-      window.location.href = 'stats.html';
+      window.location.href = 'stats.html'; // Redirect to a protected page
     } else {
       adminError.textContent = 'Invalid email or password.';
     }
@@ -413,17 +424,19 @@ window.onunload = () => {
   stopVideo();
 };
 
-// Session timeout logic (protected pages only)
+// Session timeout logic (moved to a function to apply only on protected pages)
 function initSessionTimeout() {
   let timeoutId;
-  const SESSION_TIMEOUT = 86400000; // 24 hours
+  const SESSION_TIMEOUT = 86400000; // 24 hours in milliseconds
+
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
   const logout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('lastActivity');
     clearTimeout(timeoutId);
-    window.location.href = 'index.html';
+    window.location.href = 'index.html'; // Redirect to landing page on logout
   };
+
   const resetTimeout = () => {
     const lastActivity = localStorage.getItem('lastActivity');
     if (lastActivity) {
@@ -440,13 +453,24 @@ function initSessionTimeout() {
       logout();
     }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
   };
+
+  // Apply timeout only if logged in and on a protected page
   if (isLoggedIn() && window.location.pathname !== '/index.html') {
     localStorage.setItem('lastActivity', Date.now());
     resetTimeout();
     document.addEventListener('mousemove', resetTimeout);
     document.addEventListener('keypress', resetTimeout);
     document.addEventListener('click', resetTimeout);
-    document.addEventListener('scroll', resetTimeout);
+    document.addEventListener('scroll', resetTimeout); // Optional: also reset on scroll
   }
 }
+
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
+
+
+
+
+
+
+
