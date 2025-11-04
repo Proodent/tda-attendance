@@ -153,7 +153,7 @@ function startLocationWatch() {
           }
         }
         if (office) {
-          statusEl.textContent = `Location: ${office}`;
+          statusEl.textContent = `📍 ${office} 📍`;
           locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
@@ -466,6 +466,7 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
 
 
 
