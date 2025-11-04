@@ -355,7 +355,7 @@ async function handleClock(action) {
 // Fetch admin logins from server
 async function fetchAdminLogins() {
   try {
-    showLoader('Fetching admin logins...');
+    showLoader('Logging in...');
     const response = await fetch('/api/admin-logins', { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
@@ -466,6 +466,7 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
 
 
 
