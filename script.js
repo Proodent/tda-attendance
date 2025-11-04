@@ -142,14 +142,16 @@ function startLocationWatch() {
           }
         }
         if (office) {
-          statusEl.textContent = `At: ${office}`;
+          statusEl.textContent = `📍 ${office} 📍`;
+          locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = false;
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
-          locationErrorShown = false;
+          locationErrorShown = false; // Reset flag when at an approved location
         } else if (!locationErrorShown) {
           statusEl.textContent = 'Unapproved Location';
+          locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = true;
