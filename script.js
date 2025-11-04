@@ -21,27 +21,22 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
 function showPopup(title, message, success = null) {
   if (!popupEl) return alert(`${title}\n\n${message}`);
   if (popupTimeout) clearTimeout(popupTimeout);
-
   popupHeader.textContent = title;
   popupHeader.className = 'popup-header';
   if (success === true) popupHeader.classList.add('success');
   else if (success === false) popupHeader.classList.add('error');
-
   popupMessage.innerHTML = message;
   popupMessage.innerHTML += success === true
     ? '<div class="popup-icon success">✅</div>'
     : success === false
       ? '<div class="popup-icon error">❌</div>'
       : '';
-
   popupFooter.textContent = new Date().toLocaleString('en-US', {
     weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
-
   popupRetry.innerHTML = '<button id="popupCloseBtn" class="popup-close-btn">Close</button>';
   popupEl.style.display = 'flex';
   popupEl.classList.add('show');
-
   popupTimeout = setTimeout(() => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
@@ -49,7 +44,6 @@ function showPopup(title, message, success = null) {
       locationErrorShown = true; // Set flag when auto-closed
     }
   }, 5000);
-
   const closeBtn = document.getElementById('popupCloseBtn');
   if (closeBtn) closeBtn.onclick = () => {
     popupEl.classList.remove('show');
@@ -110,13 +104,11 @@ function startLocationWatch() {
   const locationEl = document.getElementById('location');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
-
   if (!statusEl || !locationEl || !clockInBtn || !clockOutBtn) {
     console.error('Missing DOM elements at', new Date().toISOString(), ':', { statusEl, locationEl, clockInBtn, clockOutBtn });
     showPopup('Init Error', 'Required elements not found. Reload the page.', false);
     return;
   }
-
   console.log('Initializing location watch at', new Date().toISOString());
   videoEl = document.getElementById('video');
   canvasEl = document.getElementById('canvas');
@@ -125,7 +117,6 @@ function startLocationWatch() {
   popupMessage = document.getElementById('popupMessage');
   popupFooter = document.getElementById('popupFooter');
   popupRetry = document.getElementById('popupRetry');
-
   fetchLocations().then(ok => {
     console.log('fetchLocations completed with result:', ok);
     if (!ok) {
@@ -133,14 +124,12 @@ function startLocationWatch() {
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
-
     if (!navigator.geolocation) {
       statusEl.textContent = 'Geolocation not supported.';
       clockInBtn.disabled = clockOutBtn.disabled = true;
       showPopup('Geolocation Error', 'Your browser doesn’t support geolocation.', false);
       return;
     }
-
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
@@ -153,16 +142,14 @@ function startLocationWatch() {
           }
         }
         if (office) {
-          statusEl.textContent = `📍 ${office} 📍`;
-          locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          statusEl.textContent = `At: ${office}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = false;
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
-          locationErrorShown = false; // Reset flag when at an approved location
+          locationErrorShown = false;
         } else if (!locationErrorShown) {
-          statusEl.textContent = 'Unapproved Location22';
-          locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          statusEl.textContent = 'Unapproved Location';
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = true;
@@ -180,10 +167,8 @@ function startLocationWatch() {
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
-
     clockInBtn.addEventListener('click', () => handleClock('clock in'));
     clockOutBtn.addEventListener('click', () => handleClock('clock out'));
-
     const adminDashboardBtn = document.getElementById('adminDashboard');
     if (adminDashboardBtn) {
       adminDashboardBtn.addEventListener('click', () => {
@@ -267,7 +252,6 @@ async function handleClock(action) {
     showPopup('Location Error', 'No GPS data.', false);
     return;
   }
-
   let office = null;
   for (const loc of locations) {
     const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
@@ -281,13 +265,10 @@ async function handleClock(action) {
     showPopup('Location Error', 'Not at an approved office.', false);
     return;
   }
-
   document.getElementById('faceRecognition').style.display = 'block';
   const started = await startVideo();
   if (!started) return;
-
   await new Promise(r => setTimeout(r, 1000));
-
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = 640;
   tempCanvas.height = 480;
@@ -297,12 +278,9 @@ async function handleClock(action) {
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
   const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
   console.log('Captured face image length at', new Date().toISOString(), ':', base64.length);
-
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
-
   showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
-
   const faceRes = await validateFaceWithProxy(base64);
   console.log('Face validation result at', new Date().toISOString(), ':', faceRes);
   if (!faceRes.ok) {
@@ -315,7 +293,6 @@ async function handleClock(action) {
     showPopup('Face Error', 'Low similarity. Try better lighting.', false);
     return;
   }
-
   try {
     const response = await fetch('/api/attendance/web', {
       method: 'POST',
@@ -332,7 +309,6 @@ async function handleClock(action) {
     const data = await response.json();
     console.log('Attendance response data at', new Date().toISOString(), ':', data);
     hideLoader();
-
     if (data.success) {
       showPopup('Verification Successful', `Dear ${faceRes.subject}, ${action} recorded at ${office}.`, true);
     } else {
@@ -355,7 +331,7 @@ async function handleClock(action) {
 // Fetch admin logins from server
 async function fetchAdminLogins() {
   try {
-    showLoader('Logging in...');
+    showLoader('Fetching admin logins...');
     const response = await fetch('/api/admin-logins', { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status} - ${await response.text()}`);
     const data = await response.json();
@@ -376,27 +352,22 @@ function loginAdmin() {
   const password = document.getElementById('adminPassword')?.value.trim();
   const adminError = document.getElementById('adminError');
   const adminPopup = document.getElementById('adminPopup');
-
   if (!email || !password || !adminError || !adminPopup) {
     console.error('Missing login elements at', new Date().toISOString(), ':', { email, password, adminError, adminPopup });
     showPopup('Init Error', 'Login form incomplete. Reload.', false);
     return;
   }
-
   if (!email || !password) {
     adminError.textContent = 'Please fill in both fields.';
     return;
   }
-
   fetchAdminLogins().then(adminLogins => {
     if (adminLogins.length === 0) {
       adminError.textContent = 'No admin logins found. Check server configuration.';
       return;
     }
-
     const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
     console.log('Login check at', new Date().toISOString(), ':', { email, password, adminLogins });
-
     if (validLogin) {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('lastActivity', Date.now());
@@ -417,18 +388,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-
 document.addEventListener('DOMContentLoaded', startLocationWatch);
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
-
 // Session timeout logic (moved to a function to apply only on protected pages)
 function initSessionTimeout() {
   let timeoutId;
   const SESSION_TIMEOUT = 86400000; // 24 hours in milliseconds
-
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
   const logout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -436,7 +404,6 @@ function initSessionTimeout() {
     clearTimeout(timeoutId);
     window.location.href = 'index.html'; // Redirect to landing page on logout
   };
-
   const resetTimeout = () => {
     const lastActivity = localStorage.getItem('lastActivity');
     if (lastActivity) {
@@ -453,7 +420,6 @@ function initSessionTimeout() {
       logout();
     }, SESSION_TIMEOUT - (Date.now() - (lastActivity ? parseInt(lastActivity, 10) : 0)));
   };
-
   // Apply timeout only if logged in and on a protected page
   if (isLoggedIn() && window.location.pathname !== '/index.html') {
     localStorage.setItem('lastActivity', Date.now());
@@ -464,14 +430,4 @@ function initSessionTimeout() {
     document.addEventListener('scroll', resetTimeout); // Optional: also reset on scroll
   }
 }
-
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
-
-
-
-
-
-
-
-
-
