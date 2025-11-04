@@ -161,7 +161,7 @@ function startLocationWatch() {
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
           locationErrorShown = false; // Reset flag when at an approved location
         } else if (!locationErrorShown) {
-          statusEl.textContent = 'Unapproved Location';
+          statusEl.textContent = 'Unapproved Location22';
           locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
@@ -466,6 +466,7 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
 
 
 
