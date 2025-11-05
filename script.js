@@ -310,7 +310,7 @@ async function handleClock(action) {
     showPopup('Face Error', faceRes.error || 'No match.', false);
     return;
   }
-  if (faceRes.similarity < 0.9) {
+  if (faceRes.similarity < 0.1) {
     hideLoader();
     showPopup('Face Error', 'Low similarity. Try better lighting.', false);
     return;
@@ -466,6 +466,7 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
 
 
 
