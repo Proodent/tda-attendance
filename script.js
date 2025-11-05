@@ -5,7 +5,6 @@ let loaderEl;
 let locations = [];
 let popupTimeout = null;
 let locationErrorShown = false; // New flag to track if location error has been shown and closed
-let lastKnownSubject = null;   // NEW: remember the name after a successful face scan
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -30,9 +29,9 @@ function showPopup(title, message, success = null) {
 
   popupMessage.innerHTML = message;
   popupMessage.innerHTML += success === true
-    ? '<div class="popup-icon success">Success</div>'
+    ? '<div class="popup-icon success">✅</div>'
     : success === false
-      ? '<div class="popup-icon error">Error</div>'
+      ? '<div class="popup-icon error">❌</div>'
       : '';
 
   popupFooter.textContent = new Date().toLocaleString('en-US', {
@@ -154,7 +153,7 @@ function startLocationWatch() {
           }
         }
         if (office) {
-          statusEl.textContent = `${office}`;
+          statusEl.textContent = `📍 ${office} 📍`;
           locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
@@ -162,17 +161,13 @@ function startLocationWatch() {
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "1";
           locationErrorShown = false; // Reset flag when at an approved location
         } else if (!locationErrorShown) {
-          statusEl.textContent = 'Unapproved Location';
+          statusEl.textContent = '❌ Unapproved Location ❌';
           locationEl.textContent = `Location: Unapproved\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           locationEl.dataset.lat = latitude;
           locationEl.dataset.long = longitude;
           clockInBtn.disabled = clockOutBtn.disabled = true;
           clockInBtn.style.opacity = clockOutBtn.style.opacity = "0.6";
-          // NEW: show personalized message when name is known
-          const msg = lastKnownSubject
-            ? `Dear ${lastKnownSubject}, you are not allowed to clock in/out at this location.`
-            : 'Not at an approved office.';
-          showPopup('Location Error', msg, false);
+          showPopup('Location Error', 'Not at an approved office.', false);
         }
       },
       err => {
@@ -320,9 +315,6 @@ async function handleClock(action) {
     showPopup('Face Error', 'Low similarity. Try better lighting.', false);
     return;
   }
-
-  // NEW: store the name for the GPS watcher
-  lastKnownSubject = faceRes.subject;
 
   try {
     const response = await fetch('/api/attendance/web', {
@@ -474,3 +466,13 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
+
+
+
+
+
+
+
+
+
+
