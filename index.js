@@ -60,6 +60,12 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// CompreFace headers
+const compreFaceHeaders = {
+  "x-api-key": COMPREFACE_API_KEY,
+  "Content-Type": "application/json"
+};
+
 // ----------------- API: Health -----------------
 app.get("/api/health", async (req, res) => {
   try {
@@ -115,35 +121,12 @@ app.get("/api/admin-logins", async (req, res) => {
   }
 });
 
-// ----------------- Proxy: CompreFace -----------------
-app.post("/api/proxy/face-recognition", async (req, res) => {
-  try {
-    const payload = req.body || {};
-    const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "x-api-key": COMPREFACE_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-    return res.json(data);
-  } catch (err) {
-    console.error("POST /api/proxy/face-recognition error:", err);
-    res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
-  }
-});
-
 // ----------------- Attendance Logging -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
-    const { action, subjectName, department, latitude, longitude, timestamp } = req.body;
-    if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
-      return res.status(400).json({ success: false, message: "Invalid input." });
+    const { action, id, base64, latitude, longitude, timestamp } = req.body;
+    if (!action || !id || !base64 || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
+      return res.status(400).json({ success: false, message: "Invalid input: Missing ID, image, or location data." });
     }
 
     await loadDoc();
@@ -161,13 +144,55 @@ app.post("/api/attendance/web", async (req, res) => {
       locationsSheet.getRows()
     ]);
 
-    const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
-      (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
-    );
+    // Find staff by ID (assuming name starts with ID, e.g., "001 Michael Amon")
+    const staffMember = staffRows.find(r => {
+      const name = (r["Name"] || r.get("Name") || "").trim();
+      return name.startsWith(id) && (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes";
+    });
 
     if (!staffMember) {
-      return res.status(403).json({ success: false, message: `Staff '${subjectName}' not found or inactive.` });
+      return res.status(403).json({ success: false, message: `Staff with ID '${id}' not found or inactive.` });
+    }
+
+    const name = (staffMember["Name"] || staffMember.get("Name") || "").trim().replace(/^(\d+\s+)/, ''); // Extract name after ID
+    const expectedSubject = `${id} ${name}`.trim();
+
+    // Check if expected subject exists in CompreFace
+    const subjectsUrl = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/subjects`;
+    const subjectsResponse = await fetch(subjectsUrl, {
+      method: "GET",
+      headers: compreFaceHeaders
+    });
+    if (!subjectsResponse.ok) {
+      throw new Error(`CompreFace subjects fetch failed: ${subjectsResponse.status} - ${await subjectsResponse.text()}`);
+    }
+    const subjectsData = await subjectsResponse.json();
+    const allSubjects = subjectsData.subjects || [];
+    if (!allSubjects.includes(expectedSubject)) {
+      return res.status(403).json({ success: false, message: `Dear ${name}, your face has not been added. See HR.` });
+    }
+
+    // Perform face recognition
+    const recognizeUrl = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=1`;
+    const recognizeResponse = await fetch(recognizeUrl, {
+      method: "POST",
+      headers: compreFaceHeaders,
+      body: JSON.stringify({ file: base64 })
+    });
+    if (!recognizeResponse.ok) {
+      throw new Error(`CompreFace recognition failed: ${recognizeResponse.status} - ${await recognizeResponse.text()}`);
+    }
+    const recognizeData = await recognizeResponse.json();
+
+    // Verify if top match is exactly the expected subject with high similarity
+    const SIMILARITY_THRESHOLD = 0.8;
+    if (recognizeData?.result?.length && recognizeData.result[0].subjects?.length) {
+      const topMatch = recognizeData.result[0].subjects[0];
+      if (topMatch.subject !== expectedSubject || topMatch.similarity < SIMILARITY_THRESHOLD) {
+        return res.status(403).json({ success: false, message: "Face does not match the registered ID." });
+      }
+    } else {
+      return res.status(403).json({ success: false, message: "Face does not match the registered ID." });
     }
 
     const allowedList = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
@@ -203,35 +228,35 @@ app.post("/api/attendance/web", async (req, res) => {
 
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
+      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === `${id} ${name}`.trim().toLowerCase()
     );
 
     if (action === "clock in") {
       if (existing && (existing["Time In"] || existing.get("Time In"))) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
+        return res.json({ success: false, message: `Dear ${name}, you have already clocked in today.` });
       }
 
-      const deptValue = department || staffMember["Department"] || staffMember.get("Department") || "";
+      const deptValue = staffMember["Department"] || staffMember.get("Department") || "";
 
       await attendanceSheet.addRow({
         "Date": dateStr,
         "Department": deptValue,
-        "Name": subjectName,
+        "Name": `${id} ${name}`,
         "Time In": timeStr,
         "Clock In Location": officeName,
         "Time Out": "",
         "Clock Out Location": ""
       });
 
-      return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
+      return res.json({ success: true, message: `Dear ${name}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
     if (action === "clock out") {
       if (!existing) {
-        return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
+        return res.json({ success: false, message: `Dear ${name}, no clock-in found for today.` });
       }
       if (existing["Time Out"] || existing.get("Time Out")) {
-        return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
+        return res.json({ success: false, message: `Dear ${name}, you have already clocked out today.` });
       }
 
       const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
@@ -248,8 +273,8 @@ app.post("/api/attendance/web", async (req, res) => {
       attendanceSheet.getCell(rowIndex, clockOutLocCol).value = officeName;
       await attendanceSheet.saveUpdatedCells();
 
-      console.log(`✅ Clock-out updated for ${subjectName} on ${dateStr} (${officeName})`);
-      return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
+      console.log(`✅ Clock-out updated for ${name} on ${dateStr} (${officeName})`);
+      return res.json({ success: true, message: `Dear ${name}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
     return res.status(400).json({ success: false, message: "Unknown action." });
@@ -386,4 +411,3 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`✅ Proodent Attendance API running on port ${listenPort}`)
 );
-
