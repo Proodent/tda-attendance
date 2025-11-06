@@ -20,7 +20,6 @@
       align-items: center;
       overflow-x: hidden;
     }
-
     /* === Container === */
     .container {
       background: #fff;
@@ -32,7 +31,6 @@
       text-align: center;
       margin: auto 0;
     }
-
     /* === Heading === */
     h1 {
       color: #009245;
@@ -46,7 +44,6 @@
       color: #242424;
       font-size: .65em;
     }
-
     /* === Status & Location === */
     #status {
       margin: 10px 0;
@@ -61,7 +58,6 @@
       text-align: center;
       color: #333;
     }
-
     /* === Buttons === */
     button {
       padding: 10px 20px;
@@ -92,7 +88,6 @@
       cursor: not-allowed;
       opacity: .6;
     }
-
     /* === Face Recognition === */
     #faceRecognition {
       display: none;
@@ -105,7 +100,6 @@
       max-width: 480px;
       border-radius: 10px;
     }
-
     /* === Loader === */
     #loaderOverlay {
       display: none;
@@ -137,7 +131,6 @@
       font-size: 18px;
       color: #333;
     }
-
     /* === Popup === */
     .popup {
       display: none;
@@ -201,7 +194,6 @@
       background: #e0e0e0;
       color: #333;
     }
-
     /* === Footer === */
     .footer {
       margin-top: auto;
@@ -215,7 +207,6 @@
       color: #009245;
       text-decoration: none;
     }
-
     /* === Admin Popup === */
     #adminPopup {
       display: none;
@@ -265,7 +256,6 @@
       margin-top: 10px;
       font-size: .9em;
     }
-
     /* === Status Box === */
     .status-box {
       margin: 18px 0 8px;
@@ -287,7 +277,6 @@
       letter-spacing: 1px;
       margin: 0;
     }
-
     /* === Clock & Date === */
     .time-box {
       margin: 20px 0 12px;
@@ -340,34 +329,27 @@
       <span>Tolon District Assembly</span><br>
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
-
     <!-- GPS FIRST -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
-
       <p id="status">Checking location...</p>
     </div>
-
     <!-- CLOCK ONLY (NO LABEL) -->
     <div class="time-box">
       <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
-
     <!-- HIDDEN BUT REQUIRED -->
     <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
-    
-
+   
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
-
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
       <canvas id="canvas"></canvas>
     </div>
   </div>
-
   <!-- POPUP -->
   <div id="popup" class="popup">
     <div class="popup-content">
@@ -378,12 +360,10 @@
       <div id="popupRetry"></div>
     </div>
   </div>
-
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
-
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
@@ -394,12 +374,10 @@
       <p id="adminError" class="error"></p>
     </div>
   </div>
-
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
-
   <script src="script.js"></script>
   <script>
     // CLOCK — NO BLINK
@@ -417,7 +395,6 @@
     }
     updateClock();
     setInterval(updateClock, 500);
-
     // GPS ON TOP
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
@@ -431,7 +408,3 @@
   </script>
 </body>
 </html>
-
-
-
-
