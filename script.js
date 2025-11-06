@@ -229,36 +229,15 @@ function stopVideo() {
   }
 }
 
-// Validate face via CompreFace proxy
-async function validateFaceWithProxy(base64) {
-  try {
-    console.log('Sending face data to proxy at', new Date().toISOString());
-    const response = await fetch('/api/proxy/face-recognition', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64 })
-    });
-    console.log('Proxy response status at', new Date().toISOString(), ':', response.status);
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('Proxy error response at', new Date().toISOString(), ':', text);
-      return { ok: false, error: `Service unavailable: ${text}` };
-    }
-    const data = await response.json();
-    console.log('Face recognition data at', new Date().toISOString(), ':', data);
-    if (data?.result?.length && data.result[0].subjects?.length) {
-      const top = data.result[0].subjects[0];
-      return { ok: true, subject: top.subject, similarity: Number(top.similarity) || 0 };
-    }
-    return { ok: false, error: data?.message || 'No match found' };
-  } catch (err) {
-    console.error('Face validation error at', new Date().toISOString(), ':', err);
-    return { ok: false, error: err.message || 'Service error' };
-  }
-}
-
 // Handle clock in/out
 async function handleClock(action) {
+  const staffIdInput = document.getElementById('staffId');
+  const id = staffIdInput.value.trim();
+  if (!id) {
+    showPopup('Input Error', 'Please enter your staff ID.', false);
+    return;
+  }
+
   const locationEl = document.getElementById('location');
   const lat = Number(locationEl.dataset.lat);
   const long = Number(locationEl.dataset.long);
@@ -303,29 +282,17 @@ async function handleClock(action) {
 
   showLoader(`${action === 'clock in' ? 'Clocking In' : 'Clocking Out'}...`);
 
-  const faceRes = await validateFaceWithProxy(base64);
-  console.log('Face validation result at', new Date().toISOString(), ':', faceRes);
-  if (!faceRes.ok) {
-    hideLoader();
-    showPopup('Face Error', faceRes.error || 'No match.', false);
-    return;
-  }
-  if (faceRes.similarity < 0.1) {
-    hideLoader();
-    showPopup('Face Error', 'Low similarity. Try better lighting.', false);
-    return;
-  }
-
   try {
     const response = await fetch('/api/attendance/web', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action,
-        subjectName: faceRes.subject,
+        id,
         latitude: lat,
         longitude: long,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        base64
       })
     });
     console.log('Attendance response status at', new Date().toISOString(), ':', response.status);
@@ -334,16 +301,9 @@ async function handleClock(action) {
     hideLoader();
 
     if (data.success) {
-      showPopup('Verification Successful', `Dear ${faceRes.subject}, ${action} recorded at ${office}.`, true);
+      showPopup('Verification Successful', data.message, true);
     } else {
-      const messages = {
-        'Staff not found or inactive': `${faceRes.subject}, profile issue. Contact HR.`,
-        'Not inside any registered office location': 'Not at an approved location.',
-        'Unapproved Location': `${faceRes.subject}, unauthorized location.`,
-        'Dear': `${faceRes.subject}, ${data.message.toLowerCase()}`,
-        'Invalid input': 'Invalid data. Try again.'
-      };
-      showPopup('Attendance Error', messages[data.message] || data.message || 'Not logged.', false);
+      showPopup('Attendance Error', data.message || 'Not logged.', false);
     }
   } catch (err) {
     console.error('Attendance error at', new Date().toISOString(), ':', err);
@@ -466,13 +426,3 @@ function initSessionTimeout() {
 }
 
 document.addEventListener('DOMContentLoaded', initSessionTimeout);
-
-
-
-
-
-
-
-
-
-
