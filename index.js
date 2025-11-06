@@ -154,7 +154,8 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: `Staff with ID '${id}' not found or inactive.` });
     }
 
-    const name = (staffMember["Name"] || staffMember.get("Name") || "").trim().replace(/^(\d+\s+)/, ''); // Extract name after ID
+    const fullName = (staffMember["Name"] || staffMember.get("Name") || "").trim();
+    const name = fullName.replace(/^(\d+\s+)/, ''); // Extract name after ID
     const expectedSubject = `${id} ${name}`.trim();
 
     // Check if expected subject exists in CompreFace
@@ -164,7 +165,8 @@ app.post("/api/attendance/web", async (req, res) => {
       headers: compreFaceHeaders
     });
     if (!subjectsResponse.ok) {
-      throw new Error(`CompreFace subjects fetch failed: ${subjectsResponse.status} - ${await subjectsResponse.text()}`);
+      console.error("CompreFace subjects fetch failed:", subjectsResponse.status, await subjectsResponse.text());
+      return res.status(500).json({ success: false, message: "Face recognition service unavailable." });
     }
     const subjectsData = await subjectsResponse.json();
     const allSubjects = subjectsData.subjects || [];
@@ -180,7 +182,8 @@ app.post("/api/attendance/web", async (req, res) => {
       body: JSON.stringify({ file: base64 })
     });
     if (!recognizeResponse.ok) {
-      throw new Error(`CompreFace recognition failed: ${recognizeResponse.status} - ${await recognizeResponse.text()}`);
+      console.error("CompreFace recognition failed:", recognizeResponse.status, await recognizeResponse.text());
+      return res.status(500).json({ success: false, message: "Face recognition service unavailable." });
     }
     const recognizeData = await recognizeResponse.json();
 
@@ -228,7 +231,7 @@ app.post("/api/attendance/web", async (req, res) => {
 
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === `${id} ${name}`.trim().toLowerCase()
+      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === fullName.toLowerCase()
     );
 
     if (action === "clock in") {
@@ -241,7 +244,7 @@ app.post("/api/attendance/web", async (req, res) => {
       await attendanceSheet.addRow({
         "Date": dateStr,
         "Department": deptValue,
-        "Name": `${id} ${name}`,
+        "Name": fullName,
         "Time In": timeStr,
         "Clock In Location": officeName,
         "Time Out": "",
@@ -325,8 +328,8 @@ app.get("/api/stats", async (req, res) => {
 
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
-    const now = new Date("2025-10-19T12:52:00Z"); // Current date and time
-    const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0]; // Default to yesterday (Oct 18, 2025)
+    const now = new Date(); // Use dynamic current date
+    const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0];
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() - 1);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
