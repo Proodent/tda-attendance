@@ -18,11 +18,11 @@ app.use(cors({
   allowedHeaders: ["Content-Type"]
 }));
 
-// ----------------- Fix __dirname for ES modules -----------------
+// Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ----------------- ENV -----------------
+// ENV
 const {
   SPREADSHEET_ID,
   GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -33,9 +33,7 @@ const {
 } = process.env;
 
 if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !COMPREFACE_API_KEY || !COMPREFACE_URL || !PORT) {
-  console.error("Missing required environment variables:", {
-    SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, COMPREFACE_API_KEY, COMPREFACE_URL, PORT
-  });
+  console.error("Missing required environment variables");
   process.exit(1);
 }
 
@@ -52,7 +50,7 @@ async function loadDoc() {
   await doc.loadInfo();
 }
 
-// ----------------- Utility functions -----------------
+// Utility
 function toRad(v) { return v * Math.PI / 180; }
 function getDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -64,18 +62,18 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// ----------------- API: Health -----------------
+// API: Health
 app.get("/api/health", async (req, res) => {
   try {
     await loadDoc();
-    res.json({ success: true, message: "Google Sheets connected successfully!" });
+    res.json({ success: true, message: "Google Sheets connected!" });
   } catch (err) {
     console.error("Health check error:", err);
     res.json({ success: false, error: err.message });
   }
 });
 
-// ----------------- API: Locations -----------------
+// API: Locations
 app.get("/api/locations", async (req, res) => {
   try {
     await loadDoc();
@@ -88,7 +86,6 @@ app.get("/api/locations", async (req, res) => {
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
     }));
-    console.log("Locations fetched:", locations.length, "records");
     res.json({ success: true, locations });
   } catch (err) {
     console.error("GET /api/locations error:", err);
@@ -96,7 +93,7 @@ app.get("/api/locations", async (req, res) => {
   }
 });
 
-// ----------------- API: Admin Logins -----------------
+// API: Admin Logins
 app.get("/api/admin-logins", async (req, res) => {
   try {
     await loadDoc();
@@ -106,8 +103,7 @@ app.get("/api/admin-logins", async (req, res) => {
     const adminLogins = rows.map(r => [
       r["Email"] || r.get("Email") || "",
       r["Password"] || r.get("Password") || ""
-    ]).filter(row => row[0] && row[1]); // Filter out incomplete rows
-    console.log("Admin logins fetched:", adminLogins.length, "records");
+    ]).filter(row => row[0] && row[1]);
     res.json({ success: true, logins: adminLogins });
   } catch (err) {
     console.error("GET /api/admin-logins error:", err);
@@ -115,31 +111,36 @@ app.get("/api/admin-logins", async (req, res) => {
   }
 });
 
-// ----------------- Proxy: CompreFace -----------------
+// Proxy: CompreFace
 app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
-    const payload = req.body || {};
-    const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
+    const { file, subject } = req.body;
+    if (!file) return res.status(400).json({ error: "No image" });
+
+    const url = new URL("/api/v1/recognition/recognize", COMPREFACE_URL);
+    url.searchParams.set("limit", "5");
+    if (subject) url.searchParams.set("subject", subject);
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "x-api-key": COMPREFACE_API_KEY,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ file })
     });
     const data = await response.json();
-    return res.json(data);
+    res.json(data);
   } catch (err) {
     console.error("POST /api/proxy/face-recognition error:", err);
-    res.status(500).json({ success: false, error: "CompreFace proxy error", details: err.message });
+    res.status(500).json({ error: "CompreFace proxy error", details: err.message });
   }
 });
 
-// ----------------- Attendance Logging -----------------
+// Attendance Logging
 app.post("/api/attendance/web", async (req, res) => {
   try {
-    const { action, subjectName, department, latitude, longitude, timestamp } = req.body;
+    const { action, subjectName, latitude, longitude, timestamp } = req.body;
     if (!action || !subjectName || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
       return res.status(400).json({ success: false, message: "Invalid input." });
     }
@@ -156,7 +157,7 @@ app.post("/api/attendance/web", async (req, res) => {
       locationsSheet.getRows()
     ]);
     const staffMember = staffRows.find(r =>
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase() &&
+      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim() &&
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
     if (!staffMember) {
@@ -189,13 +190,13 @@ app.post("/api/attendance/web", async (req, res) => {
     const timeStr = dt.toTimeString().split(" ")[0];
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
-      (r["Name"] || r.get("Name") || "").trim().toLowerCase() === subjectName.trim().toLowerCase()
+      (r["Name"] || r.get("Name") || "").trim() === subjectName.trim()
     );
     if (action === "clock in") {
       if (existing && (existing["Time In"] || existing.get("Time In"))) {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked in today.` });
       }
-      const deptValue = department || staffMember["Department"] || staffMember.get("Department") || "";
+      const deptValue = staffMember["Department"] || staffMember.get("Department") || "";
       await attendanceSheet.addRow({
         "Date": dateStr,
         "Department": deptValue,
@@ -225,7 +226,6 @@ app.post("/api/attendance/web", async (req, res) => {
       attendanceSheet.getCell(rowIndex, timeOutCol).value = timeStr;
       attendanceSheet.getCell(rowIndex, clockOutLocCol).value = officeName;
       await attendanceSheet.saveUpdatedCells();
-      console.log(`Clock-out updated for ${subjectName} on ${dateStr} (${officeName})`);
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
     return res.status(400).json({ success: false, message: "Unknown action." });
@@ -235,7 +235,7 @@ app.post("/api/attendance/web", async (req, res) => {
   }
 });
 
-// ----------------- API: Staff (list) -----------------
+// API: Staff (list)
 app.get("/api/staff", async (req, res) => {
   try {
     await loadDoc();
@@ -262,11 +262,9 @@ app.get("/api/staff", async (req, res) => {
   }
 });
 
-// ----------------- NEW: API: Staff by ID -----------------
+// API: Staff by ID (with comprefaceSubject)
 app.get("/api/staff/:id", async (req, res) => {
   const id = req.params.id.trim();
-
-  // 1. Validate 3-digit numeric ID
   if (!/^\d{3}$/.test(id)) {
     return res.status(400).json({ success: false, error: "Invalid ID format" });
   }
@@ -274,36 +272,30 @@ app.get("/api/staff/:id", async (req, res) => {
   try {
     await loadDoc();
     const staffSheet = doc.sheetsByTitle["Staff Sheet"];
-    if (!staffSheet) {
-      return res.status(500).json({ success: false, error: "Staff Sheet not found" });
-    }
+    if (!staffSheet) return res.status(500).json({ success: false, error: "Staff Sheet not found" });
 
     const rows = await staffSheet.getRows();
-
-    // 2. Find row where UserID matches and Active = Yes
     const row = rows.find(r => {
       const rowId = (r["UserID"] ?? r.get("UserID") ?? "").toString().trim();
       const active = (r["Active"] ?? r.get("Active") ?? "").toString().trim().toLowerCase();
       return rowId === id && active === "yes";
     });
 
-    if (!row) {
-      return res.json({ success: false, error: "Staff not found or inactive" });
-    }
+    if (!row) return res.json({ success: false, error: "Staff not found or inactive" });
 
     const name = (row["Name"] ?? row.get("Name") ?? "").trim();
-    if (!name) {
-      return res.json({ success: false, error: "Name missing in sheet" });
-    }
+    if (!name) return res.json({ success: false, error: "Name missing in sheet" });
 
-    res.json({ success: true, name });
+    const comprefaceSubject = name; // EXACTLY as in CompreFace
+
+    res.json({ success: true, name, comprefaceSubject });
   } catch (err) {
     console.error("GET /api/staff/:id error:", err);
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-// ----------------- API: Stats -----------------
+// API: Stats
 app.get("/api/stats", async (req, res) => {
   try {
     await loadDoc();
@@ -314,7 +306,7 @@ app.get("/api/stats", async (req, res) => {
     }
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
-    const now = new Date(); // Use real current time
+    const now = new Date();
     const requestedDate = req.query.date || new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString().split("T")[0];
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() - 1);
@@ -380,12 +372,12 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// ----------------- Static Frontend -----------------
+// Static Files
 app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/dev", (req, res) => res.sendFile(path.join(__dirname, "developer.html")));
+app.get("/stats", (req, res) => res.sendFile(path.join(__dirname, "stats.html")));
 
-// ----------------- Start Server -----------------
+// Start Server
 const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`Proodent Attendance API running on port ${listenPort}`)
