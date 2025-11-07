@@ -3,176 +3,326 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tolon District Assembly Staff Attendance Portal</title>
+  <title>Tolon Attendance</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
   <style>
-    /* === Body === */
     body {
-      font-family: Arial, sans-serif;
-      background: #f7f7f7;
-      text-align: center;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #1a202c;
       margin: 0;
-      padding: 20px;
-      min-height: 85vh;
+      padding: 0;
+      min-height: 100vh;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
       align-items: center;
-      overflow-x: hidden;
+      justify-content: center;
     }
     .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.15);
-      max-width: 600px;
-      width: 90%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
       text-align: center;
-      margin: auto 0;
     }
-    h1 { color: #009245; margin-bottom: 15px; font-size: 1.4em; }
-    h1 span { font-size: 1em; }
-    h1 .subtitle { color: #242424; font-size: .65em; }
+    .logo {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 1.5rem;
+      background: #48bb78;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: white;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+    p.subtitle {
+      color: #718096;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    .input-group {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #48bb78;
+    }
+    #idError {
+      color: #f56565;
+      font-size: 0.8rem;
+      margin-top: 0.35rem;
+      min-height: 1.25rem;
+    }
+    .btn-group {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #clockIn {
+      background: #48bb78;
+      color: white;
+    }
+    #clockOut {
+      background: #f56565;
+      color: white;
+    }
+    button:disabled {
+      background: #a0aec0 !important;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    #status {
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+    #location {
+      color: #718096;
+      font-size: 0.85rem;
+      white-space: pre-line;
+    }
+    #adminDashboard {
+      color: #667eea;
+      font-size: 0.9rem;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    #adminDashboard:hover {
+      color: #764ba2;
+    }
 
-    /* === Status Box === */
-    .status-box { margin: 18px 0 8px; }
-    #gpsCoords { font-size: 0.8em; color: #006837; font-weight: 500; margin: 0 0 6px; background: #e8f5e8; padding: 6px 14px; border-radius: 5px; display: inline-block; }
-    #status { font-size: 1.3em; color: #009245; font-weight: 700; letter-spacing: 1px; margin: 0; }
+    /* Overlays */
+    #loaderOverlay, #faceRecognition, #popup, #adminPopup {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #loaderOverlay {
+      color: white;
+      font-size: 1.2rem;
+    }
+    #loaderOverlay p {
+      background: #48bb78;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    #faceRecognition video {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 12px;
+      transform: scaleX(-1);
+    }
+    #popup {
+      flex-direction: column;
+      padding: 1.5rem;
+      max-width: 380px;
+    }
+    .popup-header {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .popup-header.success { color: #48bb78; }
+    .popup-header.error { color: #f56565; }
+    .popup-message {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .popup-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0.75rem auto;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    .popup-icon.success {
+      background: #48bb78;
+      color: white;
+    }
+    .popup-icon.error {
+      background: #f56565;
+      color: white;
+    }
+    .popup-footer {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-top: 1rem;
+    }
+    .popup-close-btn {
+      background: #48bb78;
+      color: white;
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    #adminPopup {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      position: relative;
+    }
+    #adminPopup h2 {
+      margin-top: 0;
+      color: #2d3748;
+    }
+    #adminPopup input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    #adminError {
+      color: #f56565;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      min-height: 1.25rem;
+    }
+    #adminPopup button {
+      width: 100%;
+      background: #48bb78;
+      color: white;
+    }
+    .close-popup {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #a0aec0;
+    }
+    .close-popup:hover {
+      color: #718096;
+    }
 
-    /* === Clock & Date === */
-    .time-box { margin: 20px 0 12px; }
-    #liveClock { font-size: 1em; font-weight: 700; letter-spacing: 2px; color: #009245; background: #e8f5e8; padding: 5px 5px; border-radius: 5px; display: inline-block; min-width: 140px; }
-    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
-    .colon { color: #006837; font-weight: 600; }
-    #ampm { font-size: .7em; vertical-align: top; letter-spacing: 1px; font-weight: 900; color: #006837; margin-left: 5px; background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px; }
-    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
-
-    /* === Buttons === */
-    button { padding: 10px 20px; font-size: 16px; margin: 5px; background: #009245; color: #fff; border: none; border-radius: 5px; cursor: pointer; transition: background .3s, transform .2s; }
-    #clockIn { background: #4CAF50; }
-    #clockOut { background: #F44336; }
-    button:hover:not(:disabled) { background: #006837; transform: scale(1.05); }
-    #clockOut:hover:not(:disabled) { background: #d32f2f; }
-    button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
-
-    /* === Face Recognition === */
-    #faceRecognition { display: none; margin-top: 10px; }
-    #video, #canvas { display: block; margin: 0 auto; width: 100%; max-width: 480px; border-radius: 10px; }
-
-    /* === Loader === */
-    #loaderOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,.8); z-index: 3000; justify-content: center; align-items: center; flex-direction: column; }
-    .loader { border: 6px solid #f3f3f3; border-top: 6px solid #009245; border-radius: 50%; width: 55px; height: 55px; animation: spin 1s linear infinite; margin-bottom: 15px; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-    #loaderOverlay p { margin-top: 10px; font-size: 18px; color: #333; }
-
-    /* === Popup === */
-    .popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); justify-content: center; align-items: center; z-index: 2000; }
-    .popup.show { display: flex; }
-    .popup-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,.2); animation: fadeIn .3s; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
-    .popup-header { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; padding: 8px; border-radius: 6px; }
-    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
-    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
-    #popupMessage { font-size: 1em; color: #444; margin: 10px 0 15px; }
-    .popup-close-btn { background: #f0f0f0; color: #666; border: 1px solid #ddd; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-    .popup-close-btn:hover { background: #e0e0e0; color: #333; }
-
-    /* === Footer === */
-    .footer { margin-top: auto; font-size: .9em; color: #666; padding: 10px 0; border-top: 1px solid #eee; width: 100%; }
-    .footer a { color: #009245; text-decoration: none; }
-
-    /* === Admin Popup === */
-    #adminPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); justify-content: center; align-items: center; z-index: 2000; }
-    #adminPopup.show { display: flex; }
-    #adminPopupContent { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,.2); }
-    #adminPopupContent h2 { font-size: 1.2em; margin-bottom: 20px; color: #009245; }
-    #adminPopupContent input { display: block; width: 80%; margin: 10px auto; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
-    #adminPopupContent button { margin-top: 15px; padding: 10px 20px; font-size: 1em; }
-    #adminPopupContent .error { color: #F44336; margin-top: 10px; font-size: .9em; }
-
-    /* === Status Box === */
-    .status-box { margin: 18px 0 8px; }
-    #gpsCoords { font-size: 0.8em; color: #006837; font-weight: 500; margin: 0 0 6px; background: #e8f5e8; padding: 6px 14px; border-radius: 5px; display: inline-block; }
-    #status { font-size: 1.3em; color: #009245; font-weight: 700; letter-spacing: 1px; margin: 0; }
-
-    /* === Clock & Date === */
-    .time-box { margin: 20px 0 12px; }
-    #liveClock { font-size: 1em; font-weight: 700; letter-spacing: 2px; color: #009245; background: #e8f5e8; padding: 5px 5px; border-radius: 5px; display: inline-block; min-width: 140px; }
-    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
-    .colon { color: #006837; font-weight: 600; }
-    #ampm { font-size: .7em; vertical-align: top; letter-spacing: 1px; font-weight: 900; color: #006837; margin-left: 5px; background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px; }
-    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
-    #location { display: none !important; }
+    @media (max-width: 480px) {
+      .container {
+        padding: 1.5rem;
+        margin: 1rem;
+      }
+      .logo {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+      }
+      h1 { font-size: 1.5rem; }
+      .btn-group { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
+
   <div class="container">
-    <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Portal</span></h1>
-    <div class="status-box"><div id="gpsCoords">GPS: Waiting for signal...</div><p id="status">Checking location...</p></div>
-    <div class="time-box">
-      <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
-      <div id="liveDate">Monday, 03 November 2025</div>
-    </div>
-    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
-    <div class="id-box">
-      <input type="text" id="staffId" placeholder="Enter 3-digit ID (001)" maxlength="3" />
-      <p id="idError"></p>
-    </div>
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
-    <p id="message"></p>
-    <div id="faceRecognition"><video id="video" autoplay playsinline></video><canvas id="canvas"></canvas></div>
-  </div>
+    <div class="logo">T</div>
+    <h1>Tolon Attendance</h1>
+    <p class="subtitle">Clock in/out with face recognition</p>
 
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <div class="popup-header" id="popupHeader">Title</div>
-      <div id="popupMessage">Message</div>
-      <div class="popup-icon"></div>
-      <div class="popup-footer" id="popupFooter"></div>
-      <div id="popupRetry"></div>
+    <div class="input-group">
+      <label for="staffId">Staff ID (3 digits)</label>
+      <input type="text" id="staffId" maxlength="3" placeholder="e.g., 001" />
+      <div id="idError"></div>
+    </div>
+
+    <div class="btn-group">
+      <button id="clockIn" disabled>Clock In</button>
+      <button id="clockOut" disabled>Clock Out</button>
+    </div>
+
+    <div id="status">Waiting for location...</div>
+    <div id="location">Location: --</div>
+
+    <div style="margin-top: 2rem;">
+      <span id="adminDashboard">Admin Dashboard</span>
     </div>
   </div>
 
-  <div id="loaderOverlay"><div class="loader"></div><p>Verifying...</p></div>
-
-  <div id="adminPopup" class="popup">
-    <div id="adminPopupContent">
-      <h2>Admin Login</h2>
-      <p style="font-size:0.8em;color:#666">(Check with server)</p>
-      <input type="email" id="adminEmail" placeholder="Email" />
-      <input type="password" id="adminPassword" placeholder="Password" />
-      <button onclick="loginAdmin()">Login</button>
-      <p id="adminError" class="error"></p>
-    </div>
+  <!-- Loader -->
+  <div id="loaderOverlay">
+    <p>Verifying...</p>
   </div>
 
-  <div class="footer">
-    <div><button id="adminDashboard">Admin Dashboard</button></div>
-    <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
+  <!-- Face Recognition -->
+  <div id="faceRecognition">
+    <video id="video" autoplay playsinline></video>
   </div>
+
+  <!-- Popup -->
+  <div id="popup">
+    <div id="popupHeader" class="popup-header"></div>
+    <div id="popupMessage" class="popup-message"></div>
+    <div id="popupFooter" class="popup-footer"></div>
+    <div id="popupRetry"></div>
+  </div>
+
+  <!-- Admin Login -->
+  <div id="adminPopup">
+    <button class="close-popup" onclick="document.getElementById('adminPopup').classList.remove('show')">&times;</button>
+    <h2>Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Email" />
+    <input type="password" id="adminPassword" placeholder="Password" />
+    <div id="adminError"></div>
+    <button onclick="loginAdmin()">Login</button>
+  </div>
+
+  <!-- Hidden Canvas for Face Capture -->
+  <canvas id="canvas" style="display: none;"></canvas>
 
   <script src="script.js"></script>
-  <script>
-    function updateClock() {
-      const now = new Date();
-      let h = now.getHours(); const m = now.getMinutes().toString().padStart(2,'0');
-      const s = now.getSeconds().toString().padStart(2,'0'); const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-      document.getElementById('liveClock').innerHTML =
-        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
-      document.getElementById('liveDate').textContent = dateStr;
-    }
-    updateClock(); setInterval(updateClock, 500);
-
-    const gpsEl = document.getElementById('gpsCoords');
-    const locEl = document.getElementById('location');
-    const updateGPS = () => {
-      const lat = locEl.dataset.lat; const lng = locEl.dataset.long;
-      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
-    };
-    updateGPS(); new MutationObserver(updateGPS).observe(locEl, {attributes:true});
-  </script>
 </body>
 </html>
