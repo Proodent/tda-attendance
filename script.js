@@ -121,13 +121,14 @@ async function handleClock(action) {
   if (!/^\d{3}$/.test(currentStaffId)) { showPopup('Invalid ID', 'Enter your 3-digit ID.', false); return; }
 
   showLoader('Verifying ID...');
-  let staffName;
+  let staffName, comprefaceSubject;
   try {
     const res = await fetch(`/api/staff/${currentStaffId}`);
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     if (!data.success || !data.name) throw new Error('Not found');
     staffName = data.name;
+    comprefaceSubject = data.comprefaceSubject; // EXACT subject from server
   } catch (err) {
     hideLoader();
     showPopup('ID Error', `ID ${currentStaffId} not found. Contact HR.`, false);
@@ -152,8 +153,7 @@ async function handleClock(action) {
   stopVideo(); document.getElementById('faceRecognition').style.display = 'none';
 
   showLoader('Verifying face...');
-  const subjectToCheck = `${currentStaffId.padStart(3,'0')} ${staffName}`;
-  const faceRes = await validateFaceWithProxyTargeted(base64, subjectToCheck);
+  const faceRes = await validateFaceWithProxyTargeted(base64, comprefaceSubject);
 
   if (!faceRes.ok) {
     hideLoader();
@@ -165,10 +165,10 @@ async function handleClock(action) {
 
   try {
     const res = await fetch('/api/attendance/web', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, subjectName: subjectToCheck, latitude: lat, longitude: long, timestamp: new Date().toISOString() })
+      body: JSON.stringify({ action, subjectName: comprefaceSubject, latitude: lat, longitude: long, timestamp: new Date().toISOString() })
     });
     const data = await res.json(); hideLoader();
-    if (data.success) showPopup('Verification Successful', `Dear ${staffName}, ${action} recorded at ${office}.`, true);
+    if (data.success) showPopup('Verification Successful', data.message, true);
     else showPopup('Attendance Error', data.message || 'Not logged.', false);
   } catch (err) { hideLoader(); showPopup('Server Error', `Connection failed: ${err.message}`, false); }
 }
