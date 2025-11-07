@@ -6,6 +6,7 @@
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
+    /* === Body === */
     body {
       font-family: Arial, sans-serif;
       background: #f7f7f7;
@@ -19,6 +20,8 @@
       align-items: center;
       overflow-x: hidden;
     }
+
+    /* === Container === */
     .container {
       background: #fff;
       padding: 20px;
@@ -29,6 +32,8 @@
       text-align: center;
       margin: auto 0;
     }
+
+    /* === Heading === */
     h1 {
       color: #009245;
       margin-bottom: 15px;
@@ -41,19 +46,91 @@
       color: #242424;
       font-size: .65em;
     }
+
+    /* === Status Box === */
+    .status-box {
+      margin: 18px 0 8px;
+    }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      margin: 0 0 6px;
+      background: #e8f5e8;
+      padding: 6px 14px;
+      border-radius: 5px;
+      display: inline-block;
+    }
     #status {
-      margin: 10px 0;
-      color: #333;
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin: 0;
     }
-    #location {
-      margin: 10px 0;
-      color: #333;
+
+    /* === Clock & Date === */
+    .time-box {
+      margin: 20px 0 12px;
     }
-    pre {
-      white-space: pre-wrap;
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 5px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      min-width: 140px;
+    }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.2ch;
       text-align: center;
-      color: #333;
     }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
+    #ampm {
+      font-size: .7em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 5px;
+      background: rgba(0,146,69,.15);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    #liveDate {
+      font-size: .8em;
+      color: #444;
+      margin-top: 7px;
+      font-weight: 600;
+    }
+
+    /* === UserID Input === */
+    .id-box {
+      margin: 20px 0 15px;
+    }
+    #staffId {
+      width: 180px;
+      padding: 10px;
+      font-size: 1em;
+      border: 2px solid #009245;
+      border-radius: 6px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    #idError {
+      color: #F44336;
+      font-size: 0.85em;
+      margin: 4px 0 0;
+    }
+
+    /* === Buttons === */
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -83,6 +160,8 @@
       cursor: not-allowed;
       opacity: .6;
     }
+
+    /* === Face Recognition === */
     #faceRecognition {
       display: none;
       margin-top: 10px;
@@ -94,6 +173,8 @@
       max-width: 480px;
       border-radius: 10px;
     }
+
+    /* === Loader === */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -124,6 +205,8 @@
       font-size: 18px;
       color: #333;
     }
+
+    /* === Popup === */
     .popup {
       display: none;
       position: fixed;
@@ -186,6 +269,8 @@
       background: #e0e0e0;
       color: #333;
     }
+
+    /* === Footer === */
     .footer {
       margin-top: auto;
       font-size: .9em;
@@ -198,6 +283,8 @@
       color: #009245;
       text-decoration: none;
     }
+
+    /* === Admin Popup === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -246,68 +333,8 @@
       margin-top: 10px;
       font-size: .9em;
     }
-    /* === Status Box === */
-    .status-box {
-      margin: 18px 0 8px;
-    }
-    #gpsCoords {
-      font-size: 0.8em;
-      color: #006837;
-      font-weight: 500;
-      margin: 0 0 6px;
-      background: #e8f5e8;
-      padding: 6px 14px;
-      border-radius: 5px;
-      display: inline-block;
-    }
-    #status {
-      font-size: 1.3em;
-      color: #009245;
-      font-weight: 700;
-      letter-spacing: 1px;
-      margin: 0;
-    }
-    /* === Clock & Date === */
-    .time-box {
-      margin: 20px 0 12px;
-    }
-    #liveClock {
-      font-size: 1em;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #009245;
-      background: #e8f5e8;
-      padding: 5px 5px;
-      border-radius: 5px;
-      display: inline-block;
-      min-width: 140px;
-    }
-    #liveClock span {
-      display: inline-block;
-      min-width: 1.2ch;
-      text-align: center;
-    }
-    .colon {
-      color: #006837;
-      font-weight: 600;
-    }
-    #ampm {
-      font-size: .7em;
-      vertical-align: top;
-      letter-spacing: 1px;
-      font-weight: 900;
-      color: #006837;
-      margin-left: 5px;
-      background: rgba(0,146,69,.15);
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
-    #liveDate {
-      font-size: .8em;
-      color: #444;
-      margin-top: 7px;
-      font-weight: 600;
-    }
+
+    /* === Hidden Elements === */
     #location {
       display: none !important;
     }
@@ -319,28 +346,41 @@
       <span>Tolon District Assembly</span><br>
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
-    <!-- GPS FIRST -->
+
+    <!-- GPS -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
     </div>
-    <!-- CLOCK ONLY (NO LABEL) -->
+
+    <!-- Clock -->
     <div class="time-box">
       <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
-    <!-- HIDDEN BUT REQUIRED -->
+
+    <!-- Hidden location -->
     <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
-   
+
+    <!-- UserID Input -->
+    <div class="id-box">
+      <input type="text" id="staffId" placeholder="Enter UserID (e.g. 001)" maxlength="3" />
+      <p id="idError"></p>
+    </div>
+
+    <!-- Buttons -->
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
+
+    <!-- Face Recognition -->
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
       <canvas id="canvas"></canvas>
     </div>
   </div>
-  <!-- POPUP -->
+
+  <!-- Popup -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader">Title</div>
@@ -350,27 +390,33 @@
       <div id="popupRetry"></div>
     </div>
   </div>
+
+  <!-- Loader -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
+
+  <!-- Admin Login -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
-      <p style="font-size:0.8em;color:#666">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
       <button onclick="loginAdmin()">Login</button>
       <p id="adminError" class="error"></p>
     </div>
   </div>
+
+  <!-- Footer -->
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
+
   <script src="script.js"></script>
   <script>
-    // CLOCK — NO BLINK
+    // Clock
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -385,7 +431,8 @@
     }
     updateClock();
     setInterval(updateClock, 500);
-    // GPS ON TOP
+
+    // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
@@ -397,4 +444,4 @@
     new MutationObserver(updateGPS).observe(locEl, {attributes:true});
   </script>
 </body>
-</html> 
+</html>
