@@ -39,42 +39,34 @@
       margin-bottom: 15px;
       font-size: 1.4em;
     }
-    h1 span {
-      font-size: 1em;
-    }
-    h1 .subtitle {
-      color: #242424;
-      font-size: .65em;
-    }
+    h1 span { font-size: 1em; }
+    h1 .subtitle { color: #242424; font-size: .65em; }
 
     /* === UserID Input (50% smaller, placeholder) === */
     .input-group {
       margin: 20px 0 25px;
       text-align: center;
-      max-width: 150px; /* 50% of 300px */
+      max-width: 150px;
       margin-left: auto;
       margin-right: auto;
     }
     .input-group input {
       width: 100%;
-      padding: 8px 10px; /* Reduced */
+      padding: 8px 10px;
       font-size: 14px;
       border: 1px solid #ccc;
       border-radius: 6px;
       text-align: center;
       font-weight: 600;
     }
-    .input-group input::placeholder {
-      color: #666;
-      font-weight: 500;
-    }
+    .input-group input::placeholder { color: #666; font-weight: 500; }
     .input-group input:focus {
       outline: none;
       border-color: #009245;
       box-shadow: 0 0 5px rgba(0, 146, 69, 0.3);
     }
 
-    /* === UserID Status (with icons) === */
+    /* === UserID Status (with emojis) === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -90,10 +82,11 @@
     #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
     #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
 
-    .status-icon {
+    /* Emoji Icons */
+    #userIdStatus span[style*="color"] {
       font-size: 1.1em;
       font-weight: bold;
-      margin-left: 6px;
+      vertical-align: middle;
     }
 
     /* === Status & Location === */
@@ -119,7 +112,7 @@
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
 
-    /* === FACE MODAL (Auto-capture) === */
+    /* === FACE MODAL === */
     #faceModal {
       display: none;
       position: fixed;
@@ -175,7 +168,7 @@
       color: #009245;
     }
 
-    /* === Loader === */
+    /* === Loader (Persistent) === */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -229,7 +222,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === Admin Dashboard Popup === */
+    /* === Admin Popup === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -346,7 +339,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID (50% size, placeholder) -->
+    <!-- USERID -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
       <div id="userIdStatus" class="loading">Validating...</div>
