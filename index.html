@@ -31,6 +31,9 @@
       width: 90%;
       text-align: center;
       margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     /* === Heading === */
@@ -38,77 +41,141 @@
       color: #009245;
       margin-bottom: 15px;
       font-size: 1.4em;
+      width: 100%;
     }
     h1 span { font-size: 1em; }
     h1 .subtitle { color: #242424; font-size: .65em; }
 
-    /* === UserID Input (50% smaller, placeholder) === */
+    /* === CENTERED INPUT + STATUS (SAME WIDTH) === */
     .input-group {
-      margin: 20px 0 25px;
+      margin: 20px 0 8px;
       text-align: center;
-      max-width: 150px;
-      margin-left: auto;
-      margin-right: auto;
+      width: 100%;
+      max-width: 300px; /* Same width for both */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .input-group input {
       width: 100%;
-      padding: 8px 10px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
       text-align: center;
       font-weight: 600;
+      box-sizing: border-box;
     }
     .input-group input::placeholder { color: #666; font-weight: 500; }
     .input-group input:focus {
       outline: none;
       border-color: #009245;
-      box-shadow: 0 0 5px rgba(0, 146, 69, 0.3);
+      box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
     }
 
-    /* === UserID Status (with emojis) === */
+    /* === VALIDATION STATUS (same width, centered) === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
-      margin-top: 6px;
-      padding: 6px 10px;
-      border-radius: 5px;
-      display: inline-block;
-      min-height: 1.5em;
-      line-height: 1.5;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.4;
     }
-    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
-    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
-    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
+    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
+    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
+    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
 
     /* Emoji Icons */
     #userIdStatus span[style*="color"] {
       font-size: 1.1em;
       font-weight: bold;
-      vertical-align: middle;
+      margin-left: 6px;
     }
 
-    /* === Status & Location === */
-    #status { margin: 10px 0; color: #333; font-weight: 600; }
-    #location { display: none !important; }
+    /* === Status & GPS === */
+    .status-box {
+      margin: 18px 0 8px;
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+    }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      background: #e8f5e8;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    /* === Clock === */
+    .time-box {
+      margin: 20px 0 12px;
+      width: 100%;
+      max-width: 300px;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 6px 8px;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 150px;
+    }
+    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
+    .colon { color: #006837; font-weight: 600; }
+    #ampm {
+      font-size: .7em; vertical-align: top; letter-spacing: 1px;
+      font-weight: 900; color: #006837; margin-left: 5px;
+      background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px;
+    }
+    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
 
     /* === Buttons === */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 300px;
+    }
     button {
-      padding: 12px 24px;
+      flex: 1;
+      padding: 14px;
       font-size: 16px;
-      margin: 8px;
       background: #009245;
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       transition: background .3s, transform .2s;
       font-weight: 600;
     }
     #clockIn { background: #4CAF50; }
     #clockOut { background: #F44336; }
-    button:hover:not(:disabled) { background: #006837; transform: scale(1.05); }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    #clockIn:hover:not(:disabled) { background: #45a049; }
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
 
@@ -168,7 +235,7 @@
       color: #009245;
     }
 
-    /* === Loader (Persistent) === */
+    /* === Loader === */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -251,9 +318,10 @@
       width: 100%;
       padding: 10px;
       margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
       font-size: 15px;
+      box-sizing: border-box;
     }
     #adminPopup button {
       width: 100%;
@@ -261,7 +329,7 @@
       background: #009245;
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       margin-top: 10px;
@@ -276,48 +344,13 @@
       padding: 10px 0;
       border-top: 1px solid #eee;
       width: 100%;
+      max-width: 600px;
+      text-align: center;
     }
     .footer a { color: #009245; text-decoration: none; }
 
-    /* === Status Box === */
-    .status-box { margin: 18px 0 8px; }
-    #gpsCoords {
-      font-size: 0.8em;
-      color: #006837;
-      font-weight: 500;
-      background: #e8f5e8;
-      padding: 6px 14px;
-      border-radius: 5px;
-      display: inline-block;
-    }
-    #status {
-      font-size: 1.3em;
-      color: #009245;
-      font-weight: 700;
-      margin: 0;
-    }
-
-    /* === Clock === */
-    .time-box { margin: 20px 0 12px; }
-    #liveClock {
-      font-size: 1em;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #009245;
-      background: #e8f5e8;
-      padding: 5px 5px;
-      border-radius: 5px;
-      display: inline-block;
-      min-width: 140px;
-    }
-    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
-    .colon { color: #006837; font-weight: 600; }
-    #ampm {
-      font-size: .7em; vertical-align: top; letter-spacing: 1px;
-      font-weight: 900; color: #006837; margin-left: 5px;
-      background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px;
-    }
-    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+    /* === Hidden === */
+    #location { display: none !important; }
   </style>
 </head>
 <body>
@@ -327,29 +360,29 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
-    <!-- GPS -->
+    <!-- GPS + Status -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
     </div>
 
-    <!-- CLOCK -->
+    <!-- Clock -->
     <div class="time-box">
-      <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
+      <div id="liveClock">12 : 00 : 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID -->
+    <!-- USERID + VALIDATION (SAME WIDTH, CENTERED) -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
       <div id="userIdStatus" class="loading">Validating...</div>
     </div>
 
-    <!-- HIDDEN -->
-    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
-
-    <button id="clockIn" disabled>Clock In</button>
-    <button id="clockOut" disabled>Clock Out</button>
+    <!-- Buttons -->
+    <div class="button-group">
+      <button id="clockIn" disabled>Clock In</button>
+      <button id="clockOut" disabled>Clock Out</button>
+    </div>
   </div>
 
   <!-- FACE MODAL -->
@@ -376,7 +409,7 @@
     <div class="popup-content">
       <div class="popup-header" id="popupHeader">Title</div>
       <div id="popupMessage">Message</div>
-      <button id="popupCloseBtn" class="popup-close-btn">Close</button>
+      <button id="popupCloseBtn">Close</button>
     </div>
   </div>
 
@@ -391,6 +424,9 @@
       <p id="adminError" class="error"></p>
     </div>
   </div>
+
+  <!-- HIDDEN LOCATION -->
+  <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
