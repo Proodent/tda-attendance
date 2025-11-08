@@ -27,7 +27,7 @@
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,.15);
-      max-width:: 600px;
+      max-width: 600px;
       width: 90%;
       text-align: center;
       margin: auto 0;
@@ -39,25 +39,34 @@
       margin-bottom: 15px;
       font-size: 1.4em;
     }
-    h1 span { font-size: 1em; }
-    h1 .subtitle { color: #242424; font-size: .65em; }
+    h1 span {
+      font-size: 1em;
+    }
+    h1 .subtitle {
+      color: #242424;
+      font-size: .65em;
+    }
 
-    /* === UserID Input (50% smaller) === */
+    /* === UserID Input (50% smaller, placeholder) === */
     .input-group {
       margin: 20px 0 25px;
+      text-align: center;
       max-width: 150px; /* 50% of 300px */
       margin-left: auto;
       margin-right: auto;
-      position: relative;
     }
     .input-group input {
       width: 100%;
-      padding: 8px; /* reduced */
-      font-size: 14px; /* reduced */
+      padding: 8px 10px; /* Reduced */
+      font-size: 14px;
       border: 1px solid #ccc;
       border-radius: 6px;
       text-align: center;
       font-weight: 600;
+    }
+    .input-group input::placeholder {
+      color: #666;
+      font-weight: 500;
     }
     .input-group input:focus {
       outline: none;
@@ -65,34 +74,43 @@
       box-shadow: 0 0 5px rgba(0, 146, 69, 0.3);
     }
 
-    /* === UserID Status (Icons instead of text) === */
+    /* === UserID Status (with icons) === */
     #userIdStatus {
-      font-size: 0.9em;
+      font-size: 0.85em;
       font-weight: 600;
       margin-top: 6px;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 5px;
       display: inline-block;
       min-height: 1.5em;
+      line-height: 1.5;
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
     #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
     #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
 
-    .status-icon { margin-left: 5px; font-size: 1.1em; }
+    .status-icon {
+      font-size: 1.1em;
+      font-weight: bold;
+      margin-left: 6px;
+    }
+
+    /* === Status & Location === */
+    #status { margin: 10px 0; color: #333; font-weight: 600; }
+    #location { display: none !important; }
 
     /* === Buttons === */
     button {
-      padding: 10px 20px;
-      font-size: 15px;
+      padding: 12px 24px;
+      font-size: 16px;
       margin: 8px;
       background: #009245;
       color: #fff;
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      transition: .2s;
+      transition: background .3s, transform .2s;
       font-weight: 600;
     }
     #clockIn { background: #4CAF50; }
@@ -101,11 +119,68 @@
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
 
+    /* === FACE MODAL (Auto-capture) === */
+    #faceModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.6);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+    }
+    #faceModal.show { display: flex; }
+    #faceModal .popup-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    #faceModal .popup-header {
+      background: #009245;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    #faceModal .video-container {
+      position: relative;
+      margin: 15px auto;
+      width: 280px;
+      height: 210px;
+      border: 3px solid #009245;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #faceModal video {
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+    }
+    #faceModal .face-guide {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px; height: 180px;
+      border: 2px dashed #fff;
+      border-radius: 50%;
+      opacity: 0.7;
+    }
+    #faceModal .capture-status {
+      margin: 15px 0;
+      font-weight: 600;
+      color: #009245;
+    }
+
     /* === Loader === */
     #loaderOverlay {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(255,255,255,.95);
       z-index: 3000;
       justify-content: center;
@@ -122,13 +197,13 @@
       margin-bottom: 15px;
     }
     @keyframes spin { 100% { transform: rotate(360deg); } }
-    #loaderOverlay p { font-size: 18px; color: #333; font-weight: 600; }
 
     /* === Popup === */
     .popup {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,.4);
       justify-content: center;
       align-items: center;
@@ -143,9 +218,7 @@
       max-width: 380px;
       text-align: center;
       box-shadow: 0 5px 20px rgba(0,0,0,.2);
-      animation: fadeIn .3s;
     }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
     .popup-header {
       font-size: 1.2em;
       font-weight: bold;
@@ -155,54 +228,36 @@
     }
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
-    #popupMessage { font-size: 1em; color: #444; margin: 10px 0 15px; line-height: 1.5; }
-    .popup-close-btn {
-      background: #f0f0f0; color: #666; border: 1px solid #ddd;
-      padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: 600;
-    }
-    .popup-close-btn:hover { background: #e0e0e0; color: #333; }
-
-    /* === Face Modal (Auto Capture) === */
-    #faceModal .popup-content {
-      max-width: 420px;
-      padding: 20px;
-    }
-    #faceModal video {
-      width: 100%;
-      max-width: 320px;
-      height: 240px;
-      object-fit: cover;
-      border-radius: 12px;
-      border: 3px solid #009245;
-      transform: scaleX(-1);
-      margin: 10px auto;
-      display: block;
-    }
-    #faceModal .face-guide {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 160px; height: 210px;
-      border: 2px dashed #fff;
-      border-radius: 50%;
-      opacity: 0.7;
-      pointer-events: none;
-    }
-    #faceModal .capture-status {
-      margin-top: 10px;
-      font-weight: 600;
-      color: #009245;
-    }
 
     /* === Admin Dashboard Popup === */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.5);
+      z-index: 2500;
+      justify-content: center;
+      align-items: center;
+    }
+    #adminPopup.show { display: flex; }
     #adminPopup .popup-content {
-      max-width: 360px;
+      background: #fff;
       padding: 25px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 8px 25px rgba(0,0,0,.2);
+    }
+    #adminPopup h2 {
+      margin: 0 0 15px;
+      color: #009245;
+      font-size: 1.3em;
     }
     #adminPopup input {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
+      margin: 8px 0;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 15px;
@@ -216,13 +271,9 @@
       border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
+      margin-top: 10px;
     }
-    #adminPopup button:hover { background: #006837; }
-    #adminError {
-      color: #721c24;
-      font-size: 0.9em;
-      margin-top: 8px;
-    }
+    #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
 
     /* === Footer === */
     .footer {
@@ -234,6 +285,46 @@
       width: 100%;
     }
     .footer a { color: #009245; text-decoration: none; }
+
+    /* === Status Box === */
+    .status-box { margin: 18px 0 8px; }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      background: #e8f5e8;
+      padding: 6px 14px;
+      border-radius: 5px;
+      display: inline-block;
+    }
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    /* === Clock === */
+    .time-box { margin: 20px 0 12px; }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 5px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      min-width: 140px;
+    }
+    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
+    .colon { color: #006837; font-weight: 600; }
+    #ampm {
+      font-size: .7em; vertical-align: top; letter-spacing: 1px;
+      font-weight: 900; color: #006837; margin-left: 5px;
+      background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px;
+    }
+    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -243,39 +334,48 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
+    <!-- GPS -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
     </div>
 
+    <!-- CLOCK -->
     <div class="time-box">
-      <div id="liveClock">12:00:00 <span id="ampm">AM</span></div>
+      <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID (Placeholder, no label) -->
+    <!-- USERID (50% size, placeholder) -->
     <div class="input-group">
-      <input type="text" id="userId" placeholder="Enter Your User ID" maxlength="10" autocomplete="off" />
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
       <div id="userIdStatus" class="loading">Validating...</div>
     </div>
 
+    <!-- HIDDEN -->
     <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
   </div>
 
-  <!-- FACE MODAL (Auto Capture) -->
-  <div id="faceModal" class="popup">
+  <!-- FACE MODAL -->
+  <div id="faceModal">
     <div class="popup-content">
-      <div class="popup-header" style="background:#009245;color:#fff;">Face Verification</div>
-      <p style="margin:10px 0 5px;">Position your face in the oval</p>
-      <div style="position:relative; width:320px; height:240px; margin:15px auto;">
+      <div class="popup-header">Face Verification</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
+      <div class="video-container">
         <video id="video" autoplay playsinline></video>
         <div class="face-guide"></div>
       </div>
       <div class="capture-status" id="captureStatus">Capturing in 3...</div>
     </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying face...</p>
   </div>
 
   <!-- POPUP -->
@@ -287,21 +387,15 @@
     </div>
   </div>
 
-  <!-- LOADER -->
-  <div id="loaderOverlay">
-    <div class="loader"></div>
-    <p>Verifying face...</p>
-  </div>
-
   <!-- ADMIN POPUP -->
-  <div id="adminPopup" class="popup">
+  <div id="adminPopup">
     <div class="popup-content">
       <h2>Admin Login</h2>
       <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
       <button id="adminLoginBtn">Login</button>
-      <p id="adminError"></p>
+      <p id="adminError" class="error"></p>
     </div>
   </div>
 
@@ -311,5 +405,31 @@
   </div>
 
   <script src="script.js"></script>
+  <script>
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = now.getMinutes().toString().padStart(2,'0');
+      const s = now.getSeconds().toString().padStart(2,'0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      document.getElementById('liveClock').innerHTML =
+        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
+      document.getElementById('liveDate').textContent = dateStr;
+    }
+    updateClock();
+    setInterval(updateClock, 500);
+
+    const gpsEl = document.getElementById('gpsCoords');
+    const locEl = document.getElementById('location');
+    const updateGPS = () => {
+      const lat = locEl.dataset.lat;
+      const lng = locEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
+    };
+    updateGPS();
+    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
+  </script>
 </body>
 </html>
