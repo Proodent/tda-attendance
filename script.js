@@ -1,4 +1,3 @@
-// === GLOBALS ===
 let watchId = null;
 let currentOffice = null;
 let staffCache = new Map();
@@ -6,7 +5,7 @@ let videoEl, faceModal, captureStatus;
 let countdown = 0;
 let countdownInterval = null;
 
-// === UTILITY: Distance Calculation ===
+// === UTILITY ===
 function toRad(v) { return v * Math.PI / 180; }
 function getDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -17,7 +16,7 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// === FETCH STAFF BY USERID ===
+// === FETCH STAFF ===
 async function getStaffByUserId(userId) {
   if (staffCache.has(userId)) return staffCache.get(userId);
   try {
@@ -58,7 +57,7 @@ async function fetchLocations() {
   }
 }
 
-// === START GPS + LOCATION WATCH (RESTORED & WORKING) ===
+// === START GPS WATCH ===
 function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const gpsEl = document.getElementById('gpsCoords');
@@ -68,7 +67,6 @@ function startLocationWatch() {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Fetch locations first
   fetchLocations().then(locations => {
     if (locations.length === 0) {
       statusEl.textContent = 'No locations loaded.';
@@ -81,7 +79,6 @@ function startLocationWatch() {
       return;
     }
 
-    // === RESTORED: watchPosition with proper error handling ===
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
@@ -99,7 +96,7 @@ function startLocationWatch() {
         }
 
         statusEl.textContent = currentOffice || 'Outside approved area';
-        updateUserStatus(); // Revalidate
+        updateUserStatus();
       },
       err => {
         console.error('GPS Error:', err);
@@ -111,7 +108,6 @@ function startLocationWatch() {
     );
   });
 
-  // === USERID VALIDATION WITH ICONS ===
   userIdInput.addEventListener('input', updateUserStatus);
 
   async function updateUserStatus() {
@@ -129,33 +125,33 @@ function startLocationWatch() {
     const staff = await getStaffByUserId(userId);
     if (!staff) {
       userIdStatus.className = 'invalid';
-      userIdStatus.innerHTML = `User ${userId} not found <span class="status-icon">Cross</span>`;
+      userIdStatus.innerHTML = `User ${userId} not found <span style="color:#d32f2f;font-weight:bold;margin-left:5px;">Cross</span>`;
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
 
     if (staff.active.toLowerCase() !== 'yes') {
       userIdStatus.className = 'inactive';
-      userIdStatus.innerHTML = `User ${userId} : ${staff.name} is Inactive <span class="status-icon">Warning</span>`;
+      userIdStatus.innerHTML = `User ${userId} : ${staff.name} is Inactive <span style="color:#ff9800;font-weight:bold;margin-left:5px;">Inactive User</span>`;
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
 
     const approved = currentOffice && staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
-    const icon = approved ? 'Checkmark' : 'Cross';
-    const colorClass = approved ? 'valid' : 'invalid';
+    const icon = approved 
+      ? '<span style="color:#4caf50;font-weight:bold;margin-left:5px;">Approved</span>' 
+      : '<span style="color:#f44336;font-weight:bold;margin-left:5px;">Not Approved</span>';
 
-    userIdStatus.className = colorClass;
-    userIdStatus.innerHTML = `User ${userId} found : ${staff.name} <span class="status-icon">${icon}</span>`;
+    userIdStatus.className = approved ? 'valid' : 'invalid';
+    userIdStatus.innerHTML = `User ${userId} found : ${staff.name} ${icon}`;
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   }
 
-  // === CLOCK BUTTONS ===
   clockInBtn.addEventListener('click', () => handleClock('clock in'));
   clockOutBtn.addEventListener('click', () => handleClock('clock out'));
 }
 
-// === FACE MODAL AUTO-CAPTURE ===
+// === FACE MODAL ===
 async function showFaceModal(staff, action) {
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
@@ -163,10 +159,7 @@ async function showFaceModal(staff, action) {
 
   faceModal.classList.add('show');
   const started = await startVideo();
-  if (!started) {
-    hideFaceModal();
-    return;
-  }
+  if (!started) { hideFaceModal(); return; }
 
   countdown = 3;
   captureStatus.textContent = `Capturing in ${countdown}...`;
@@ -220,15 +213,20 @@ async function captureAndVerify(staff, action) {
   hideFaceModal();
   showLoader(`Verifying face for ${staff.name}...`);
 
-  const faceRes = await validateFaceWithSubject(base64, staff.name);
-  hideLoader();
+  try {
+    const faceRes = await validateFaceWithSubject(base64, staff.name);
+    hideLoader();
 
-  if (!faceRes.ok || faceRes.similarity < 0.7) {
-    showPopup('Face Verification Failed', faceRes.error || 'Face similarity too low.', false);
-    return;
+    if (!faceRes.ok || faceRes.similarity < 0.7) {
+      showPopup('Face Verification Failed', faceRes.error || 'Face similarity too low.', false);
+      return;
+    }
+
+    await submitAttendance(action, staff);
+  } catch (err) {
+    hideLoader();
+    showPopup('Face Error', `Verification failed: ${err.message}`, false);
   }
-
-  await submitAttendance(action, staff);
 }
 
 async function submitAttendance(action, staff) {
@@ -260,7 +258,6 @@ async function submitAttendance(action, staff) {
   }
 }
 
-// === FACE RECOGNITION PROXY ===
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -280,7 +277,6 @@ async function validateFaceWithSubject(base64, subjectName) {
   }
 }
 
-// === POPUP ===
 function showPopup(title, message, success = null) {
   const popup = document.getElementById('popup');
   const header = document.getElementById('popupHeader');
@@ -289,7 +285,6 @@ function showPopup(title, message, success = null) {
   header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
   msg.innerHTML = message;
   popup.classList.add('show');
-
   setTimeout(() => popup.classList.remove('show'), 5000);
   document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
 }
@@ -304,7 +299,6 @@ function hideLoader() {
   document.getElementById('loaderOverlay').style.display = 'none';
 }
 
-// === HANDLE CLOCK ===
 async function handleClock(action) {
   const userId = document.getElementById('userId').value.trim();
   if (!userId) return showPopup('Missing User ID', 'Please enter your User ID.', false);
@@ -327,7 +321,6 @@ async function handleClock(action) {
   showFaceModal(staff, action);
 }
 
-// === ADMIN DASHBOARD ===
 document.getElementById('adminDashboard').addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
@@ -354,12 +347,10 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
     });
 });
 
-// === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
   startLocationWatch();
 });
 
-// === CLEANUP ===
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
