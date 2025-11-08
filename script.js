@@ -90,7 +90,7 @@ async function getStaffByUserId(userId) {
   }
 }
 
-// === FETCH LOCATIONS (WITH FALLBACK) ===
+// Fetch locations
 async function fetchLocations() {
   try {
     const response = await fetch('/api/locations');
@@ -167,7 +167,7 @@ async function validateFaceWithSubject(base64, subjectName) {
   }
 }
 
-// === HANDLE CLOCK (CAMERA 1.5s + GPS) ===
+// Handle clock
 async function handleClock(action) {
   const userIdInput = document.getElementById('userId');
   const userId = userIdInput.value.trim();
@@ -191,10 +191,7 @@ async function handleClock(action) {
         break;
       }
     }
-  }
-
-  if (!office && locations.length > 0) {
-    return showPopup('Location Error', 'Not at an approved office.', false);
+    if (!office) return showPopup('Location Error', 'Not at an approved office.', false);
   }
 
   // === OPEN CAMERA ===
@@ -205,7 +202,13 @@ async function handleClock(action) {
 
   const captureMsg = document.createElement('div');
   captureMsg.textContent = `Capturing ${staff.name}...`;
-  captureMsg.style.cssText = `position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,146,69,0.9);color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:14px;z-index:10;`;
+  captureMsg.id = 'captureMsg';
+  captureMsg.style.cssText = `
+    position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,146,69,0.95); color: white; padding: 10px 20px;
+    border-radius: 25px; font-weight: bold; font-size: 15px; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  `;
   document.getElementById('cameraContainer').appendChild(captureMsg);
 
   await new Promise(r => setTimeout(r, 1500));
@@ -260,7 +263,7 @@ async function handleClock(action) {
   }
 }
 
-// === START LOCATION + GPS IMMEDIATELY ===
+// Start location watch
 function startLocationWatch() {
   const statusEl = document.getElementById('status');
   const gpsEl = document.getElementById('gpsCoords');
@@ -280,16 +283,14 @@ function startLocationWatch() {
   cameraPopup = document.getElementById('cameraPopup');
   closeCameraBtn = document.getElementById('closeCamera');
 
-  // Initialize UI
   userIdInput.disabled = true;
   userIdStatus.textContent = 'Enter User ID only when at office';
   userIdStatus.className = 'inactive';
   statusEl.textContent = 'Requesting GPS...';
   gpsEl.textContent = 'GPS: Waiting...';
 
-  // === START GPS IMMEDIATELY ===
   if (!navigator.geolocation) {
-    statusEl.textContent = 'Geolocation not supported';
+    status38El.textContent = 'Geolocation not supported';
     showPopup('GPS Error', 'Browser does not support GPS.', false);
     return;
   }
@@ -322,12 +323,6 @@ function startLocationWatch() {
         const userId = userIdInput.value.trim();
         const canClock = userId && staffCache.has(userId) && staffCache.get(userId).active.toLowerCase() === 'yes';
         clockInBtn.disabled = clockOutBtn.disabled = !canClock;
-      } else if (locations.length === 0) {
-        statusEl.textContent = 'GPS Active (No Office Rules)';
-        userIdInput.disabled = false;
-        userIdStatus.textContent = 'Enter your User ID';
-        userIdStatus.className = '';
-        clockInBtn.disabled = clockOutBtn.disabled = true;
       } else {
         statusEl.textContent = 'Outside Office';
         userIdInput.disabled = true;
@@ -350,16 +345,8 @@ function startLocationWatch() {
     { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
   );
 
-  // === LOAD LOCATIONS IN BACKGROUND ===
-  fetchLocations().then(ok => {
-    if (ok) {
-      console.log('Locations loaded:', locations);
-    } else {
-      console.log('Running in GPS-only mode');
-    }
-  });
+  fetchLocations().then(() => console.log('Locations loaded or skipped'));
 
-  // === USERID VALIDATION ===
   userIdInput.addEventListener('input', async () => {
     const userId = userIdInput.value.trim();
     const buttons = [clockInBtn, clockOutBtn];
