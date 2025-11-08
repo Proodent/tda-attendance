@@ -117,10 +117,17 @@ async function fetchLocations() {
 async function startVideo() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'user', width: 640, height: 480 } 
+      video: { 
+        facingMode: 'user', 
+        width: { ideal: 640 }, 
+        height: { ideal: 480 },
+        frameRate: { ideal: 30 }
+      } 
     });
     videoEl.srcObject = stream;
     videoEl.style.transform = 'scaleX(-1)';
+    videoEl.muted = true;
+    videoEl.playsInline = true;
     await videoEl.play();
     return true;
   } catch (err) {
@@ -189,47 +196,51 @@ async function handleClock(action) {
   }
   if (!office) return showPopup('Location Error', 'Not at an approved office.', false);
 
-  // Show camera popup
+  // === SHOW CAMERA POPUP ===
   cameraPopup = document.getElementById('cameraPopup');
   cameraPopup.classList.add('show');
+
   const started = await startVideo();
   if (!started) {
     closeCamera();
     return;
   }
 
-  showLoader(`Verifying face for ${staff.name}...`);
+  // === KEEP CAMERA ON FOR 1.5 SECONDS ===
+  showLoader(`Capturing face of ${staff.name}...`);
+  await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5s delay
 
-  // Wait for video to stabilize
-  await new Promise(r => setTimeout(r, 1200));
-
-  // Capture image
+  // === CAPTURE IMAGE ===
   const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = 640; tempCanvas.height = 480;
+  tempCanvas.width = 640;
+  tempCanvas.height = 480;
   const ctx = tempCanvas.getContext('2d');
-  ctx.translate(tempCanvas.width, 0); ctx.scale(-1, 1);
+  ctx.translate(tempCanvas.width, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
-  const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
+  const base64 = tempCanvas.toDataURL('image/jpeg', 0.9).split(',')[1]; // High quality
 
-  // Close camera
+  // === CLOSE CAMERA ===
   closeCamera();
 
-  // Validate face
+  // === NOW PROCESS FACE ===
+  showLoader(`Verifying face...`);
   const faceRes = await validateFaceWithSubject(base64, staff.name);
 
   if (!faceRes.ok) {
     hideLoader();
-    const msg = faceRes.error === 'Face not found' ? 'Face not found' :
-                faceRes.error.includes('unavailable') ? 'Face service unavailable' :
+    const msg = faceRes.error === 'Face not found' ? 'Face not found in database' :
+                faceRes.error.includes('unavailable') ? 'Face recognition service unavailable' :
                 'Face verification failed';
     return showPopup('Face Verification Failed', msg, false);
   }
+
   if (faceRes.similarity < 0.7) {
     hideLoader();
-    return showPopup('Face Verification Failed', 'Face similarity too low. Try better lighting.', false);
+    return showPopup('Face Verification Failed', `Face match too weak (${(faceRes.similarity * 100).toFixed(1)}%). Try better lighting.`, false);
   }
 
-  // Submit attendance
+  // === SUBMIT ATTENDANCE ===
   try {
     const res = await fetch('/api/attendance/web', {
       method: 'POST',
@@ -246,7 +257,7 @@ async function handleClock(action) {
     const data = await res.json();
     hideLoader();
     if (data.success) {
-      showPopup('Success', `Dear ${staff.name}, ${action} recorded at ${office}.`, true);
+      showPopup('Success', `Dear ${staff.name}, ${action === 'clock in' ? 'clock-in' : 'clock-out'} recorded at ${office}.`, true);
     } else {
       showPopup('Attendance Error', data.message, false);
     }
@@ -275,7 +286,7 @@ function startLocationWatch() {
   cameraPopup = document.getElementById('cameraPopup');
   closeCameraBtn = document.getElementById('closeCamera');
 
-  // Initialize
+  // Initialize UserID field
   userIdInput.disabled = true;
   userIdStatus.textContent = 'Enter User ID only when at office';
   userIdStatus.className = 'inactive';
