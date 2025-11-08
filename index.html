@@ -26,7 +26,6 @@
       background: #fff url('/assets/client-logo.jpg') center center no-repeat;
       background-size: 60% auto;
       background-position: center 15%;
-      opacity: 1;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,.15);
@@ -61,7 +60,7 @@
     h1 span { font-size: 1em; }
     h1 .subtitle { color: #242424; font-size: .65em; }
 
-    /* === CENTERED INPUT + STATUS (SAME WIDTH) === */
+    /* === CENTERED INPUT + STATUS === */
     .input-group {
       margin: 20px 0 8px;
       text-align: center;
@@ -307,7 +306,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === ADMIN POPUP – Close Button + Click Outside === */
+    /* === ADMIN POPUP – Small X + Login Spinner === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -342,7 +341,9 @@
       font-size: 15px;
       box-sizing: border-box;
     }
-    #adminPopup button {
+
+    /* Login Button + Spinner */
+    #adminLoginBtn {
       width: 100%;
       padding: 12px;
       background: #009245;
@@ -352,31 +353,53 @@
       font-weight: 600;
       cursor: pointer;
       margin-top: 10px;
+      position: relative;
+      transition: background .3s;
     }
+    #adminLoginBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #adminLoginBtn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #adminLoginBtn.loading .spinner {
+      display: block;
+    }
+
     #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
 
-    /* Close Button (X) */
+    /* Small X Close Button */
     .popup-close {
       position: absolute;
-      top: 10px;
-      right: 12px;
-      background: #f44336;
-      color: #fff;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      color: #999;
       border: none;
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,.2);
-      transition: background .2s;
+      transition: color .2s;
     }
     .popup-close:hover {
-      background: #d32f2f;
+      color: #d32f2f;
     }
 
     /* === Footer === */
@@ -458,7 +481,7 @@
     </div>
   </div>
 
-  <!-- ADMIN POPUP – With Close Button -->
+  <!-- ADMIN POPUP – Small X + Login Spinner -->
   <div id="adminPopup">
     <div class="popup-content">
       <button class="popup-close" id="adminCloseBtn">X</button>
@@ -466,7 +489,7 @@
       <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
-      <button id="adminLoginBtn">Login</button>
+      <button id="adminLoginBtn">Login <span class="spinner"></span></button>
       <p id="adminError" class="error"></p>
     </div>
   </div>
@@ -508,9 +531,10 @@
     updateGPS();
     new MutationObserver(updateGPS).observe(locEl, {attributes:true});
 
-    // === ADMIN POPUP: Close on X or Outside Click ===
+    // === ADMIN POPUP: Small X + Login Spinner ===
     const adminPopup = document.getElementById('adminPopup');
     const adminCloseBtn = document.getElementById('adminCloseBtn');
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
 
     adminCloseBtn.addEventListener('click', () => {
       adminPopup.classList.remove('show');
@@ -519,6 +543,41 @@
     adminPopup.addEventListener('click', (e) => {
       if (e.target === adminPopup) {
         adminPopup.classList.remove('show');
+      }
+    });
+
+    // Login Spinner
+    document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail')?.value.trim();
+      const password = document.getElementById('adminPassword')?.value.trim();
+      const error = document.getElementById('adminError');
+
+      if (!email || !password) {
+        error.textContent = 'Please fill in both fields.';
+        return;
+      }
+
+      // Show spinner
+      adminLoginBtn.classList.add('loading');
+      adminLoginBtn.disabled = true;
+      error.textContent = '';
+
+      try {
+        const res = await fetch('/api/admin-logins');
+        const data = await res.json();
+
+        if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
+          localStorage.setItem('isLoggedIn', 'true');
+          window.location.href = 'stats.html';
+        } else {
+          error.textContent = 'Invalid email or password.';
+        }
+      } catch (err) {
+        error.textContent = 'Login failed. Try again.';
+      } finally {
+        // Hide spinner
+        adminLoginBtn.classList.remove('loading');
+        adminLoginBtn.disabled = false;
       }
     });
   </script>
