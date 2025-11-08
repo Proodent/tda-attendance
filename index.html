@@ -78,32 +78,31 @@
       box-shadow: 0 0 5px rgba(0, 146, 69, 0.3);
     }
 
-    /* === UserID Status (Inline) === */
+    /* === UserID Status (Inline + Location Mark) === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
       margin-top: 6px;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 6px 10px;
+      border-radius: 5px;
       display: inline-block;
-      min-height: 1.4em;
-      text-align: center;
-      width: 100%;
+      min-height: 1.5em;
+      line-height: 1.5;
     }
     #userIdStatus.valid {
       color: #155724;
       background: #d4edda;
       border: 1px solid #c3e6cb;
     }
-    #userIdStatus.invalid {
-      color: #721c24;
-      background: #f8d7da;
-      border: 1px solid #f5c6cb;
-    }
     #userIdStatus.inactive {
       color: #856404;
       background: #fff3cd;
       border: 1px solid #ffeaa7;
+    }
+    #userIdStatus.invalid {
+      color: #721c24;
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
     }
     #userIdStatus.loading {
       color: #856404;
@@ -111,26 +110,14 @@
       border: 1px solid #ffeaa7;
     }
 
-    /* === Location Approval Status === */
-    #locationApproval {
-      font-size: 0.9em;
-      font-weight: 600;
-      margin-top: 8px;
-      padding: 5px 10px;
-      border-radius: 5px;
+    .location-mark {
       display: inline-block;
-      min-height: 1.5em;
+      margin-left: 6px;
+      font-size: 1.1em;
+      font-weight: bold;
     }
-    #locationApproval.approved {
-      color: #155724;
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-    }
-    #locationApproval.unapproved {
-      color: #721c24;
-      background: #f8d7da;
-      border: 1px solid #f5c6cb;
-    }
+    .location-approved { color: #28a745; }
+    .location-denied { color: #dc3545; }
 
     /* === Status & Location === */
     #status {
@@ -277,7 +264,7 @@
       background: #f0f0f0;
       color: #666;
       border: 1px solid #ddd;
-      padding: 8px  Milano;
+      padding: 8px 15px;
       border-radius: 5px;
       cursor: pointer;
       margin-top: 10px;
@@ -378,7 +365,6 @@
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
-      <div id="locationApproval">Location: —</div>
     </div>
 
     <!-- CLOCK -->
@@ -391,7 +377,7 @@
     <div class="input-group">
       <label for="userId">Enter Your User ID</label>
       <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" />
-      <div id="userIdStatus">Enter your User ID</div>
+      <div id="userIdStatus" class="loading">Validating...</div>
     </div>
 
     <!-- HIDDEN LOCATION -->
@@ -429,7 +415,7 @@
       <p style="font-size:0.8em;color:#666">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
-      <button onclick="loginAdmin()">Login</button>
+      <button id="adminLoginBtn">Login</button>
       <p id="adminError" class="error"></p>
     </div>
   </div>
