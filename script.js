@@ -3,9 +3,8 @@ let watchId = null;
 let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRetry;
 let loaderEl;
 let locations = [];
-let staffCache = new Map();
-let currentStaff = null;
 let currentOffice = null;
+let staffCache = new Map(); // Cache UserID → { name, active, allowedLocations }
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -46,7 +45,7 @@ function showPopup(title, message, success = null) {
   popupTimeout = setTimeout(() => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
-  }, 6000);
+  }, 5000);
 
   const closeBtn = document.getElementById('popupCloseBtn');
   if (closeBtn) closeBtn.onclick = () => {
@@ -80,8 +79,9 @@ async function getStaffByUserId(userId) {
     });
     const data = await res.json();
     if (data.success) {
-      staffCache.set(userId, data.staff);
-      return data.staff;
+      const allowed = data.staff.allowedLocations || [];
+      staffCache.set(userId, { ...data.staff, allowedLocations: allowed });
+      return staffCache.get(userId);
     }
     return null;
   } catch (err) {
@@ -111,75 +111,6 @@ async function fetchLocations() {
     showPopup('Location Error', `Failed to load locations: ${error.message}`, false);
     return false;
   }
-}
-
-// Update UserID status
-function updateUserIdStatus(userId, staff) {
-  const statusEl = document.getElementById('userIdStatus');
-  const clockInBtn = document.getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut');
-
-  if (!userId) {
-    statusEl.textContent = 'Enter your User ID';
-    statusEl.className = '';
-    clockInBtn.disabled = clockOutBtn.disabled = true;
-    return;
-  }
-
-  if (!staff) {
-    statusEl.textContent = `User ${userId} not found`;
-    statusEl.className = 'invalid';
-    clockInBtn.disabled = clockOutBtn.disabled = true;
-    return;
-  }
-
-  if (staff.active.toLowerCase() !== 'yes') {
-    statusEl.textContent = `User ${userId} : ${staff.name} is Inactive`;
-    statusEl.className = 'inactive';
-    clockInBtn.disabled = clockOutBtn.disabled = true;
-    return;
-  }
-
-  statusEl.textContent = `User ${userId} found : ${staff.name}`;
-  statusEl.className = 'valid';
-  currentStaff = staff;
-  updateLocationApproval();
-  clockInBtn.disabled = clockOutBtn.disabled = !currentOffice;
-}
-
-// Update Location Approval
-function updateLocationApproval() {
-  const locEl = document.getElementById('location');
-  const approvalEl = document.getElementById('locationApproval');
-  const lat = Number(locEl.dataset.lat);
-  const long = Number(locEl.dataset.long);
-
-  if (!currentStaff || !lat || !long) {
-    approvalEl.textContent = 'Location: —';
-    approvalEl.className = '';
-    return;
-  }
-
-  let office = null;
-  for (const loc of locations) {
-    const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
-    if (distKm <= loc.radiusMeters / 1000) {
-      office = loc.name;
-      break;
-    }
-  }
-
-  if (!office) {
-    approvalEl.textContent = 'Location: Unapproved';
-    approvalEl.className = 'unapproved';
-    currentOffice = null;
-    return;
-  }
-
-  const allowed = currentStaff.allowedLocations.includes(office.toLowerCase());
-  approvalEl.textContent = `Location: ${allowed ? 'Approved' : 'Unapproved'}`;
-  approvalEl.className = allowed ? 'approved' : 'unapproved';
-  currentOffice = allowed ? office : null;
 }
 
 // Start location watch
@@ -214,55 +145,70 @@ function startLocationWatch() {
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
-        let office = null;
+        currentOffice = null;
         for (const loc of locations) {
           const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
           if (distKm <= loc.radiusMeters / 1000) {
-            office = loc.name;
+            currentOffice = loc.name;
             break;
           }
         }
-        if (office) {
-          statusEl.textContent = `${office}`;
-          locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          locationEl.dataset.lat = latitude;
-          locationEl.dataset.long = longitude;
-          updateLocationApproval();
-        } else {
-          statusEl.textContent = 'Unapproved Location';
-          locationEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          locationEl.dataset.lat = latitude;
-          locationEl.dataset.long = longitude;
-          updateLocationApproval();
-        }
+
+        statusEl.textContent = currentOffice || 'Unapproved Location';
+        locationEl.textContent = `Location: ${currentOffice || 'None'}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        locationEl.dataset.lat = latitude;
+        locationEl.dataset.long = longitude;
+
+        updateUserStatus(); // Re-check location approval
       },
       err => {
         statusEl.textContent = `GPS error: ${err.message}`;
-        updateLocationApproval();
+        clockInBtn.disabled = clockOutBtn.disabled = true;
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
 
     // Validate UserID on input
-    let debounce;
-    userIdInput.addEventListener('input', async () => {
-      clearTimeout(debounce);
-      const userId = userIdInput.value.trim();
-      userIdStatus.textContent = 'Validating...';
-      userIdStatus.className = 'loading';
+    userIdInput.addEventListener('input', updateUserStatus);
 
-      debounce = setTimeout(async () => {
-        if (!userId) {
-          updateUserIdStatus('', null);
-          return;
-        }
-        const staff = await getStaffByUserId(userId);
-        if (staff) {
-          staff.allowedLocations = (staff.allowedLocations || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-        }
-        updateUserIdStatus(userId, staff);
-      }, 400);
-    });
+    async function updateUserStatus() {
+      const userId = userIdInput.value.trim();
+      const buttons = [clockInBtn, clockOutBtn];
+
+      if (!userId) {
+        userIdStatus.className = 'loading';
+        userIdStatus.innerHTML = 'Enter User ID...';
+        buttons.forEach(b => b.disabled = true);
+        return;
+      }
+
+      userIdStatus.className = 'loading';
+      userIdStatus.innerHTML = 'Validating...';
+
+      const staff = await getStaffByUserId(userId);
+      if (!staff) {
+        userIdStatus.className = 'invalid';
+        userIdStatus.innerHTML = `User ${userId} not found`;
+        buttons.forEach(b => b.disabled = true);
+        return;
+      }
+
+      if (staff.active.toLowerCase() !== 'yes') {
+        userIdStatus.className = 'inactive';
+        userIdStatus.innerHTML = `User ${userId} : ${staff.name} is Inactive`;
+        buttons.forEach(b => b.disabled = true);
+        return;
+      }
+
+      const locationApproved = currentOffice && staff.allowedLocations.includes(currentOffice);
+      const mark = locationApproved
+        ? '<span class="location-mark location-approved">Location Approved</span>'
+        : '<span class="location-mark location-denied">Location Denied</span>';
+
+      userIdStatus.className = 'valid';
+      userIdStatus.innerHTML = `User ${userId} found : ${staff.name} ${mark}`;
+      buttons.forEach(b => b.disabled = !locationApproved);
+    }
 
     clockInBtn.addEventListener('click', () => handleClock('clock in'));
     clockOutBtn.addEventListener('click', () => handleClock('clock out'));
@@ -306,24 +252,35 @@ async function validateFaceWithSubject(base64, subjectName) {
         return { ok: true, similarity: match.similarity };
       }
     }
-    return { ok: false, error: 'Face not found for this user.' };
+    return { ok: false, error: 'Face not found' };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: 'Face service error' };
   }
 }
 
 // Handle clock
 async function handleClock(action) {
   const userId = document.getElementById('userId').value.trim();
-  if (!userId || !currentStaff || !currentOffice) return;
+  if (!userId) return showPopup('Missing User ID', 'Please enter your User ID.', false);
+
+  const staff = await getStaffByUserId(userId);
+  if (!staff || staff.active.toLowerCase() !== 'yes') return showPopup('Invalid User ID', 'User not found or inactive.', false);
+
+  const locationEl = document.getElementById('location');
+  const lat = Number(locationEl.dataset.lat);
+  const long = Number(locationEl.dataset.long);
+  if (!lat || !long) return showPopup('Location Error', 'No GPS data.', false);
+
+  if (!currentOffice) return showPopup('Location Error', 'Not at an approved office.', false);
+  if (!staff.allowedLocations.includes(currentOffice)) return showPopup('Location Denied', `You are not allowed at ${currentOffice}.`, false);
 
   document.getElementById('faceRecognition').style.display = 'block';
   const started = await startVideo();
   if (!started) return;
 
-  showLoader(`Verifying face for ${currentStaff.name}...`);
+  showLoader(`Verifying face for ${staff.name}...`);
 
-  await new Promise(r => setTimeout(r, 1200));
+  await new Promise(r => setTimeout(r, 1000));
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = 640; tempCanvas.height = 480;
   const ctx = tempCanvas.getContext('2d');
@@ -334,16 +291,14 @@ async function handleClock(action) {
   stopVideo();
   document.getElementById('faceRecognition').style.display = 'none';
 
-  const faceRes = await validateFaceWithSubject(base64, currentStaff.name);
+  const faceRes = await validateFaceWithSubject(base64, staff.name);
+  hideLoader();
+
   if (!faceRes.ok) {
-    hideLoader();
-    showPopup('Face Verification Failed', faceRes.error, false);
-    return;
+    return showPopup('Face Verification Failed', faceRes.error, false);
   }
   if (faceRes.similarity < 0.7) {
-    hideLoader();
-    showPopup('Face Verification Failed', 'Face similarity too low. Try better lighting.', false);
-    return;
+    return showPopup('Face Verification Failed', 'Face similarity too low. Try better lighting.', false);
   }
 
   try {
@@ -352,75 +307,53 @@ async function handleClock(action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action,
-        subjectName: currentStaff.name,
+        subjectName: staff.name,
         userId,
-        latitude: Number(document.getElementById('location').dataset.lat),
-        longitude: Number(document.getElementById('location').dataset.long),
+        latitude: lat,
+        longitude: long,
         timestamp: new Date().toISOString()
       })
     });
     const data = await res.json();
-    hideLoader();
     if (data.success) {
-      showPopup('Success', `Dear ${currentStaff.name}, ${action} recorded at ${currentOffice}.`, true);
+      showPopup('Success', `Dear ${staff.name}, ${action} recorded at ${currentOffice}.`, true);
     } else {
       showPopup('Attendance Error', data.message, false);
     }
   } catch (err) {
-    hideLoader();
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
   }
 }
 
 // Admin login
-async function fetchAdminLogins() {
-  try {
-    showLoader('Logging in...');
-    const response = await fetch('/api/admin-logins');
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-    const data = await response.json();
-    hideLoader();
-    return data.success ? data.logins : [];
-  } catch (error) {
-    hideLoader();
-    showPopup('Admin Error', `Failed to fetch admin logins: ${error.message}`, false);
-    return [];
-  }
-}
-
-function loginAdmin() {
+document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
   const email = document.getElementById('adminEmail')?.value.trim();
   const password = document.getElementById('adminPassword')?.value.trim();
   const adminError = document.getElementById('adminError');
-  const adminPopup = document.getElementById('adminPopup');
 
   if (!email || !password) {
     adminError.textContent = 'Please fill in both fields.';
     return;
   }
 
-  fetchAdminLogins().then(adminLogins => {
-    const validLogin = adminLogins.find(row => row[0] === email && row[1] === password);
-    if (validLogin) {
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('lastActivity', Date.now());
-      adminPopup.classList.remove('show');
-      window.location.href = 'stats.html';
-    } else {
-      adminError.textContent = 'Invalid email or password.';
-    }
-  });
-}
+  fetch('/api/admin-logins')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
+        localStorage.setItem('isLoggedIn', 'true');
+        window.location.href = 'stats.html';
+      } else {
+        adminError.textContent = 'Invalid email or password.';
+      }
+    });
+});
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
   startLocationWatch();
-  const adminDashboardBtn = document.getElementById('adminDashboard');
-  if (adminDashboardBtn) {
-    adminDashboardBtn.addEventListener('click', () => {
-      document.getElementById('adminPopup').classList.add('show');
-    });
-  }
+  document.getElementById('adminDashboard').addEventListener('click', () => {
+    document.getElementById('adminPopup').classList.add('show');
+  });
 });
 
 window.onunload = () => {
