@@ -21,9 +21,12 @@
       overflow-x: hidden;
     }
 
-    /* === Container === */
+    /* === Container with Logo Background === */
     .container {
-      background: #fff;
+      background: #fff url('/assets/client-logo.jpg') center center no-repeat;
+      background-size: 60% auto;
+      background-position: center 15%;
+      opacity: 1;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,.15);
@@ -34,6 +37,16 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 12px;
+      z-index: -1;
     }
 
     /* === Heading === */
@@ -42,6 +55,8 @@
       margin-bottom: 15px;
       font-size: 1.4em;
       width: 100%;
+      position: relative;
+      z-index: 2;
     }
     h1 span { font-size: 1em; }
     h1 .subtitle { color: #242424; font-size: .65em; }
@@ -51,10 +66,12 @@
       margin: 20px 0 8px;
       text-align: center;
       width: 100%;
-      max-width: 300px; /* Same width for both */
+      max-width: 300px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      z-index: 2;
     }
     .input-group input {
       width: 100%;
@@ -65,6 +82,7 @@
       text-align: center;
       font-weight: 600;
       box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.95);
     }
     .input-group input::placeholder { color: #666; font-weight: 500; }
     .input-group input:focus {
@@ -73,7 +91,7 @@
       box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
     }
 
-    /* === VALIDATION STATUS (same width, centered) === */
+    /* === VALIDATION STATUS === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -88,18 +106,12 @@
       align-items: center;
       justify-content: center;
       line-height: 1.4;
+      background: rgba(255, 255, 255, 0.95);
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
     #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
     #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
-
-    /* Emoji Icons */
-    #userIdStatus span[style*="color"] {
-      font-size: 1.1em;
-      font-weight: bold;
-      margin-left: 6px;
-    }
 
     /* === Status & GPS === */
     .status-box {
@@ -107,6 +119,8 @@
       width: 100%;
       max-width: 300px;
       text-align: center;
+      position: relative;
+      z-index: 2;
     }
     #gpsCoords {
       font-size: 0.8em;
@@ -130,6 +144,8 @@
       margin: 20px 0 12px;
       width: 100%;
       max-width: 300px;
+      position: relative;
+      z-index: 2;
     }
     #liveClock {
       font-size: 1em;
@@ -159,6 +175,8 @@
       margin-top: 20px;
       width: 100%;
       max-width: 300px;
+      position: relative;
+      z-index: 2;
     }
     button {
       flex: 1;
@@ -289,7 +307,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === Admin Popup === */
+    /* === ADMIN POPUP – Close Button + Click Outside === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -308,6 +326,7 @@
       max-width: 360px;
       width: 90%;
       box-shadow: 0 8px 25px rgba(0,0,0,.2);
+      position: relative;
     }
     #adminPopup h2 {
       margin: 0 0 15px;
@@ -336,6 +355,30 @@
     }
     #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
 
+    /* Close Button (X) */
+    .popup-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: #f44336;
+      color: #fff;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+      transition: background .2s;
+    }
+    .popup-close:hover {
+      background: #d32f2f;
+    }
+
     /* === Footer === */
     .footer {
       margin-top: auto;
@@ -346,6 +389,8 @@
       width: 100%;
       max-width: 600px;
       text-align: center;
+      position: relative;
+      z-index: 2;
     }
     .footer a { color: #009245; text-decoration: none; }
 
@@ -372,7 +417,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + VALIDATION (SAME WIDTH, CENTERED) -->
+    <!-- USERID + VALIDATION -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
       <div id="userIdStatus" class="loading">Validating...</div>
@@ -413,9 +458,10 @@
     </div>
   </div>
 
-  <!-- ADMIN POPUP -->
+  <!-- ADMIN POPUP – With Close Button -->
   <div id="adminPopup">
     <div class="popup-content">
+      <button class="popup-close" id="adminCloseBtn">X</button>
       <h2>Admin Login</h2>
       <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
@@ -435,6 +481,7 @@
 
   <script src="script.js"></script>
   <script>
+    // Clock
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -450,6 +497,7 @@
     updateClock();
     setInterval(updateClock, 500);
 
+    // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
@@ -459,6 +507,20 @@
     };
     updateGPS();
     new MutationObserver(updateGPS).observe(locEl, {attributes:true});
+
+    // === ADMIN POPUP: Close on X or Outside Click ===
+    const adminPopup = document.getElementById('adminPopup');
+    const adminCloseBtn = document.getElementById('adminCloseBtn');
+
+    adminCloseBtn.addEventListener('click', () => {
+      adminPopup.classList.remove('show');
+    });
+
+    adminPopup.addEventListener('click', (e) => {
+      if (e.target === adminPopup) {
+        adminPopup.classList.remove('show');
+      }
+    });
   </script>
 </body>
 </html>
