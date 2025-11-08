@@ -47,7 +47,7 @@
       font-size: .65em;
     }
 
-    /* === UserID Input (Locked until office) === */
+    /* === UserID Input === */
     .input-group {
       margin: 20px 0 25px;
       text-align: left;
@@ -204,6 +204,7 @@
       max-width: 500px;
       text-align: center;
       box-shadow: 0 8px 30px rgba(0,0,0,.3);
+      position: relative;
     }
     #video {
       width: 100%;
@@ -225,6 +226,68 @@
       margin-top: 15px;
       cursor: pointer;
       font-weight: 600;
+    }
+
+    /* === Admin Popup === */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    #adminPopup.show { display: flex; }
+    #adminPopupContent {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      text-align: center;
+      animation: popupFade 0.3s ease;
+    }
+    @keyframes popupFade {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    #adminPopup h2 {
+      color: #009245;
+      margin: 0 0 15px;
+      font-size: 1.5em;
+    }
+    #adminPopup input {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    #adminPopup button {
+      background: #009245;
+      color: white;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+      font-weight: 600;
+    }
+    #adminError {
+      color: #d32f2f;
+      margin-top: 12px;
+      font-weight: 600;
+      min-height: 1.2em;
+    }
+
+    /* === Capture Message === */
+    #captureMsg {
+      font-family: Arial, sans-serif;
     }
 
     /* === Footer === */
@@ -285,7 +348,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID INPUT (Disabled until office) -->
+    <!-- USERID INPUT -->
     <div class="input-group">
       <label for="userId">Enter Your User ID</label>
       <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" disabled />
@@ -329,13 +392,13 @@
 
   <!-- ADMIN LOGIN -->
   <div id="adminPopup" class="popup">
-    <div id="adminPopupContent" style="padding: 25px; text-align: center;">
-      <h2 style="color: #009245; margin-bottom: 15px;">Admin Login</h2>
+    <div id="adminPopupContent">
+      <h2>Admin Login</h2>
       <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
-      <input type="email" id="adminEmail" placeholder="Email" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:6px;font-size:16px;" />
-      <input type="password" id="adminPassword" placeholder="Password" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:6px;font-size:16px;" />
-      <button onclick="loginAdmin()" style="background:#009245;color:white;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer;margin-top:10px;">Login</button>
-      <p id="adminError" style="color:#d32f2f;margin-top:10px;font-weight:600;"></p>
+      <input type="email" id="adminEmail" placeholder="Email" />
+      <input type="password" id="adminPassword" placeholder="Password" />
+      <button onclick="loginAdmin()">Login</button>
+      <p id="adminError"></p>
     </div>
   </div>
 
@@ -345,10 +408,8 @@
     <div style="margin-top:8px;">Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
 
-  <!-- Scripts -->
   <script src="script.js"></script>
   <script>
-    // Live Clock
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -364,7 +425,6 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS Display Update
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
