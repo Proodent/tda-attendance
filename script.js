@@ -1,11 +1,11 @@
 // Global variables
 let watchId = null;
 let videoEl, canvasEl, popupEl, popupHeader, popupMessage, popupFooter, popupRetry;
-let loaderEl, cameraPopup, closeCameraBtn;
+let loaderEl;
 let locations = [];
-let popupTimeout = null;
-let locationErrorShown = false;
 let staffCache = new Map();
+let currentStaff = null;
+let currentOffice = null;
 
 // Utility functions
 function toRad(v) { return v * Math.PI / 180; }
@@ -46,7 +46,7 @@ function showPopup(title, message, success = null) {
   popupTimeout = setTimeout(() => {
     popupEl.classList.remove('show');
     popupEl.style.display = 'none';
-  }, 5000);
+  }, 6000);
 
   const closeBtn = document.getElementById('popupCloseBtn');
   if (closeBtn) closeBtn.onclick = () => {
@@ -93,40 +93,188 @@ async function getStaffByUserId(userId) {
 // Fetch locations
 async function fetchLocations() {
   try {
+    showLoader("Loading locations...");
     const response = await fetch('/api/locations');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (!data.success || !Array.isArray(data.locations)) throw new Error('Invalid data');
+    if (!data.success) throw new Error('Invalid data');
     locations = data.locations.map(l => ({
       name: l.name,
       lat: Number(l.lat),
       long: Number(l.long),
       radiusMeters: Number(l.radiusMeters)
     }));
+    hideLoader();
     return true;
   } catch (error) {
-    console.warn('Locations failed, using GPS-only mode:', error);
-    locations = [];
+    hideLoader();
+    showPopup('Location Error', `Failed to load locations: ${error.message}`, false);
     return false;
   }
+}
+
+// Update UserID status
+function updateUserIdStatus(userId, staff) {
+  const statusEl = document.getElementById('userIdStatus');
+  const clockInBtn = document.getElementById('clockIn');
+  const clockOutBtn = document.getElementById('clockOut');
+
+  if (!userId) {
+    statusEl.textContent = 'Enter your User ID';
+    statusEl.className = '';
+    clockInBtn.disabled = clockOutBtn.disabled = true;
+    return;
+  }
+
+  if (!staff) {
+    statusEl.textContent = `User ${userId} not found`;
+    statusEl.className = 'invalid';
+    clockInBtn.disabled = clockOutBtn.disabled = true;
+    return;
+  }
+
+  if (staff.active.toLowerCase() !== 'yes') {
+    statusEl.textContent = `User ${userId} : ${staff.name} is Inactive`;
+    statusEl.className = 'inactive';
+    clockInBtn.disabled = clockOutBtn.disabled = true;
+    return;
+  }
+
+  statusEl.textContent = `User ${userId} found : ${staff.name}`;
+  statusEl.className = 'valid';
+  currentStaff = staff;
+  updateLocationApproval();
+  clockInBtn.disabled = clockOutBtn.disabled = !currentOffice;
+}
+
+// Update Location Approval
+function updateLocationApproval() {
+  const locEl = document.getElementById('location');
+  const approvalEl = document.getElementById('locationApproval');
+  const lat = Number(locEl.dataset.lat);
+  const long = Number(locEl.dataset.long);
+
+  if (!currentStaff || !lat || !long) {
+    approvalEl.textContent = 'Location: —';
+    approvalEl.className = '';
+    return;
+  }
+
+  let office = null;
+  for (const loc of locations) {
+    const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
+    if (distKm <= loc.radiusMeters / 1000) {
+      office = loc.name;
+      break;
+    }
+  }
+
+  if (!office) {
+    approvalEl.textContent = 'Location: Unapproved';
+    approvalEl.className = 'unapproved';
+    currentOffice = null;
+    return;
+  }
+
+  const allowed = currentStaff.allowedLocations.includes(office.toLowerCase());
+  approvalEl.textContent = `Location: ${allowed ? 'Approved' : 'Unapproved'}`;
+  approvalEl.className = allowed ? 'approved' : 'unapproved';
+  currentOffice = allowed ? office : null;
+}
+
+// Start location watch
+function startLocationWatch() {
+  const statusEl = document.getElementById('status');
+  const locationEl = document.getElementById('location');
+  const clockInBtn = document.getElementById('clockIn');
+  const clockOutBtn = document.getElementById('clockOut');
+  const userIdInput = document.getElementById('userId');
+  const userIdStatus = document.getElementById('userIdStatus');
+
+  videoEl = document.getElementById('video');
+  canvasEl = document.getElementById('canvas');
+  popupEl = document.getElementById('popup');
+  popupHeader = document.getElementById('popupHeader');
+  popupMessage = document.getElementById('popupMessage');
+  popupFooter = document.getElementById('popupFooter');
+  popupRetry = document.getElementById('popupRetry');
+
+  fetchLocations().then(ok => {
+    if (!ok) {
+      statusEl.textContent = 'Location load failed.';
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      showPopup('Geolocation Error', 'Browser does not support geolocation.', false);
+      return;
+    }
+
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        let office = null;
+        for (const loc of locations) {
+          const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
+          if (distKm <= loc.radiusMeters / 1000) {
+            office = loc.name;
+            break;
+          }
+        }
+        if (office) {
+          statusEl.textContent = `${office}`;
+          locationEl.textContent = `Location: ${office}\nGPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          locationEl.dataset.lat = latitude;
+          locationEl.dataset.long = longitude;
+          updateLocationApproval();
+        } else {
+          statusEl.textContent = 'Unapproved Location';
+          locationEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          locationEl.dataset.lat = latitude;
+          locationEl.dataset.long = longitude;
+          updateLocationApproval();
+        }
+      },
+      err => {
+        statusEl.textContent = `GPS error: ${err.message}`;
+        updateLocationApproval();
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+
+    // Validate UserID on input
+    let debounce;
+    userIdInput.addEventListener('input', async () => {
+      clearTimeout(debounce);
+      const userId = userIdInput.value.trim();
+      userIdStatus.textContent = 'Validating...';
+      userIdStatus.className = 'loading';
+
+      debounce = setTimeout(async () => {
+        if (!userId) {
+          updateUserIdStatus('', null);
+          return;
+        }
+        const staff = await getStaffByUserId(userId);
+        if (staff) {
+          staff.allowedLocations = (staff.allowedLocations || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+        }
+        updateUserIdStatus(userId, staff);
+      }, 400);
+    });
+
+    clockInBtn.addEventListener('click', () => handleClock('clock in'));
+    clockOutBtn.addEventListener('click', () => handleClock('clock out'));
+  });
 }
 
 // Start video
 async function startVideo() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        facingMode: 'user', 
-        width: { ideal: 640 }, 
-        height: { ideal: 480 },
-        frameRate: { ideal: 30 }
-      } 
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
     videoEl.srcObject = stream;
     videoEl.style.transform = 'scaleX(-1)';
-    videoEl.muted = true;
-    videoEl.playsInline = true;
-    videoEl.style.background = '#000';
     await videoEl.play();
     return true;
   } catch (err) {
@@ -142,12 +290,7 @@ function stopVideo() {
   }
 }
 
-function closeCamera() {
-  cameraPopup.classList.remove('show');
-  stopVideo();
-}
-
-// Validate face
+// Validate face with specific subject
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -159,9 +302,11 @@ async function validateFaceWithSubject(base64, subjectName) {
     const data = await res.json();
     if (data?.result?.length && data.result[0].subjects?.length) {
       const match = data.result[0].subjects.find(s => s.subject === subjectName);
-      if (match) return { ok: true, similarity: match.similarity };
+      if (match) {
+        return { ok: true, similarity: match.similarity };
+      }
     }
-    return { ok: false, error: 'Face not found' };
+    return { ok: false, error: 'Face not found for this user.' };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -169,72 +314,36 @@ async function validateFaceWithSubject(base64, subjectName) {
 
 // Handle clock
 async function handleClock(action) {
-  const userIdInput = document.getElementById('userId');
-  const userId = userIdInput.value.trim();
-  if (!userId) return showPopup('Missing User ID', 'Please enter your User ID.', false);
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId || !currentStaff || !currentOffice) return;
 
-  const staff = await getStaffByUserId(userId);
-  if (!staff) return showPopup('Invalid User ID', 'User not found.', false);
-  if (staff.active.toLowerCase() !== 'yes') return showPopup('Access Denied', 'Staff is Inactive.', false);
-
-  const locationEl = document.getElementById('location');
-  const lat = Number(locationEl.dataset.lat);
-  const long = Number(locationEl.dataset.long);
-  if (!lat || !long) return showPopup('Location Error', 'No GPS data.', false);
-
-  let office = null;
-  if (locations.length > 0) {
-    for (const loc of locations) {
-      const distKm = getDistanceKm(lat, long, loc.lat, loc.long);
-      if (distKm <= loc.radiusMeters / 1000) {
-        office = loc.name;
-        break;
-      }
-    }
-    if (!office) return showPopup('Location Error', 'Not at an approved office.', false);
-  }
-
-  // === OPEN CAMERA ===
-  cameraPopup = document.getElementById('cameraPopup');
-  cameraPopup.classList.add('show');
+  document.getElementById('faceRecognition').style.display = 'block';
   const started = await startVideo();
-  if (!started) { closeCamera(); return; }
+  if (!started) return;
 
-  const captureMsg = document.createElement('div');
-  captureMsg.textContent = `Capturing ${staff.name}...`;
-  captureMsg.id = 'captureMsg';
-  captureMsg.style.cssText = `
-    position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,146,69,0.95); color: white; padding: 10px 20px;
-    border-radius: 25px; font-weight: bold; font-size: 15px; z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  `;
-  document.getElementById('cameraContainer').appendChild(captureMsg);
+  showLoader(`Verifying face for ${currentStaff.name}...`);
 
-  await new Promise(r => setTimeout(r, 1500));
-
+  await new Promise(r => setTimeout(r, 1200));
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = 640; tempCanvas.height = 480;
   const ctx = tempCanvas.getContext('2d');
   ctx.translate(tempCanvas.width, 0); ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
-  const base64 = tempCanvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+  const base64 = tempCanvas.toDataURL('image/jpeg').split(',')[1];
 
-  captureMsg.remove();
-  closeCamera();
-  showLoader(`Verifying face...`);
+  stopVideo();
+  document.getElementById('faceRecognition').style.display = 'none';
 
-  const faceRes = await validateFaceWithSubject(base64, staff.name);
+  const faceRes = await validateFaceWithSubject(base64, currentStaff.name);
   if (!faceRes.ok) {
     hideLoader();
-    const msg = faceRes.error === 'Face not found' ? 'Face not in database' :
-                faceRes.error.includes('unavailable') ? 'Service unavailable' :
-                'Verification failed';
-    return showPopup('Face Failed', msg, false);
+    showPopup('Face Verification Failed', faceRes.error, false);
+    return;
   }
   if (faceRes.similarity < 0.7) {
     hideLoader();
-    return showPopup('Face Failed', `Match: ${(faceRes.similarity * 100).toFixed(1)}% – Too low`, false);
+    showPopup('Face Verification Failed', 'Face similarity too low. Try better lighting.', false);
+    return;
   }
 
   try {
@@ -243,143 +352,24 @@ async function handleClock(action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action,
-        subjectName: staff.name,
+        subjectName: currentStaff.name,
         userId,
-        latitude: lat,
-        longitude: long,
+        latitude: Number(document.getElementById('location').dataset.lat),
+        longitude: Number(document.getElementById('location').dataset.long),
         timestamp: new Date().toISOString()
       })
     });
     const data = await res.json();
     hideLoader();
     if (data.success) {
-      showPopup('Success', `Dear ${staff.name}, ${action === 'clock in' ? 'clock-in' : 'clock-out'} recorded${office ? ' at ' + office : ''}.`, true);
+      showPopup('Success', `Dear ${currentStaff.name}, ${action} recorded at ${currentOffice}.`, true);
     } else {
-      showPopup('Error', data.message, false);
+      showPopup('Attendance Error', data.message, false);
     }
   } catch (err) {
     hideLoader();
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
   }
-}
-
-// Start location watch
-function startLocationWatch() {
-  const statusEl = document.getElementById('status');
-  const gpsEl = document.getElementById('gpsCoords');
-  const locationEl = document.getElementById('location');
-  const clockInBtn = document.getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut');
-  const userIdInput = document.getElementById('userId');
-  const userIdStatus = document.getElementById('userIdStatus');
-
-  videoEl = document.getElementById('video');
-  canvasEl = document.getElementById('canvas');
-  popupEl = document.getElementById('popup');
-  popupHeader = document.getElementById('popupHeader');
-  popupMessage = document.getElementById('popupMessage');
-  popupFooter = document.getElementById('popupFooter');
-  popupRetry = document.getElementById('popupRetry');
-  cameraPopup = document.getElementById('cameraPopup');
-  closeCameraBtn = document.getElementById('closeCamera');
-
-  userIdInput.disabled = true;
-  userIdStatus.textContent = 'Enter User ID only when at office';
-  userIdStatus.className = 'inactive';
-  statusEl.textContent = 'Requesting GPS...';
-  gpsEl.textContent = 'GPS: Waiting...';
-
-  if (!navigator.geolocation) {
-    status38El.textContent = 'Geolocation not supported';
-    showPopup('GPS Error', 'Browser does not support GPS.', false);
-    return;
-  }
-
-  watchId = navigator.geolocation.watchPosition(
-    pos => {
-      const { latitude, longitude } = pos.coords;
-      gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-      locationEl.dataset.lat = latitude;
-      locationEl.dataset.long = longitude;
-
-      let office = null;
-      if (locations.length > 0) {
-        for (const loc of locations) {
-          const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
-          if (distKm <= loc.radiusMeters / 1000) {
-            office = loc.name;
-            break;
-          }
-        }
-      }
-
-      if (office) {
-        statusEl.textContent = office;
-        if (userIdInput.disabled) {
-          userIdInput.disabled = false;
-          userIdStatus.textContent = 'Enter your User ID';
-          userIdStatus.className = '';
-        }
-        const userId = userIdInput.value.trim();
-        const canClock = userId && staffCache.has(userId) && staffCache.get(userId).active.toLowerCase() === 'yes';
-        clockInBtn.disabled = clockOutBtn.disabled = !canClock;
-      } else {
-        statusEl.textContent = 'Outside Office';
-        userIdInput.disabled = true;
-        userIdInput.value = '';
-        userIdStatus.textContent = 'Enter User ID only when at office';
-        userIdStatus.className = 'inactive';
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-      }
-    },
-    err => {
-      gpsEl.textContent = 'GPS: Failed';
-      statusEl.textContent = `GPS Error: ${err.message}`;
-      userIdInput.disabled = true;
-      clockInBtn.disabled = clockOutBtn.disabled = true;
-      if (!locationErrorShown) {
-        showPopup('GPS Error', `Failed: ${err.message}`, false);
-        locationErrorShown = true;
-      }
-    },
-    { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-  );
-
-  fetchLocations().then(() => console.log('Locations loaded or skipped'));
-
-  userIdInput.addEventListener('input', async () => {
-    const userId = userIdInput.value.trim();
-    const buttons = [clockInBtn, clockOutBtn];
-
-    if (!userId) {
-      userIdStatus.textContent = 'Enter your User ID';
-      userIdStatus.className = '';
-      buttons.forEach(b => b.disabled = true);
-      return;
-    }
-
-    userIdStatus.textContent = 'Validating...';
-    userIdStatus.className = 'loading';
-
-    const staff = await getStaffByUserId(userId);
-    if (!staff) {
-      userIdStatus.textContent = `User ${userId} not found`;
-      userIdStatus.className = 'invalid';
-      buttons.forEach(b => b.disabled = true);
-    } else if (staff.active.toLowerCase() !== 'yes') {
-      userIdStatus.textContent = `User ${userId} : ${staff.name} is Inactive`;
-      userIdStatus.className = 'inactive';
-      buttons.forEach(b => b.disabled = true);
-    } else {
-      userIdStatus.textContent = `User ${userId} found : ${staff.name}`;
-      userIdStatus.className = 'valid';
-      buttons.forEach(b => b.disabled = false);
-    }
-  });
-
-  clockInBtn.addEventListener('click', () => handleClock('clock in'));
-  clockOutBtn.addEventListener('click', () => handleClock('clock out'));
-  closeCameraBtn.addEventListener('click', closeCamera);
 }
 
 // Admin login
