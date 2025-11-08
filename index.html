@@ -47,87 +47,42 @@
       font-size: .65em;
     }
 
-    /* === Status Box === */
-    .status-box {
-      margin: 18px 0 8px;
-    }
-    #gpsCoords {
-      font-size: 0.8em;
-      color: #006837;
-      font-weight: 500;
-      margin: 0 0 6px;
-      background: #e8f5e8;
-      padding: 6px 14px;
-      border-radius: 5px;
-      display: inline-block;
-    }
-    #status {
-      font-size: 1.3em;
-      color: #009245;
-      font-weight: 700;
-      letter-spacing: 1px;
-      margin: 0;
-    }
-
-    /* === Clock & Date === */
-    .time-box {
-      margin: 20px 0 12px;
-    }
-    #liveClock {
-      font-size: 1em;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #009245;
-      background: #e8f5e8;
-      padding: 5px 5px;
-      border-radius: 5px;
-      display: inline-block;
-      min-width: 140px;
-    }
-    #liveClock span {
-      display: inline-block;
-      min-width: 1.2ch;
-      text-align: center;
-    }
-    .colon {
-      color: #006837;
-      font-weight: 600;
-    }
-    #ampm {
-      font-size: .7em;
-      vertical-align: top;
-      letter-spacing: 1px;
-      font-weight: 900;
-      color: #006837;
-      margin-left: 5px;
-      background: rgba(0,146,69,.15);
-      padding: 1px 4px;
-      border-radius: 3px;
-    }
-    #liveDate {
-      font-size: .8em;
-      color: #444;
-      margin-top: 7px;
-      font-weight: 600;
-    }
-
     /* === UserID Input === */
-    .id-box {
-      margin: 20px 0 15px;
+    .input-group {
+      margin: 20px 0;
+      text-align: left;
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    #staffId {
-      width: 180px;
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    .input-group input {
+      width: 100%;
       padding: 10px;
-      font-size: 1em;
-      border: 2px solid #009245;
-      border-radius: 6px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
       text-align: center;
-      letter-spacing: 2px;
     }
-    #idError {
-      color: #F44336;
-      font-size: 0.85em;
-      margin: 4px 0 0;
+
+    /* === Status & Location === */
+    #status {
+      margin: 10px 0;
+      color: #333;
+    }
+    #location {
+      margin: 10px 0;
+      color: #333;
+    }
+    pre {
+      white-space: pre-wrap;
+      text-align: center;
+      color: #333;
     }
 
     /* === Buttons === */
@@ -284,57 +239,69 @@
       text-decoration: none;
     }
 
-    /* === Admin Popup === */
-    #adminPopup {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
+    /* === Status Box === */
+    .status-box {
+      margin: 18px 0 8px;
     }
-    #adminPopup.show {
-      display: flex;
-    }
-    #adminPopupContent {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,.2);
-    }
-    #adminPopupContent h2 {
-      font-size: 1.2em;
-      margin-bottom: 20px;
-      color: #009245;
-    }
-    #adminPopupContent input {
-      display: block;
-      width: 80%;
-      margin: 10px auto;
-      padding: 10px;
-      border: 1px solid #ccc;
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      margin: 0 0 6px;
+      background: #e8f5e8;
+      padding: 6px 14px;
       border-radius: 5px;
-      font-size: 1em;
+      display: inline-block;
     }
-    #adminPopupContent button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 1em;
-    }
-    #adminPopupContent .error {
-      color: #F44336;
-      margin-top: 10px;
-      font-size: .9em;
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin: 0;
     }
 
-    /* === Hidden Elements === */
+    /* === Clock & Date === */
+    .time-box {
+      margin: 20px 0 12px;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 5px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      min-width: 140px;
+    }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.2ch;
+      text-align: center;
+    }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
+    #ampm {
+      font-size: .7em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 5px;
+      background: rgba(0,146,69,.15);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    #liveDate {
+      font-size: .8em;
+      color: #444;
+      margin-top: 7px;
+      font-weight: 600;
+    }
     #location {
       display: none !important;
     }
@@ -347,40 +314,38 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
-    <!-- GPS -->
+    <!-- GPS FIRST -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
     </div>
 
-    <!-- Clock -->
+    <!-- CLOCK -->
     <div class="time-box">
       <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- Hidden location -->
-    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
-
-    <!-- UserID Input -->
-    <div class="id-box">
-      <input type="text" id="staffId" placeholder="Enter UserID (e.g. 001)" maxlength="3" />
-      <p id="idError"></p>
+    <!-- USERID INPUT -->
+    <div class="input-group">
+      <label for="userId">Enter Your User ID</label>
+      <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" />
     </div>
 
-    <!-- Buttons -->
+    <!-- HIDDEN LOCATION -->
+    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
+
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
 
-    <!-- Face Recognition -->
     <div id="faceRecognition">
       <video id="video" autoplay playsinline></video>
       <canvas id="canvas"></canvas>
     </div>
   </div>
 
-  <!-- Popup -->
+  <!-- POPUP -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader">Title</div>
@@ -391,16 +356,15 @@
     </div>
   </div>
 
-  <!-- Loader -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying...</p>
   </div>
 
-  <!-- Admin Login -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
+      <p style="font-size:0.8em;color:#666">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
       <button onclick="loginAdmin()">Login</button>
@@ -408,7 +372,6 @@
     </div>
   </div>
 
-  <!-- Footer -->
   <div class="footer">
     <div><button id="adminDashboard">Admin Dashboard</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
@@ -416,7 +379,6 @@
 
   <script src="script.js"></script>
   <script>
-    // Clock
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -432,7 +394,6 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
     const locEl = document.getElementById('location');
     const updateGPS = () => {
