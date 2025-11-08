@@ -71,12 +71,6 @@
       border-radius: 6px;
       text-align: center;
       font-weight: 600;
-      background: #f9f9f9;
-    }
-    .input-group input:disabled {
-      background: #eee;
-      color: #999;
-      cursor: not-allowed;
     }
     .input-group input:focus {
       outline: none;
@@ -84,7 +78,7 @@
       box-shadow: 0 0 5px rgba(0, 146, 69, 0.3);
     }
 
-    /* === UserID Status === */
+    /* === UserID Status (Inline) === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -93,11 +87,50 @@
       border-radius: 4px;
       display: inline-block;
       min-height: 1.4em;
+      text-align: center;
+      width: 100%;
     }
-    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
-    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
-    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1px solid #ffeaa7; }
+    #userIdStatus.valid {
+      color: #155724;
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+    #userIdStatus.invalid {
+      color: #721c24;
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+    #userIdStatus.inactive {
+      color: #856404;
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+    }
+    #userIdStatus.loading {
+      color: #856404;
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+    }
+
+    /* === Location Approval Status === */
+    #locationApproval {
+      font-size: 0.9em;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: inline-block;
+      min-height: 1.5em;
+    }
+    #locationApproval.approved {
+      color: #155724;
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+    #locationApproval.unapproved {
+      color: #721c24;
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
 
     /* === Status & Location === */
     #status {
@@ -122,17 +155,47 @@
       transition: background .3s, transform .2s;
       font-weight: 600;
     }
-    #clockIn { background: #4CAF50; }
-    #clockOut { background: #F44336; }
-    button:hover:not(:disabled) { background: #006837; transform: scale(1.05); }
-    #clockOut:hover:not(:disabled) { background: #d32f2f; }
-    button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+    #clockIn {
+      background: #4CAF50;
+    }
+    #clockOut {
+      background: #F44336;
+    }
+    button:hover:not(:disabled) {
+      background: #006837;
+      transform: scale(1.05);
+    }
+    #clockOut:hover:not(:disabled) {
+      background: #d32f2f;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      opacity: .6;
+    }
 
-    /* === Loader === */
+    /* === Face Recognition === */
+    #faceRecognition {
+      display: none;
+      margin-top: 20px;
+    }
+    #video, #canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+    }
+
+    /* === Loader (Persistent during face verify) === */
     #loaderOverlay {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(255,255,255,.95);
       z-index: 3000;
       justify-content: center;
@@ -144,150 +207,85 @@
       border: 6px solid #f3f3f3;
       border-top: 6px solid #009245;
       border-radius: 50%;
-      width: 55px; height: 55px;
+      width: 55px;
+      height: 55px;
       animation: spin 1s linear infinite;
       margin-bottom: 15px;
     }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-    #loaderOverlay p { margin-top: 10px; font-size: 18px; color: #333; font-weight: 600; }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    #loaderOverlay p {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #333;
+      font-weight: 600;
+    }
 
     /* === Popup === */
     .popup {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(0,0,0,.4);
       justify-content: center;
       align-items: center;
       z-index: 2000;
     }
-    .popup.show { display: flex; }
+    .popup.show {
+      display: flex;
+    }
     .popup-content {
       background: #fff;
       padding: 25px;
       border-radius: 12px;
       width: 90%;
-      max-width: 420px;
+      max-width: 380px;
       text-align: center;
       box-shadow: 0 5px 20px rgba(0,0,0,.2);
       animation: fadeIn .3s;
     }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .popup-header {
-      font-size: 1.2em; font-weight: bold; margin-bottom: 10px; padding: 8px; border-radius: 6px;
-    }
-    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
-    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
-    #popupMessage { font-size: 1em; color: #444; margin: 10px 0 15px; line-height: 1.5; }
-    .popup-close-btn {
-      background: #f0f0f0; color: #666; border: 1px solid #ddd; padding: 8px 15px;
-      border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: 600;
-    }
-    .popup-close-btn:hover { background: #e0e0e0; color: #333; }
-
-    /* === Camera Popup === */
-    #cameraPopup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,.7);
-      z-index: 2500;
-      justify-content: center;
-      align-items: center;
-    }
-    #cameraPopup.show { display: flex; }
-    #cameraContainer {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 500px;
-      text-align: center;
-      box-shadow: 0 8px 30px rgba(0,0,0,.3);
-      position: relative;
-    }
-    #video {
-      width: 100%;
-      max-width: 480px;
-      height: 360px;
-      object-fit: cover;
-      border-radius: 10px;
-      border: 3px solid #ddd;
-      background: #000;
-      transform: scaleX(-1);
-    }
-    #canvas { display: none; }
-    #closeCamera {
-      background: #f44336;
-      color: white;
-      padding: 10px 20px;
-      border: none;
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
       border-radius: 6px;
-      margin-top: 15px;
-      cursor: pointer;
-      font-weight: 600;
     }
-
-    /* === Admin Popup === */
-    #adminPopup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      backdrop-filter: blur(5px);
+    .popup-header.success {
+      background: linear-gradient(135deg,#4CAF50,#45a049);
+      color: #fff;
     }
-    #adminPopup.show { display: flex; }
-    #adminPopupContent {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      text-align: center;
-      animation: popupFade 0.3s ease;
+    .popup-header.error {
+      background: linear-gradient(135deg,#F44336,#d32f2f);
+      color: #fff;
     }
-    @keyframes popupFade {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
+    #popupMessage {
+      font-size: 1em;
+      color: #444;
+      margin: 10px 0 15px;
+      line-height: 1.5;
     }
-    #adminPopup h2 {
-      color: #009245;
-      margin: 0 0 15px;
-      font-size: 1.5em;
-    }
-    #adminPopup input {
-      width: 100%;
-      padding: 14px;
-      margin: 10px 0;
+    .popup-close-btn {
+      background: #f0f0f0;
+      color: #666;
       border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    #adminPopup button {
-      background: #009245;
-      color: white;
-      padding: 14px 28px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
+      padding: 8px  Milano;
+      border-radius: 5px;
       cursor: pointer;
-      margin-top: 15px;
+      margin-top: 10px;
       font-weight: 600;
     }
-    #adminError {
-      color: #d32f2f;
-      margin-top: 12px;
-      font-weight: 600;
-      min-height: 1.2em;
-    }
-
-    /* === Capture Message === */
-    #captureMsg {
-      font-family: Arial, sans-serif;
+    .popup-close-btn:hover {
+      background: #e0e0e0;
+      color: #333;
     }
 
     /* === Footer === */
@@ -299,34 +297,74 @@
       border-top: 1px solid #eee;
       width: 100%;
     }
-    .footer a { color: #009245; text-decoration: none; }
+    .footer a {
+      color: #009245;
+      text-decoration: none;
+    }
 
     /* === Status Box === */
-    .status-box { margin: 18px 0 8px; }
+    .status-box {
+      margin: 18px 0 8px;
+    }
     #gpsCoords {
-      font-size: 0.8em; color: #006837; font-weight: 500;
-      margin: 0 0 6px; background: #e8f5e8; padding: 6px 14px;
-      border-radius: 5px; display: inline-block;
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      margin: 0 0 6px;
+      background: #e8f5e8;
+      padding: 6px 14px;
+      border-radius: 5px;
+      display: inline-block;
     }
     #status {
-      font-size: 1.3em; color: #009245; font-weight: 700; letter-spacing: 1px; margin: 0;
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin: 0;
     }
 
     /* === Clock & Date === */
-    .time-box { margin: 20px 0 12px; }
+    .time-box {
+      margin: 20px 0 12px;
+    }
     #liveClock {
-      font-size: 1em; font-weight: 700; letter-spacing: 2px;
-      color: #009245; background: #e8f5e8; padding: 5px 5px;
-      border-radius: 5px; display: inline-block; min-width: 140px;
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 5px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      min-width: 140px;
     }
-    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
-    .colon { color: #006837; font-weight: 600; }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.2ch;
+      text-align: center;
+    }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
     #ampm {
-      font-size: .7em; vertical-align: top; letter-spacing: 1px;
-      font-weight: 900; color: #006837; margin-left: 5px;
-      background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px;
+      font-size: .7em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 5px;
+      background: rgba(0,146,69,.15);
+      padding: 1px 4px;
+      border-radius: 3px;
     }
-    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+    #liveDate {
+      font-size: .8em;
+      color: #444;
+      margin-top: 7px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -340,6 +378,7 @@
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
+      <div id="locationApproval">Location: —</div>
     </div>
 
     <!-- CLOCK -->
@@ -351,8 +390,8 @@
     <!-- USERID INPUT -->
     <div class="input-group">
       <label for="userId">Enter Your User ID</label>
-      <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" disabled />
-      <div id="userIdStatus">Enter User ID only when at office</div>
+      <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" />
+      <div id="userIdStatus">Enter your User ID</div>
     </div>
 
     <!-- HIDDEN LOCATION -->
@@ -361,19 +400,14 @@
     <button id="clockIn" disabled>Clock In</button>
     <button id="clockOut" disabled>Clock Out</button>
     <p id="message"></p>
-  </div>
 
-  <!-- CAMERA POPUP -->
-  <div id="cameraPopup" class="popup">
-    <div id="cameraContainer">
-      <h3 style="color:#009245;margin:0 0 15px;">Face Verification</h3>
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas" width="640" height="480"></canvas>
-      <button id="closeCamera">Cancel</button>
+    <div id="faceRecognition">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
     </div>
   </div>
 
-  <!-- MAIN POPUP -->
+  <!-- POPUP -->
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader">Title</div>
@@ -384,28 +418,25 @@
     </div>
   </div>
 
-  <!-- LOADER -->
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying face...</p>
   </div>
 
-  <!-- ADMIN LOGIN -->
   <div id="adminPopup" class="popup">
     <div id="adminPopupContent">
       <h2>Admin Login</h2>
-      <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
+      <p style="font-size:0.8em;color:#666">(Check with server)</p>
       <input type="email" id="adminEmail" placeholder="Email" />
       <input type="password" id="adminPassword" placeholder="Password" />
       <button onclick="loginAdmin()">Login</button>
-      <p id="adminError"></p>
+      <p id="adminError" class="error"></p>
     </div>
   </div>
 
-  <!-- FOOTER -->
   <div class="footer">
-    <div><button id="adminDashboard" style="background:#006837;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:600;">Admin Dashboard</button></div>
-    <div style="margin-top:8px;">Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
+    <div><button id="adminDashboard">Admin Dashboard</button></div>
+    <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
 
   <script src="script.js"></script>
@@ -433,7 +464,7 @@
       gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
     };
     updateGPS();
-    new MutationObserver(updateGPS).observe(locEl, {attributes: true});
+    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
   </script>
 </body>
 </html>
