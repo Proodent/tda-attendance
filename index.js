@@ -80,7 +80,7 @@ app.get("/api/locations", async (req, res) => {
     const rows = await locSheet.getRows();
 
     const locations = rows.map(r => ({
-      name: r["Location Name"] || r.get("Location Name") || "",
+      name: (r["Location Name"] || r.get("Location Name") || "").trim(),
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
@@ -103,8 +103,8 @@ app.get("/api/admin-logins", async (req, res) => {
     const rows = await adminSheet.getRows();
 
     const adminLogins = rows.map(r => [
-      r["Email"] || r.get("Email") || "",
-      r["Password"] || r.get("Password") || ""
+      (r["Email"] || r.get("Email") || "").trim(),
+      (r["Password"] || r.get("Password") || "").trim()
     ]).filter(row => row[0] && row[1]);
 
     console.log("Admin logins fetched:", adminLogins.length, "records");
@@ -115,7 +115,7 @@ app.get("/api/admin-logins", async (req, res) => {
   }
 });
 
-// ----------------- NEW: Staff by UserID -----------------
+// ----------------- API: Staff by UserID (with allowedLocations) -----------------
 app.post("/api/staff-by-id", async (req, res) => {
   try {
     await loadDoc();
@@ -134,12 +134,16 @@ app.post("/api/staff-by-id", async (req, res) => {
 
     if (!staff) return res.status(404).json({ success: false, message: "User not found" });
 
-    const name = staff["Name"] || staff.get("Name") || "";
+    const name = (staff["Name"] || staff.get("Name") || "").trim();
     const active = (staff["Active"] || staff.get("Active") || "No").toString().trim();
+    const allowed = (staff["Allowed Locations"] || staff.get("Allowed Locations") || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
 
     res.json({
       success: true,
-      staff: { name, active }
+      staff: { name, active, allowedLocations: allowed }
     });
   } catch (err) {
     console.error("POST /api/staff-by-id error:", err);
@@ -170,7 +174,7 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   }
 });
 
-// ----------------- Attendance Logging (with UserID) -----------------
+// ----------------- Attendance Logging (CASE-INSENSITIVE LOCATION MATCH) -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, userId, latitude, longitude, timestamp } = req.body;
@@ -196,22 +200,26 @@ app.post("/api/attendance/web", async (req, res) => {
 
     const userIdStr = userId.toString().trim();
     const staffMember = staffRows.find(r => {
-      const id = (r["UserID"] || r.get("UserID") || "").toString().trim();
-      const name = (r["Name"] || r.get("Name") || "").trim();
-      const active = (r["Active"] || r.get("Active") || "No").toString().toLowerCase();
-      return id === userIdStr && name === subjectName.trim() && active === "yes";
+      const id   = (r["UserID"] || r.get("UserID") || "").toString().trim();
+      const name = (r["Name"]    || r.get("Name")    || "").trim();
+      const act  = (r["Active"]  || r.get("Active")  || "No").toString().toLowerCase();
+      return id === userIdStr && name === subjectName.trim() && act === "yes";
     });
 
     if (!staffMember) {
       return res.status(403).json({ success: false, message: `Invalid UserID or Name, or staff is inactive.` });
     }
 
-    const allowedList = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
-      .split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+    // ----- ALLOWED LOCATIONS (trimmed, lowercased) -----
+    const allowedRaw = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
+      .split(",")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
 
+    // ----- OFFICE LOCATIONS (from Locations Sheet) -----
     const officeLocations = locRows.map(r => ({
-      name: (r["Location Name"] || r.get("Location Name") || "").toString().trim(),
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
+      name: (r["Location Name"] || r.get("Location Name") || "").trim(),
+      lat:  parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
     })).filter(o => o.name && o.lat && o.long);
@@ -220,7 +228,7 @@ app.post("/api/attendance/web", async (req, res) => {
     for (const o of officeLocations) {
       const distKm = getDistanceKm(Number(latitude), Number(longitude), o.lat, o.long);
       if (distKm <= (o.radiusMeters / 1000)) {
-        officeName = o.name;
+        officeName = o.name; // Keep original case for display
         break;
       }
     }
@@ -229,8 +237,9 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
 
-    if (!allowedList.includes(officeName.toLowerCase())) {
-      return res.status(403).json({ success: false, message: "Unapproved Location." });
+    // ----- CASE-INSENSITIVE LOCATION CHECK -----
+    if (!allowedRaw.includes(officeName.toLowerCase())) {
+      return res.status(403).json({ success: false, message: `Unapproved Location – you are not allowed at "${officeName}".` });
     }
 
     const dt = new Date(timestamp);
@@ -287,7 +296,6 @@ app.post("/api/attendance/web", async (req, res) => {
       locOutCell.value = officeName;
       await attendanceSheet.saveUpdatedCells();
 
-      console.log(`Clock-out updated for ${subjectName} (ID: ${userIdStr}) on ${dateStr} at ${officeName}`);
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
 
@@ -328,7 +336,7 @@ app.get("/api/staff", async (req, res) => {
   }
 });
 
-// ----------------- API: Stats (Real Data + Integer Y) -----------------
+// ----------------- API: Stats -----------------
 app.get("/api/stats", async (req, res) => {
   try {
     await loadDoc();
@@ -394,7 +402,6 @@ app.get("/api/stats", async (req, res) => {
         clockOutLocation: r["Clock Out Location"] || r.get("Clock Out Location") || "Unknown"
       }));
 
-    // Real 7-day trend
     const trend = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
