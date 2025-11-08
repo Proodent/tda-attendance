@@ -118,11 +118,6 @@
     #location {
       display: none !important;
     }
-    pre {
-      white-space: pre-wrap;
-      text-align: center;
-      color: #333;
-    }
 
     /* === Buttons === */
     button {
@@ -156,37 +151,26 @@
       opacity: .6;
     }
 
-    /* === Face Recognition — CRITICAL FIX === */
+    /* === Face Recognition === */
     #faceRecognition {
       display: none;
       margin-top: 20px;
       position: relative;
-      z-index: 1000;
-    }
-    #faceRecognition.active {
-      display: block !important;
     }
     #video {
-      width: 100% !important;
-      max-width: 480px;
-      height: auto;
-      border-radius: 10px;
-      border: 3px solid #009245;
-      box-shadow: 0 4px 12px rgba(0,0,0,.2);
-      transform: scaleX(-1); /* Mirror selfie */
       display: block;
-      margin: 0 auto 10px;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 480px;
+      height: 360px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+      background: #000;
+      transform: scaleX(-1); /* Mirror effect */
     }
     #canvas {
-      display: none; /* Hidden, used for capture */
-    }
-
-    /* Camera Fallback Message */
-    #cameraError {
-      color: #d32f2f;
-      font-weight: 600;
-      margin-top: 10px;
-      display: none;
+      display: none; /* Hidden, used only for capture */
     }
 
     /* === Loader === */
@@ -321,4 +305,157 @@
       font-size: 1.3em;
       color: #009245;
       font-weight: 700;
-      letter-spacing:
+      letter-spacing: 1px;
+      margin: 0;
+    }
+
+    /* === Clock & Date === */
+    .time-box {
+      margin: 20px 0 12px;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 5px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      min-width: 140px;
+    }
+    #liveClock span {
+      display: inline-block;
+      min-width: 1.2ch;
+      text-align: center;
+    }
+    .colon {
+      color: #006837;
+      font-weight: 600;
+    }
+    #ampm {
+      font-size: .7em;
+      vertical-align: top;
+      letter-spacing: 1px;
+      font-weight: 900;
+      color: #006837;
+      margin-left: 5px;
+      background: rgba(0,146,69,.15);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    #liveDate {
+      font-size: .8em;
+      color: #444;
+      margin-top: 7px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Portal</span>
+    </h1>
+
+    <!-- GPS FIRST -->
+    <div class="status-box">
+      <div id="gpsCoords">GPS: Waiting for signal...</div>
+      <p id="status">Checking location...</p>
+    </div>
+
+    <!-- CLOCK -->
+    <div class="time-box">
+      <div id="liveClock">12 <span class="colon">:</span> 00 <span class="colon">:</span> 00 <span id="ampm">AM</span></div>
+      <div id="liveDate">Monday, 03 November 2025</div>
+    </div>
+
+    <!-- USERID INPUT -->
+    <div class="input-group">
+      <label for="userId">Enter Your User ID</label>
+      <input type="text" id="userId" placeholder="e.g. 001" maxlength="10" autocomplete="off" />
+      <div id="userIdStatus"></div>
+    </div>
+
+    <!-- HIDDEN LOCATION -->
+    <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
+
+    <button id="clockIn" disabled>Clock In</button>
+    <button id="clockOut" disabled>Clock Out</button>
+    <p id="message"></p>
+
+    <!-- FACE RECOGNITION (Camera) -->
+    <div id="faceRecognition">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas" width="640" height="480"></canvas>
+    </div>
+  </div>
+
+  <!-- POPUP -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-header" id="popupHeader">Title</div>
+      <div id="popupMessage">Message</div>
+      <div class="popup-icon"></div>
+      <div class="popup-footer" id="popupFooter"></div>
+      <div id="popupRetry"></div>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying face...</p>
+  </div>
+
+  <!-- ADMIN LOGIN POPUP -->
+  <div id="adminPopup" class="popup">
+    <div id="adminPopupContent" style="padding: 25px; text-align: center;">
+      <h2 style="color: #009245; margin-bottom: 15px;">Admin Login</h2>
+      <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
+      <input type="email" id="adminEmail" placeholder="Email" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:6px;font-size:16px;" />
+      <input type="password" id="adminPassword" placeholder="Password" style="width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:6px;font-size:16px;" />
+      <button onclick="loginAdmin()" style="background:#009245;color:white;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer;margin-top:10px;">Login</button>
+      <p id="adminError" style="color:#d32f2f;margin-top:10px;font-weight:600;"></p>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div><button id="adminDashboard" style="background:#006837;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:600;">Admin Dashboard</button></div>
+    <div style="margin-top:8px;">Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+  <script>
+    // Live Clock
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = now.getMinutes().toString().padStart(2,'0');
+      const s = now.getSeconds().toString().padStart(2,'0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      document.getElementById('liveClock').innerHTML =
+        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
+      document.getElementById('liveDate').textContent = dateStr;
+    }
+    updateClock();
+    setInterval(updateClock, 500);
+
+    // GPS Display Update
+    const gpsEl = document.getElementById('gpsCoords');
+    const locEl = document.getElementById('location');
+    const updateGPS = () => {
+      const lat = locEl.dataset.lat;
+      const lng = locEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
+    };
+    updateGPS();
+    new MutationObserver(updateGPS).observe(locEl, {attributes: true});
+  </script>
+</body>
+</html>
