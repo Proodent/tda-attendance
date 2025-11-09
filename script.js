@@ -70,7 +70,7 @@ function startLocationWatch() {
   const validateAndShow = () => {
     const value = userIdInput.value.trim();
     if (value) {
-      userIdStatus.classList.add('show');
+      userIdStatus.classList.add('show');  // ALWAYS SHOW IF TEXT EXISTS
     } else {
       userIdStatus.classList.remove('show');
     }
@@ -131,7 +131,6 @@ function startLocationWatch() {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
           userIdInput.focus();
-          validateAndShow(); // Re-check if already typed
         } else if (!currentOffice && !userIdInput.disabled) {
           userIdInput.disabled = true;
           userIdInput.value = '';
@@ -140,7 +139,7 @@ function startLocationWatch() {
           clockInBtn.disabled = clockOutBtn.disabled = true;
         }
 
-        // Revalidate only if UserID has content
+        // Revalidate only if input has text
         if (userIdInput.value.trim()) {
           updateUserStatus();
         }
@@ -159,13 +158,14 @@ function startLocationWatch() {
     );
   });
 
-  // === FULL VALIDATION WITH NAME, ACTIVE, APPROVAL ===
+  // === PERSISTENT VALIDATION – NEVER HIDES UNTIL INPUT IS EMPTY ===
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
     const currentLastId = userIdStatus.dataset.lastUserId;
 
-    // Only revalidate if ID changed
+    // Only revalidate if UserID changed
     if (currentLastId === userId) return;
+
     userIdStatus.dataset.lastUserId = userId;
 
     if (!userId) {
@@ -175,6 +175,8 @@ function startLocationWatch() {
       return;
     }
 
+    // Always show box during validation
+    userIdStatus.classList.add('show');
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
