@@ -38,7 +38,7 @@
       background: rgba(255, 255, 255, 0.92);
     }
 
-    /* === LOGO – SMALL, GREEN BORDER === */
+    /* === LOGO – THINNER BORDER (1.8px) === */
     .logo {
       width: 60px;
       height: 60px;
@@ -46,7 +46,7 @@
       border-radius: 50%;
       object-fit: contain;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 3px solid #009245;
+      border: 1.8px solid #009245; /* 40% thinner than 3px */
       z-index: 2;
     }
 
@@ -62,7 +62,7 @@
     h1 span { font-size: 1em; }
     h1 .subtitle { color: #242424; font-size: .65em; }
 
-    /* === CENTERED INPUT + STATUS === */
+    /* === INPUT GROUP === */
     .input-group {
       margin: 20px 0 8px;
       text-align: center;
@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION STATUS – HIDDEN UNTIL TYPING === */
+    /* === VALIDATION BOX – FORCE SHOW ON INPUT === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -108,7 +108,7 @@
       max-width: 300px;
       box-sizing: border-box;
       min-height: 40px;
-      display: none;
+      display: none !important;
       align-items: center;
       justify-content: center;
       line-height: 1.4;
@@ -206,7 +206,7 @@
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
 
-    /* === ADMIN BUTTON – SMALL & CLEAN === */
+    /* === ADMIN BUTTON – SMALL === */
     #adminDashboard {
       background: #009245;
       color: #fff;
@@ -331,7 +331,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === ADMIN POPUP – CLICK OUTSIDE + X WORKS === */
+    /* === ADMIN POPUP === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -446,7 +446,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- LOGO WITH GREEN BORDER -->
+    <!-- LOGO WITH THINNER BORDER -->
     <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
 
     <h1>
@@ -548,7 +548,7 @@
 
     // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
-    const locEl = begin
+    const locEl = document.getElementById('location');
     const updateGPS = () => {
       const lat = locEl.dataset.lat;
       const lng = locEl.dataset.long;
