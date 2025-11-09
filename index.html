@@ -38,7 +38,7 @@
       background: rgba(255, 255, 255, 0.92);
     }
 
-    /* === LOGO – SMALL & ON TOP === */
+    /* === LOGO – SMALL, GREEN BORDER === */
     .logo {
       width: 60px;
       height: 60px;
@@ -46,6 +46,7 @@
       border-radius: 50%;
       object-fit: contain;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 3px solid #009245;
       z-index: 2;
     }
 
@@ -96,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION STATUS – HIDDEN WHEN EMPTY === */
+    /* === VALIDATION STATUS – HIDDEN UNTIL TYPING === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -107,14 +108,14 @@
       max-width: 300px;
       box-sizing: border-box;
       min-height: 40px;
-      display: none; /* Hidden by default */
+      display: none;
       align-items: center;
       justify-content: center;
       line-height: 1.4;
       background: rgba(255, 255, 255, 0.95);
     }
     #userIdStatus.show {
-      display: flex; /* Only show when active */
+      display: flex !important;
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
@@ -204,6 +205,21 @@
     #clockIn:hover:not(:disabled) { background: #45a049; }
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+
+    /* === ADMIN BUTTON – SMALL & CLEAN === */
+    #adminDashboard {
+      background: #009245;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background .3s;
+    }
+    #adminDashboard:hover { background: #007a3d; }
 
     /* === FACE MODAL === */
     #faceModal {
@@ -315,7 +331,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === ADMIN POPUP === */
+    /* === ADMIN POPUP – CLICK OUTSIDE + X WORKS === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -430,7 +446,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- LOGO ON TOP -->
+    <!-- LOGO WITH GREEN BORDER -->
     <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
 
     <h1>
@@ -450,7 +466,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + VALIDATION (hidden when empty) -->
+    <!-- USERID + VALIDATION -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus">Validating...</div>
@@ -508,7 +524,7 @@
   <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
   <div class="footer">
-    <div><button id="adminDashboard">Admin Dashboard</button></div>
+    <div><button id="adminDashboard">Admin</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
 
@@ -532,7 +548,7 @@
 
     // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
-    const locEl = document.getElementById('location');
+    const locEl = begin
     const updateGPS = () => {
       const lat = locEl.dataset.lat;
       const lng = locEl.dataset.long;
