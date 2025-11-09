@@ -21,7 +21,7 @@
       overflow-x: hidden;
     }
 
-    /* === Container with Logo Background === */
+    /* === Container === */
     .container {
       padding: 20px;
       border-radius: 12px;
@@ -35,14 +35,18 @@
       align-items: center;
       position: relative;
       z-index: 1;
-    }
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(255, 255, 255, 0.92);
-      border-radius: 12px;
-      z-index: -1;
+    }
+
+    /* === LOGO – SMALL & ON TOP === */
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 8px;
+      border-radius: 50%;
+      object-fit: contain;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 2;
     }
 
     /* === Heading === */
@@ -80,14 +84,19 @@
       box-sizing: border-box;
       background: rgba(255, 255, 255, 0.95);
     }
-    .input-group input::placeholder { color: #666; font-weight: 500; }
+    .input-group input::placeholder { color: #aaa; font-weight: 500; }
     .input-group input:focus {
       outline: none;
       border-color: #009245;
       box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
     }
+    .input-group input:disabled {
+      background: #f0f0f0;
+      color: #999;
+      cursor: not-allowed;
+    }
 
-    /* === VALIDATION STATUS === */
+    /* === VALIDATION STATUS – HIDDEN WHEN EMPTY === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -98,11 +107,14 @@
       max-width: 300px;
       box-sizing: border-box;
       min-height: 40px;
-      display: flex;
+      display: none; /* Hidden by default */
       align-items: center;
       justify-content: center;
       line-height: 1.4;
       background: rgba(255, 255, 255, 0.95);
+    }
+    #userIdStatus.show {
+      display: flex; /* Only show when active */
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
@@ -418,6 +430,9 @@
 </head>
 <body>
   <div class="container">
+    <!-- LOGO ON TOP -->
+    <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
+
     <h1>
       <span>Tolon District Assembly</span><br>
       <span class="subtitle">Staff Attendance Portal</span>
@@ -435,10 +450,10 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + VALIDATION -->
+    <!-- USERID + VALIDATION (hidden when empty) -->
     <div class="input-group">
-      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
-      <div id="userIdStatus" class="loading">Validating...</div>
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
+      <div id="userIdStatus">Validating...</div>
     </div>
 
     <!-- Buttons -->
@@ -525,57 +540,6 @@
     };
     updateGPS();
     new MutationObserver(updateGPS).observe(locEl, {attributes:true});
-
-    // ADMIN POPUP
-    const adminPopup = document.getElementById('adminPopup');
-    const adminCloseBtn = document.getElementById('adminCloseBtn');
-    const adminLoginBtn = document.getElementById('adminLoginBtn');
-
-    document.getElementById('adminDashboard').addEventListener('click', () => {
-      adminPopup.classList.add('show');
-    });
-
-    adminCloseBtn.addEventListener('click', () => {
-      adminPopup.classList.remove('show');
-    });
-
-    adminPopup.addEventListener('click', (e) => {
-      if (e.target === adminPopup) {
-        adminPopup.classList.remove('show');
-      }
-    });
-
-    adminLoginBtn?.addEventListener('click', async () => {
-      const email = document.getElementById('adminEmail')?.value.trim();
-      const password = document.getElementById('adminPassword')?.value.trim();
-      const error = document.getElementById('adminError');
-
-      if (!email || !password) {
-        error.textContent = 'Please fill in both fields.';
-        return;
-      }
-
-      adminLoginBtn.classList.add('loading');
-      adminLoginBtn.disabled = true;
-      error.textContent = '';
-
-      try {
-        const res = await fetch('/api/admin-logins');
-        const data = await res.json();
-
-        if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
-          localStorage.setItem('isLoggedIn', 'true');
-          window.location.href = 'stats.html';
-        } else {
-          error.textContent = 'Invalid email or password.';
-        }
-      } catch (err) {
-        error.textContent = 'Login failed. Try again.';
-      } finally {
-        adminLoginBtn.classList.remove('loading');
-        adminLoginBtn.disabled = false;
-      }
-    });
   </script>
 </body>
 </html>
