@@ -64,24 +64,32 @@ function startLocationWatch() {
   const locationEl = document.getElementById('location');
   const userIdInput = document.getElementById('userId');
   const userIdStatus = document.getElementById('userIdStatus');
-  const clockInBtn = document.getElementBy. getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut');
+  const clockInBtn = document.getElementById('clockIn');     // FIXED TYPO
+  const clockOutBtn = document.getElementById('clockOut');   // FIXED TYPO
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
   userIdInput.disabled = true;
   userIdInput.placeholder = 'Outside approved area';
-  userIdStatus.classList.remove('show'); // Ensure hidden
+  userIdStatus.classList.remove('show');
+  statusEl.textContent = 'Loading locations...';
+  gpsEl.textContent = 'GPS: Waiting...';
 
   fetchLocations().then(locations => {
     if (locations.length === 0) {
-      statusEl.textContent = 'No locations loaded.';
+      statusEl.textContent = 'No office locations configured.';
+      gpsEl.textContent = 'GPS: N/A';
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
 
+    statusEl.textContent = 'Waiting for GPS signal...';
+    gpsEl.textContent = 'GPS: Acquiring...';
+
     if (!navigator.geolocation) {
-      showPopup('Geolocation Error', 'Browser does not support GPS.', false);
+      showPopup('Geolocation Error', 'Your browser does not support GPS.', false);
+      statusEl.textContent = 'GPS not supported';
+      gpsEl.textContent = 'GPS: Disabled';
       return;
     }
 
@@ -109,12 +117,10 @@ function startLocationWatch() {
           userIdInput.placeholder = 'Enter User ID';
           userIdInput.focus();
 
-          // Attach input listener ONCE when enabled
+          // Attach input listener ONCE
           userIdInput.addEventListener('input', handleUserIdInput);
           userIdInput.addEventListener('focus', () => {
-            if (userIdInput.value.trim()) {
-              userIdStatus.classList.add('show');
-            }
+            if (userIdInput.value.trim()) userIdStatus.classList.add('show');
           });
         } else if (!currentOffice && !userIdInput.disabled) {
           userIdInput.disabled = true;
@@ -129,7 +135,11 @@ function startLocationWatch() {
       },
       err => {
         console.error('GPS Error:', err);
-        statusEl.textContent = `GPS error: ${err.message}`;
+        let msg = 'GPS error';
+        if (err.code === 1) msg = 'Location access denied';
+        if (err.code === 2) msg = 'Location unavailable';
+        if (err.code === 3) msg = 'GPS timeout';
+        statusEl.textContent = msg;
         gpsEl.textContent = 'GPS: Failed';
         clockInBtn.disabled = clockOutBtn.disabled = true;
       },
@@ -206,7 +216,7 @@ function startLocationWatch() {
   clockOutBtn.addEventListener('click', () => handleClock('clock out'));
 }
 
-// === FACE VERIFICATION – ERROR MESSAGES ===
+// === FACE VERIFICATION ===
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
