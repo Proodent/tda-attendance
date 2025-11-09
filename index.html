@@ -21,11 +21,9 @@
       overflow-x: hidden;
     }
 
-    /* === Container with Logo Background === */
+    /* === Container === */
     .container {
-      /* background: #fff url('/assets/client-logo.jpg') center center no-repeat;
-      background-size: 60% auto;
-      background-position: center 15%; */
+      background: #fff;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,.15);
@@ -39,26 +37,32 @@
       position: relative;
       z-index: 1;
     }
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255, 255, 255, 0.92);
-      border-radius: 12px;
-      z-index: -1;
+
+    /* === LOGO ON TOP (Small) === */
+    .logo-container {
+      margin-bottom: 10px;
+      width: 80px;
+      height: 80px;
+      overflow: hidden;
+      border-radius: 50%;
+      border: 3px solid #009245;
+      box-shadow: 0 4px 12px rgba(0,0,0,.1);
+    }
+    .logo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     /* === Heading === */
     h1 {
       color: #009245;
-      margin-bottom: 15px;
+      margin: 5px 0 15px;
       font-size: 1.4em;
       width: 100%;
-      position: relative;
-      z-index: 2;
     }
     h1 span { font-size: 1em; }
-    h1 .subtitle { color: #242424; font-size: .65em; }
+    h1 .subtitle { color: #242424; font-size: .65em; display: block; }
 
     /* === CENTERED INPUT + STATUS === */
     .input-group {
@@ -69,8 +73,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      position: relative;
-      z-index: 2;
     }
     .input-group input {
       width: 100%;
@@ -81,16 +83,22 @@
       text-align: center;
       font-weight: 600;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.95);
+      background: #f9f9f9;
     }
-    .input-group input::placeholder { color: #666; font-weight: 500; }
+    .input-group input::placeholder { color: #aaa; font-weight: 500; }
     .input-group input:focus {
       outline: none;
       border-color: #009245;
       box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
+      background: #fff;
+    }
+    .input-group input:disabled {
+      background: #eee;
+      color: #999;
+      cursor: not-allowed;
     }
 
-    /* === VALIDATION STATUS === */
+    /* === VALIDATION STATUS – HIDDEN UNTIL TYPING === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -101,12 +109,12 @@
       max-width: 300px;
       box-sizing: border-box;
       min-height: 40px;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       line-height: 1.4;
-      background: rgba(255, 255, 255, 0.95);
     }
+    #userIdStatus.show { display: flex; }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
     #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
@@ -118,8 +126,6 @@
       width: 100%;
       max-width: 300px;
       text-align: center;
-      position: relative;
-      z-index: 2;
     }
     #gpsCoords {
       font-size: 0.8em;
@@ -143,8 +149,6 @@
       margin: 20px 0 12px;
       width: 100%;
       max-width: 300px;
-      position: relative;
-      z-index: 2;
     }
     #liveClock {
       font-size: 1em;
@@ -174,8 +178,6 @@
       margin-top: 20px;
       width: 100%;
       max-width: 300px;
-      position: relative;
-      z-index: 2;
     }
     button {
       flex: 1;
@@ -195,6 +197,16 @@
     #clockIn:hover:not(:disabled) { background: #45a049; }
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+
+    /* === Admin Dashboard Button – SMALLER === */
+    #adminDashboard {
+      font-size: 0.8em;
+      padding: 6px 12px;
+      margin-bottom: 8px;
+      background: #006837;
+      border-radius: 6px;
+    }
+    #adminDashboard:hover { background: #004d2a; }
 
     /* === FACE MODAL === */
     #faceModal {
@@ -306,7 +318,7 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === ADMIN POPUP – Small X + Login Spinner === */
+    /* === ADMIN POPUP – Small X + Spinner === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -341,8 +353,6 @@
       font-size: 15px;
       box-sizing: border-box;
     }
-
-    /* Login Button + Spinner */
     #adminLoginBtn {
       width: 100%;
       padding: 12px;
@@ -354,16 +364,11 @@
       cursor: pointer;
       margin-top: 10px;
       position: relative;
-      transition: background .3s;
     }
-    #adminLoginBtn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
+    #adminLoginBtn:disabled { background: #ccc; cursor: not-allowed; }
     #adminLoginBtn .spinner {
       display: none;
-      width: 16px;
-      height: 16px;
+      width: 16px; height: 16px;
       border: 2px solid #fff;
       border-top: 2px solid transparent;
       border-radius: 50%;
@@ -373,13 +378,9 @@
       top: 50%;
       transform: translateY(-50%);
     }
-    #adminLoginBtn.loading .spinner {
-      display: block;
-    }
-
+    #adminLoginBtn.loading .spinner { display: block; }
     #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
 
-    /* Small X Close Button */
     .popup-close {
       position: absolute;
       top: 8px;
@@ -396,11 +397,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color .2s;
     }
-    .popup-close:hover {
-      color: #d32f2f;
-    }
+    .popup-close:hover { color: #d32f2f; }
 
     /* === Footer === */
     .footer {
@@ -412,8 +410,6 @@
       width: 100%;
       max-width: 600px;
       text-align: center;
-      position: relative;
-      z-index: 2;
     }
     .footer a { color: #009245; text-decoration: none; }
 
@@ -423,8 +419,13 @@
 </head>
 <body>
   <div class="container">
+    <!-- LOGO ON TOP -->
+    <div class="logo-container">
+      <img src="/assets/client-logo.jpg" alt="Logo" />
+    </div>
+
     <h1>
-      <span>Tolon District Assembly</span><br>
+      <span>Tolon District Assembly</span>
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
@@ -440,9 +441,9 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + VALIDATION -->
+    <!-- USERID + VALIDATION (Hidden until typing) -->
     <div class="input-group">
-      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="loading">Validating...</div>
     </div>
 
@@ -481,7 +482,7 @@
     </div>
   </div>
 
-  <!-- ADMIN POPUP – Small X + Login Spinner -->
+  <!-- ADMIN POPUP -->
   <div id="adminPopup">
     <div class="popup-content">
       <button class="popup-close" id="adminCloseBtn">X</button>
@@ -498,7 +499,7 @@
   <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
 
   <div class="footer">
-    <div><button id="adminDashboard">Admin Dashboard</button></div>
+    <div><button id="adminDashboard">Admin</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
 
@@ -531,33 +532,22 @@
     updateGPS();
     new MutationObserver(updateGPS).observe(locEl, {attributes:true});
 
-    // === ADMIN POPUP: Small X + Login Spinner ===
+    // ADMIN POPUP
     const adminPopup = document.getElementById('adminPopup');
     const adminCloseBtn = document.getElementById('adminCloseBtn');
     const adminLoginBtn = document.getElementById('adminLoginBtn');
 
-    adminCloseBtn.addEventListener('click', () => {
-      adminPopup.classList.remove('show');
-    });
-
-    adminPopup.addEventListener('click', (e) => {
-      if (e.target === adminPopup) {
-        adminPopup.classList.remove('show');
-      }
-    });
+    adminCloseBtn.addEventListener('click', () => adminPopup.classList.remove('show'));
+    adminPopup.addEventListener('click', (e) => { if (e.target === adminPopup) adminPopup.classList.remove('show'); });
 
     // Login Spinner
-    document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+    adminLoginBtn?.addEventListener('click', async () => {
       const email = document.getElementById('adminEmail')?.value.trim();
       const password = document.getElementById('adminPassword')?.value.trim();
       const error = document.getElementById('adminError');
 
-      if (!email || !password) {
-        error.textContent = 'Please fill in both fields.';
-        return;
-      }
+      if (!email || !password) { error.textContent = 'Please fill in both fields.'; return; }
 
-      // Show spinner
       adminLoginBtn.classList.add('loading');
       adminLoginBtn.disabled = true;
       error.textContent = '';
@@ -565,7 +555,6 @@
       try {
         const res = await fetch('/api/admin-logins');
         const data = await res.json();
-
         if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
           localStorage.setItem('isLoggedIn', 'true');
           window.location.href = 'stats.html';
@@ -575,7 +564,6 @@
       } catch (err) {
         error.textContent = 'Login failed. Try again.';
       } finally {
-        // Hide spinner
         adminLoginBtn.classList.remove('loading');
         adminLoginBtn.disabled = false;
       }
@@ -583,4 +571,3 @@
   </script>
 </body>
 </html>
-
