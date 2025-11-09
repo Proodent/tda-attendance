@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" rose" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
@@ -416,7 +416,7 @@
     }
     .footer a { color: #009245; text-decoration: none; }
 
-    /* SOUNDS – LOUD & RELIABLE */
+    /* SOUNDS */
     #successSound, #errorSound { display: none; }
   </style>
 </head>
@@ -501,31 +501,5 @@
   </div>
 
   <script src="script.js"></script>
-  <script>
-    function updateClock() {
-      const now = new Date();
-      let h = now.getHours();
-      const m = now.getMinutes().toString().padStart(2,'0');
-      const s = now.getSeconds().toString().padStart(2,'0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-      document.getElementById('liveClock').innerHTML =
-        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
-      document.getElementById('liveDate').textContent = dateStr;
-    }
-    updateClock();
-    setInterval(updateClock, 500);
-
-    const gpsEl = document.getElementById('gpsCoords');
-    const statusEl = document.getElementById('status');
-    const updateGPSDisplay = () => {
-      const lat = statusEl.dataset.lat;
-      const lng = statusEl.dataset.long;
-      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
-    };
-    updateGPSDisplay();
-    new MutationObserver(updateGPSDisplay).observe(statusEl, {attributes: true, attributeFilter: ['data-lat', 'data-long']});
-  </script>
 </body>
 </html>
