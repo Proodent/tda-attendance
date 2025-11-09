@@ -6,10 +6,9 @@
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* === BODY – LIGHT GREEN BACKGROUND === */
     body {
       font-family: Arial, sans-serif;
-      background: #e8f5e8; /* Light green */
+      background: #e8f5e8;
       text-align: center;
       margin: 0;
       padding: 20px;
@@ -21,7 +20,6 @@
       overflow-x: hidden;
     }
 
-    /* === Container === */
     .container {
       padding: 20px;
       border-radius: 12px;
@@ -38,7 +36,6 @@
       background: rgba(255, 255, 255, 0.92);
     }
 
-    /* === LOGO – 1.8px BORDER === */
     .logo {
       width: 60px;
       height: 60px;
@@ -50,7 +47,6 @@
       z-index: 2;
     }
 
-    /* === Heading === */
     h1 {
       color: #009245;
       margin-bottom: 15px;
@@ -62,7 +58,6 @@
     h1 span { font-size: 1em; }
     h1 .subtitle { color: #242424; font-size: .65em; }
 
-    /* === INPUT GROUP === */
     .input-group {
       margin: 20px 0 8px;
       text-align: center;
@@ -97,7 +92,6 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS ON EMPTY === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -120,7 +114,6 @@
     #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
     #userIdStatus.placeholder { color: #666; background: #f8f9fa; border: 1.5px dashed #ccc; }
 
-    /* === Status & GPS === */
     .status-box {
       margin: 18px 0 8px;
       width: 100%;
@@ -146,7 +139,6 @@
       margin: 0;
     }
 
-    /* === Clock === */
     .time-box {
       margin: 20px 0 12px;
       width: 100%;
@@ -174,7 +166,6 @@
     }
     #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
 
-    /* === Buttons === */
     .button-group {
       display: flex;
       gap: 12px;
@@ -204,7 +195,6 @@
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
 
-    /* === ADMIN BUTTON – SMALL === */
     #adminDashboard {
       background: #009245;
       color: #fff;
@@ -219,7 +209,6 @@
     }
     #adminDashboard:hover { background: #007a3d; }
 
-    /* === FACE MODAL === */
     #faceModal {
       display: none;
       position: fixed;
@@ -275,7 +264,6 @@
       color: #009245;
     }
 
-    /* === Loader === */
     #loaderOverlay {
       display: none;
       position: fixed;
@@ -298,7 +286,6 @@
     }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* === Popup === */
     .popup {
       display: none;
       position: fixed;
@@ -329,7 +316,6 @@
     .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
     .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
 
-    /* === ADMIN POPUP === */
     #adminPopup {
       display: none;
       position: fixed;
@@ -378,14 +364,10 @@
       position: relative;
       transition: background .3s;
     }
-    #adminLoginBtn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
+    #adminLoginBtn:disabled { background: #ccc; cursor: not-allowed; }
     #adminLoginBtn .spinner {
       display: none;
-      width: 16px;
-      height: 16px;
+      width: 16px; height: 16px;
       border: 2px solid #fff;
       border-top: 2px solid transparent;
       border-radius: 50%;
@@ -395,9 +377,7 @@
       top: 50%;
       transform: translateY(-50%);
     }
-    #adminLoginBtn.loading .spinner {
-      display: block;
-    }
+    #adminLoginBtn.loading .spinner { display: block; }
 
     #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
 
@@ -419,11 +399,8 @@
       justify-content: center;
       transition: color .2s;
     }
-    .popup-close:hover {
-      color: #d32f2f;
-    }
+    .popup-close:hover { color: #d32f2f; }
 
-    /* === Footer === */
     .footer {
       margin-top: auto;
       font-size: .9em;
@@ -438,38 +415,29 @@
     }
     .footer a { color: #009245; text-decoration: none; }
 
-    /* === REMOVED BOTTOM LOCATION ELEMENT === */
+    #successSound, #errorSound { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- LOGO -->
     <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
+    <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Portal</span></h1>
 
-    <h1>
-      <span>Tolon District Assembly</span><br>
-      <span class="subtitle">Staff Attendance Portal</span>
-    </h1>
-
-    <!-- GPS + Status (TOP ONE ONLY) -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
-      <p id="status">Checking location...</p>
+      <p id="status" data-lat="" data-long="">Checking location...</p>
     </div>
 
-    <!-- Clock -->
     <div class="time-box">
       <div id="liveClock">12 : 00 : 00 <span id="ampm">AM</span></div>
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + ALWAYS VISIBLE VALIDATION -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
     </div>
 
-    <!-- Buttons -->
     <div class="button-group">
       <button id="clockIn" disabled>Clock In</button>
       <button id="clockOut" disabled>Clock Out</button>
@@ -485,14 +453,14 @@
         <video id="video" autoplay playsinline></video>
         <div class="face-guide"></div>
       </div>
-      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
+      <div class="capture-status" id="captureStatus">Capturing in 1...</div>
     </div>
   </div>
 
   <!-- LOADER -->
   <div id="loaderOverlay">
     <div class="loader"></div>
-    <p>Verifying face...</p>
+    <p id="loaderText">Verifying...</p>
   </div>
 
   <!-- POPUP -->
@@ -517,7 +485,13 @@
     </div>
   </div>
 
-  <!-- NO MORE HIDDEN <pre> LOCATION -->
+  <!-- SOUNDS -->
+  <audio id="successSound" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="errorSound" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-383.mp3" type="audio/mpeg">
+  </audio>
 
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
@@ -525,8 +499,10 @@
   </div>
 
   <script src="script.js"></script>
+
+  <!-- GPS SYNC + CLOCK -->
   <script>
-    // Clock
+    // CLOCK
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -542,16 +518,16 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS Display – Now uses #status and #gpsCoords only
+    // GPS SYNC (FIXED)
     const gpsEl = document.getElementById('gpsCoords');
     const statusEl = document.getElementById('status');
-    const updateGPSDisplay = () => {
+    const updateGPS = () => {
       const lat = statusEl.dataset.lat;
       const lng = statusEl.dataset.long;
       gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
     };
-    updateGPSDisplay();
-    new MutationObserver(updateGPSDisplay).observe(statusEl, {attributes: true, attributeFilter: ['data-lat', 'data-long']});
+    new MutationObserver(updateGPS).observe(statusEl, { attributes: true, attributeFilter: ['data-lat', 'data-long'] });
+    updateGPS();
   </script>
 </body>
 </html>
