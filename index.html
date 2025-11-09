@@ -79,6 +79,12 @@
       font-weight: 600;
       box-sizing: border-box;
       background: rgba(255, 255, 255, 0.95);
+      -moz-appearance: textfield;
+    }
+    .input-group input::-webkit-outer-spin-button,
+    .input-group input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     .input-group input::placeholder { color: #aaa; font-weight: 500; }
     .input-group input:focus {
@@ -107,6 +113,7 @@
       justify-content: center;
       line-height: 1.4;
       background: rgba(255, 255, 255, 0.95);
+      transition: all 0.2s ease;
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
@@ -432,7 +439,7 @@
     </div>
 
     <div class="input-group">
-      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
+      <input type="number" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
     </div>
 
@@ -490,7 +497,7 @@
 
   <script src="script.js"></script>
 
-  <!-- GPS + CLOCK SYNC -->
+  <!-- GPS + CLOCK -->
   <script>
     function updateClock() {
       const now = new Date();
