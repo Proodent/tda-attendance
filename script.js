@@ -60,11 +60,34 @@ async function fetchLocations() {
 // === START GPS WATCH ===
 function startLocationWatch() {
   const statusEl = document.getElementById('status');
-  const gpsEl = document.getElementById('gpsCoords'); // Now holds data-lat/long
+  const gpsEl = document.getElementById('gpsCoords');
   const userIdInput = document.getElementById('userId');
   const userIdStatus = document.getElementById('userIdStatus');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
+
+  // === ATTACH INPUT LISTENERS IMMEDIATELY (BEFORE GPS) ===
+  const showValidationBox = () => {
+    if (userIdInput.value.trim() && !userIdStatus.classList.contains('show')) {
+      userIdStatus.classList.add('show');
+    }
+  };
+  const hideValidationBox = () => {
+    if (!userIdInput.value.trim()) {
+      userIdStatus.classList.remove('show');
+    }
+  };
+
+  // Multiple event listeners for 100% coverage
+  ['input', 'keydown', 'keyup', 'paste', 'change'].forEach(event => {
+    userIdInput.addEventListener(event, () => {
+      showValidationBox();
+      updateUserStatus();
+    });
+  });
+
+  // Fallback: show on focus if already has value
+  userIdInput.addEventListener('focus', showValidationBox);
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
@@ -111,23 +134,18 @@ function startLocationWatch() {
 
         statusEl.textContent = currentOffice || 'Outside approved area';
 
-        // ENABLE INPUT + ATTACH LISTENER
+        // ENABLE INPUT
         if (currentOffice && userIdInput.disabled) {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
           userIdInput.focus();
-
-          userIdInput.addEventListener('input', handleUserIdInput);
-          userIdInput.addEventListener('focus', () => {
-            if (userIdInput.value.trim()) userIdStatus.classList.add('show');
-          });
+          showValidationBox(); // In case user already typed
         } else if (!currentOffice && !userIdInput.disabled) {
           userIdInput.disabled = true;
           userIdInput.value = '';
           userIdInput.placeholder = 'Outside approved area';
-          userIdStatus.classList.remove('show');
+          hideValidationBox();
           clockInBtn.disabled = clockOutBtn.disabled = true;
-          userIdInput.removeEventListener('input', handleUserIdInput);
         }
 
         updateUserStatus();
@@ -145,20 +163,6 @@ function startLocationWatch() {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
     );
   });
-
-  // INPUT HANDLER – SHOWS VALIDATION BOX INSTANTLY
-  function handleUserIdInput() {
-    const value = userIdInput.value.trim();
-    const statusEl = document.getElementById('userIdStatus');
-
-    if (value && !statusEl.classList.contains('show')) {
-      statusEl.classList.add('show');
-    } else if (!value) {
-      statusEl.classList.remove('show');
-    }
-
-    updateUserStatus();
-  }
 
   // VALIDATION LOGIC
   async function updateUserStatus() {
@@ -312,7 +316,7 @@ async function captureAndVerify(staff, action) {
     hideLoader();
 
     if (!faceRes.ok) {
-      showPopup('Face Verification Failed', faceRes.error, false);
+    showPopup('Face Verification Failed', faceRes.error, false);
       return;
     }
 
@@ -401,12 +405,12 @@ document.getElementById('adminDashboard').addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
 
-// Initialize
+// === INITIALIZE ON LOAD ===
 document.addEventListener('DOMContentLoaded', () => {
   startLocationWatch();
 });
 
-// Cleanup
+// === CLEANUP ===
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
