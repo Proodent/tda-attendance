@@ -64,13 +64,14 @@ function startLocationWatch() {
   const locationEl = document.getElementById('location');
   const userIdInput = document.getElementById('userId');
   const userIdStatus = document.getElementById('userIdStatus');
-  const clockInBtn = document.getElementById('clockIn');
+  const clockInBtn = document.getElementBy. getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
   userIdInput.disabled = true;
   userIdInput.placeholder = 'Outside approved area';
+  userIdStatus.classList.remove('show'); // Ensure hidden
 
   fetchLocations().then(locations => {
     if (locations.length === 0) {
@@ -102,19 +103,29 @@ function startLocationWatch() {
 
         statusEl.textContent = currentOffice || 'Outside approved area';
 
-        // ENABLE USERID INPUT ONLY IN OFFICE
-        if (currentOffice) {
+        // ENABLE INPUT + ATTACH LISTENER ONLY WHEN IN OFFICE
+        if (currentOffice && userIdInput.disabled) {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
-        } else {
+          userIdInput.focus();
+
+          // Attach input listener ONCE when enabled
+          userIdInput.addEventListener('input', handleUserIdInput);
+          userIdInput.addEventListener('focus', () => {
+            if (userIdInput.value.trim()) {
+              userIdStatus.classList.add('show');
+            }
+          });
+        } else if (!currentOffice && !userIdInput.disabled) {
           userIdInput.disabled = true;
           userIdInput.value = '';
           userIdInput.placeholder = 'Outside approved area';
           userIdStatus.classList.remove('show');
           clockInBtn.disabled = clockOutBtn.disabled = true;
+          userIdInput.removeEventListener('input', handleUserIdInput);
         }
 
-        updateUserStatus(); // Revalidate on GPS change
+        updateUserStatus();
       },
       err => {
         console.error('GPS Error:', err);
@@ -126,21 +137,21 @@ function startLocationWatch() {
     );
   });
 
-  // SHOW VALIDATION BOX ON INPUT
-  userIdInput.addEventListener('input', () => {
-    const statusEl = document.getElementById('userIdStatus');
+  // INPUT HANDLER – SHOWS VALIDATION BOX INSTANTLY
+  function handleUserIdInput() {
     const value = userIdInput.value.trim();
+    const statusEl = document.getElementById('userIdStatus');
 
-    if (value) {
+    if (value && !statusEl.classList.contains('show')) {
       statusEl.classList.add('show');
-    } else {
+    } else if (!value) {
       statusEl.classList.remove('show');
     }
 
     updateUserStatus();
-  });
+  }
 
-  // CLEAN VALIDATION
+  // VALIDATION LOGIC
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
     const currentLastId = userIdStatus.dataset.lastUserId;
@@ -179,10 +190,7 @@ function startLocationWatch() {
       userIdStatus.className = approved ? 'valid' : 'invalid';
       userIdStatus.textContent = `User ${userId} found : ${staff.name} ${icon}`;
       clockInBtn.disabled = clockOutBtn.disabled = !approved;
-      return;
-    }
-
-    if (userId && currentOffice) {
+    } else if (userId && currentOffice) {
       const staff = await getStaffByUserId(userId);
       if (staff && staff.active.toLowerCase() === 'yes') {
         const approved = staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
@@ -379,14 +387,17 @@ async function handleClock(action) {
   showFaceModal(staff, action);
 }
 
+// Admin Dashboard
 document.getElementById('adminDashboard').addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
 
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
   startLocationWatch();
 });
 
+// Cleanup
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
