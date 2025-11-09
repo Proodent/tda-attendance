@@ -414,8 +414,6 @@
       z-index: 2;
     }
     .footer a { color: #009245; text-decoration: none; }
-
-    #successSound, #errorSound { display: none; }
   </style>
 </head>
 <body>
@@ -485,14 +483,6 @@
     </div>
   </div>
 
-  <!-- SOUNDS -->
-  <audio id="successSound" preload="auto">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="errorSound" preload="auto">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-383.mp3" type="audio/mpeg">
-  </audio>
-
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
@@ -500,9 +490,8 @@
 
   <script src="script.js"></script>
 
-  <!-- GPS SYNC + CLOCK -->
+  <!-- GPS + CLOCK SYNC -->
   <script>
-    // CLOCK
     function updateClock() {
       const now = new Date();
       let h = now.getHours();
@@ -518,7 +507,6 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS SYNC (FIXED)
     const gpsEl = document.getElementById('gpsCoords');
     const statusEl = document.getElementById('status');
     const updateGPS = () => {
