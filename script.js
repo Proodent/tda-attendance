@@ -6,16 +6,18 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
-// === SOUND – RELIABLE & PRELOADED ===
+// === SOUND – LOUD & PRELOADED ===
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
 
 const playSuccess = () => {
   successSound.currentTime = 0;
+  successSound.volume = 1.0;
   successSound.play().catch(() => {});
 };
 const playError = () => {
   errorSound.currentTime = 0;
+  errorSound.volume = 1.0;
   errorSound.play().catch(() => {});
 };
 
@@ -203,43 +205,11 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === ADMIN POPUP ===
-const adminPopup = document.getElementById('adminPopup');
-const adminCloseBtn = document.getElementById('adminCloseBtn');
-
-document.getElementById('adminDashboard')?.addEventListener('click', () => {
-  adminPopup.classList.add('show');
-});
-
-adminCloseBtn?.addEventListener('click', () => {
-  adminPopup.classList.remove('show');
-});
-
-adminPopup?.addEventListener('click', (e) => {
-  if (e.target === adminPopup) adminPopup.classList.remove('show');
-});
-
-// === FACE VERIFICATION – FASTER + IMMEDIATE POPUP ===
-const validateFaceWithSubject = async (base64, subjectName) => {
-  try {
-    const res = await fetch('/api/proxy/face-recognition', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64, subject: subjectName })
-    });
-    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
-    const data = await res.json();
-    if (data?.result?.[0]?.subjects?.length) {
-      const match = data.result[0].subjects.find(s => s.subject === subjectName);
-      if (match && match.similarity >= 0.7) return { ok: true, similarity: match.similarity };
-    }
-    return { ok: false, error: 'Face not recognized' };
-  } catch (err) {
-    return { ok: false, error: 'Face service error' };
-  }
-};
+// === FACE VERIFICATION – SHOW NAME + INSTANT POPUP ===
+let currentStaffName = '';
 
 const showFaceModal = async (staff, action) => {
+  currentStaffName = staff.name;
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
   captureStatus = document.getElementById('captureStatus');
@@ -250,7 +220,6 @@ const showFaceModal = async (staff, action) => {
     return;
   }
 
-  // FASTER: 1-second countdown
   countdown = 1;
   captureStatus.textContent = `Capturing in ${countdown}...`;
   countdownInterval = setInterval(async () => {
@@ -296,15 +265,15 @@ const captureAndVerify = async (staff, action) => {
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Faster JPEG
+  const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
   hideFaceModal();
-  showLoader('Verifying...');
+  showLoader(`Verifying ${currentStaffName}...`); // SHOW NAME
 
   const result = await validateFaceWithSubject(base64, staff.name);
   hideLoader();
 
-  // IMMEDIATE POPUP – NO DELAY
+  // INSTANT POPUP – NO DELAY
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
     playError();
@@ -374,7 +343,7 @@ const showPopup = (title, message, success = null) => {
 
 const showLoader = (text) => {
   const loader = document.getElementById('loaderOverlay');
-  loader.querySelector('p').textContent = text;
+  document.getElementById('loaderText').textContent = text;
   loader.style.display = 'flex';
 };
 
@@ -436,9 +405,20 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
-  // Preload sounds
+  // Preload & unlock audio
   successSound.load();
   errorSound.load();
+
+  // Unlock audio on first user interaction
+  const unlockAudio = () => {
+    successSound.play().catch(() => {});
+    errorSound.play().catch(() => {});
+    document.body.removeEventListener('click', unlockAudio);
+    document.body.removeEventListener('touchstart', unlockAudio);
+  };
+  document.body.addEventListener('click', unlockAudio);
+  document.body.addEventListener('touchstart', unlockAudio);
+
   startLocationWatch();
 });
 window.onunload = () => {
