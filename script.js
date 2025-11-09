@@ -1,371 +1,581 @@
-let watchId = null;
-let currentOffice = null;
-let staffCache = new Map();
-let videoEl, faceModal, captureStatus;
-let countdown = 0;
-let countdownInterval = null;
-let locations = [];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tolon District Assembly Staff Attendance Portal</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <style>
+    /* === Body === */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
 
-// === UTILITY ===
-function toRad(v) { return v * Math.PI / 180; }
-function getDistanceKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+    /* === Container with Logo Background === */
+    .container {
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 12px;
+      z-index: -1;
+    }
 
-// === FETCH STAFF ===
-async function getStaffByUserId(userId) {
-  if (staffCache.has(userId)) return staffCache.get(userId);
-  try {
-    const res = await fetch('/api/staff-by-id', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId })
+    /* === Heading === */
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+    h1 span { font-size: 1em; }
+    h1 .subtitle { color: #242424; font-size: .65em; }
+
+    /* === CENTERED INPUT + STATUS === */
+    .input-group {
+      margin: 20px 0 8px;
+      text-align: center;
+      width: 100%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    .input-group input::placeholder { color: #666; font-weight: 500; }
+    .input-group input:focus {
+      outline: none;
+      border-color: #009245;
+      box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
+    }
+
+    /* === VALIDATION STATUS === */
+    #userIdStatus {
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.4;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
+    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
+    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+
+    /* === Status & GPS === */
+    .status-box {
+      margin: 18px 0 8px;
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      background: #e8f5e8;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    /* === Clock === */
+    .time-box {
+      margin: 20px 0 12px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #e8f5e8;
+      padding: 6px 8px;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 150px;
+    }
+    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
+    .colon { color: #006837; font-weight: 600; }
+    #ampm {
+      font-size: .7em; vertical-align: top; letter-spacing: 1px;
+      font-weight: 900; color: #006837; margin-left: 5px;
+      background: rgba(0,146,69,.15); padding: 1px 4px; border-radius: 3px;
+    }
+    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+
+    /* === Buttons === */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    button {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .3s, transform .2s;
+      font-weight: 600;
+    }
+    #clockIn { background: #4CAF50; }
+    #clockOut { background: #F44336; }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    #clockIn:hover:not(:disabled) { background: #45a049; }
+    #clockOut:hover:not(:disabled) { background: #d32f2f; }
+    button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+
+    /* === FACE MODAL === */
+    #faceModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.6);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+    }
+    #faceModal.show { display: flex; }
+    #faceModal .popup-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    #faceModal .popup-header {
+      background: #009245;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    #faceModal .video-container {
+      position: relative;
+      margin: 15px auto;
+      width: 280px;
+      height: 210px;
+      border: 3px solid #009245;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #faceModal video {
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+    }
+    #faceModal .face-guide {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px; height: 180px;
+      border: 2px dashed #fff;
+      border-radius: 50%;
+      opacity: 0.7;
+    }
+    #faceModal .capture-status {
+      margin: 15px 0;
+      font-weight: 600;
+      color: #009245;
+    }
+
+    /* === Loader === */
+    #loaderOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,.95);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      backdrop-filter: blur(3px);
+    }
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #009245;
+      border-radius: 50%;
+      width: 55px; height: 55px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* === Popup === */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .popup.show { display: flex; }
+    .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+    }
+    .popup-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
+    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
+
+    /* === ADMIN POPUP === */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.5);
+      z-index: 2500;
+      justify-content: center;
+      align-items: center;
+    }
+    #adminPopup.show { display: flex; }
+    #adminPopup .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 8px 25px rgba(0,0,0,.2);
+      position: relative;
+    }
+    #adminPopup h2 {
+      margin: 0 0 15px;
+      color: #009245;
+      font-size: 1.3em;
+    }
+    #adminPopup input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    #adminLoginBtn {
+      width: 100%;
+      padding: 12px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      position: relative;
+      transition: background .3s;
+    }
+    #adminLoginBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #adminLoginBtn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #adminLoginBtn.loading .spinner {
+      display: block;
+    }
+
+    #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
+
+    .popup-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      color: #999;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .2s;
+    }
+    .popup-close:hover {
+      color: #d32f2f;
+    }
+
+    /* === Footer === */
+    .footer {
+      margin-top: auto;
+      font-size: .9em;
+      color: #666;
+      padding: 10px 0;
+      border-top: 1px solid #eee;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    .footer a { color: #009245; text-decoration: none; }
+
+    /* === Hidden === */
+    #location { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Portal</span>
+    </h1>
+
+    <!-- GPS + Status -->
+    <div class="status-box">
+      <div id="gpsCoords">GPS: Waiting for signal...</div>
+      <p id="status">Checking location...</p>
+    </div>
+
+    <!-- Clock -->
+    <div class="time-box">
+      <div id="liveClock">12 : 00 : 00 <span id="ampm">AM</span></div>
+      <div id="liveDate">Monday, 03 November 2025</div>
+    </div>
+
+    <!-- USERID + VALIDATION -->
+    <div class="input-group">
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" />
+      <div id="userIdStatus" class="loading">Validating...</div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="button-group">
+      <button id="clockIn" disabled>Clock In</button>
+      <button id="clockOut" disabled>Clock Out</button>
+    </div>
+  </div>
+
+  <!-- FACE MODAL -->
+  <div id="faceModal">
+    <div class="popup-content">
+      <div class="popup-header">Face Verification</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
+      <div class="video-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="face-guide"></div>
+      </div>
+      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying face...</p>
+  </div>
+
+  <!-- POPUP -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-header" id="popupHeader">Title</div>
+      <div id="popupMessage">Message</div>
+      <button id="popupCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ADMIN POPUP -->
+  <div id="adminPopup">
+    <div class="popup-content">
+      <button class="popup-close" id="adminCloseBtn">X</button>
+      <h2>Admin Login</h2>
+      <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
+      <input type="email" id="adminEmail" placeholder="Email" />
+      <input type="password" id="adminPassword" placeholder="Password" />
+      <button id="adminLoginBtn">Login <span class="spinner"></span></button>
+      <p id="adminError" class="error"></p>
+    </div>
+  </div>
+
+  <!-- HIDDEN LOCATION -->
+  <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
+
+  <div class="footer">
+    <div><button id="adminDashboard">Admin Dashboard</button></div>
+    <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = now.getMinutes().toString().padStart(2,'0');
+      const s = now.getSeconds().toString().padStart(2,'0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      document.getElementById('liveClock').innerHTML =
+        `<span>${h.toString().padStart(2,'0')}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span> <span id="ampm">${ampm}</span>`;
+      document.getElementById('liveDate').textContent = dateStr;
+    }
+    updateClock();
+    setInterval(updateClock, 500);
+
+    // GPS Display
+    const gpsEl = document.getElementById('gpsCoords');
+    const locEl = document.getElementById('location');
+    const updateGPS = () => {
+      const lat = locEl.dataset.lat;
+      const lng = locEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
+    };
+    updateGPS();
+    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
+
+    // ADMIN POPUP
+    const adminPopup = document.getElementById('adminPopup');
+    const adminCloseBtn = document.getElementById('adminCloseBtn');
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
+
+    document.getElementById('adminDashboard').addEventListener('click', () => {
+      adminPopup.classList.add('show');
     });
-    const data = await res.json();
-    if (data.success) {
-      const allowed = data.staff.allowedLocations || [];
-      staffCache.set(userId, { ...data.staff, allowedLocations: allowed });
-      return staffCache.get(userId);
-    }
-    return null;
-  } catch (err) {
-    console.error('Staff fetch error:', err);
-    return null;
-  }
-}
 
-// === FETCH LOCATIONS ===
-async function fetchLocations() {
-  try {
-    const response = await fetch('/api/locations');
-    if (!response.ok) return [];
-    const data = await response.json();
-    if (!data.success) return [];
-    return data.locations.map(l => ({
-      name: l.name,
-      lat: Number(l.lat),
-      long: Number(l.long),
-      radiusMeters: Number(l.radiusMeters)
-    }));
-  } catch (error) {
-    console.error('Locations error:', error);
-    return [];
-  }
-}
+    adminCloseBtn.addEventListener('click', () => {
+      adminPopup.classList.remove('show');
+    });
 
-// === START GPS WATCH ===
-function startLocationWatch() {
-  const statusEl = document.getElementById('status');
-  const gpsEl = document.getElementById('gpsCoords');
-  const userIdInput = document.getElementById('userId');
-  const userIdStatus = document.getElementById('userIdStatus');
-  const clockInBtn = document.getElementById('clockIn');
-  const clockOutBtn = document.getElementById('clockOut');
+    adminPopup.addEventListener('click', (e) => {
+      if (e.target === adminPopup) {
+        adminPopup.classList.remove('show');
+      }
+    });
 
-  // === VALIDATION BOX ALWAYS VISIBLE ===
-  userIdStatus.style.display = 'block';
-  userIdStatus.textContent = 'Enter User ID...';
-  userIdStatus.className = 'loading';
+    adminLoginBtn?.addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail')?.value.trim();
+      const password = document.getElementById('adminPassword')?.value.trim();
+      const error = document.getElementById('adminError');
 
-  // === INPUT LISTENER ===
-  userIdInput.addEventListener('input', () => {
-    const userId = userIdInput.value.trim();
-    if (!userId) {
-      userIdStatus.textContent = 'Enter User ID...';
-      userIdStatus.className = 'loading';
-      clockInBtn.disabled = clockOutBtn.disabled = true;
-    } else {
-      validateUser(userId);
-    }
-  });
+      if (!email || !password) {
+        error.textContent = 'Please fill in both fields.';
+        return;
+      }
 
-  // === VALIDATE USER ===
-  async function validateUser(userId) {
-    userIdStatus.className = 'loading';
-    userIdStatus.textContent = 'Validating...';
+      adminLoginBtn.classList.add('loading');
+      adminLoginBtn.disabled = true;
+      error.textContent = '';
 
-    const staff = await getStaffByUserId(userId);
-    if (!staff) {
-      userIdStatus.className = 'invalid';
-      userIdStatus.textContent = `User ${userId} not found`;
-      clockInBtn.disabled = clockOutBtn.disabled = true;
-      return;
-    }
+      try {
+        const res = await fetch('/api/admin-logins');
+        const data = await res.json();
 
-    const isActive = staff.active.toLowerCase() === 'yes';
-    const isApproved = currentOffice && staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
-
-    const activeText = isActive ? 'Active' : 'Inactive';
-    const approvalText = isApproved ? 'Approved' : 'Not Approved';
-
-    userIdStatus.className = isActive && isApproved ? 'valid' : 'invalid';
-    userIdStatus.textContent = `User ${userId} : ${staff.name} – ${activeText} – ${approvalText}`;
-
-    clockInBtn.disabled = clockOutBtn.disabled = !(isActive && isApproved);
-  }
-
-  // Initialize
-  userIdInput.disabled = true;
-  userIdInput.placeholder = 'Outside approved area';
-  statusEl.textContent = 'Loading GPS...';
-  gpsEl.textContent = 'GPS: Starting...';
-
-  // === FETCH LOCATIONS ===
-  fetchLocations().then(locs => {
-    locations = locs;
-  });
-
-  // === GPS WATCH – FAST WITH FALLBACK ===
-  if (!navigator.geolocation) {
-    statusEl.textContent = 'GPS not supported';
-    gpsEl.textContent = 'GPS: Off';
-    return;
-  }
-
-  watchId = navigator.geolocation.watchPosition(
-    pos => {
-      const { latitude, longitude } = pos.coords;
-      gpsEl.dataset.lat = latitude;
-      gpsEl.dataset.long = longitude;
-      gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-
-      currentOffice = null;
-      for (const loc of locations) {
-        const distKm = getDistanceKm(latitude, longitude, loc.lat, loc.long);
-        if (distKm <= loc.radiusMeters / 1000) {
-          currentOffice = loc.name;
-          break;
+        if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
+          localStorage.setItem('isLoggedIn', 'true');
+          window.location.href = 'stats.html';
+        } else {
+          error.textContent = 'Invalid email or password.';
         }
+      } catch (err) {
+        error.textContent = 'Login failed. Try again.';
+      } finally {
+        adminLoginBtn.classList.remove('loading');
+        adminLoginBtn.disabled = false;
       }
-
-      statusEl.textContent = currentOffice || 'Outside approved area';
-
-      if (currentOffice) {
-        userIdInput.disabled = false;
-        userIdInput.placeholder = 'Enter User ID';
-        userIdInput.focus();
-      } else {
-        userIdInput.disabled = true;
-        userIdInput.value = '';
-        userIdInput.placeholder = 'Outside approved area';
-        userIdStatus.textContent = 'Outside approved area';
-        userIdStatus.className = 'invalid';
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-      }
-
-      if (userIdInput.value.trim()) {
-        validateUser(userIdInput.value.trim());
-      }
-    },
-    () => {
-      setTimeout(() => {
-        if (!gpsEl.dataset.lat) {
-          gpsEl.dataset.lat = 9.4;
-          gpsEl.dataset.long = -0.85;
-          gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
-          currentOffice = 'Test Office';
-          statusEl.textContent = 'Test Office';
-          userIdInput.disabled = false;
-          userIdInput.placeholder = 'Enter User ID';
-          userIdInput.focus();
-          userIdStatus.textContent = 'Enter User ID...';
-          userIdStatus.className = 'loading';
-        }
-      }, 3000);
-    },
-    { enableHighAccuracy: false, maximumAge: 5000, timeout: 8000 }
-  );
-
-  // === CLOCK BUTTONS ===
-  clockInBtn.onclick = () => handleClock('clock in');
-  clockOutBtn.onclick = () => handleClock('clock out');
-}
-
-// === FACE VERIFICATION ===
-async function validateFaceWithSubject(base64, subjectName) {
-  try {
-    const res = await fetch('/api/proxy/face-recognition', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64, subject: subjectName })
     });
-    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
-    const data = await res.json();
-    if (!data?.result?.length || !data.result[0].subjects?.length) return { ok: false, error: 'Face not added' };
-    const match = data.result[0].subjects.find(s => s.subject === subjectName);
-    if (!match) return { ok: false, error: 'Face not added' };
-    if (match.similarity < 0.7) return { ok: false, error: 'Face mismatch' };
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: 'Face service error' };
-  }
-}
-
-// === FACE MODAL ===
-async function showFaceModal(staff, action) {
-  faceModal = document.getElementById('faceModal');
-  videoEl = document.getElementById('video');
-  captureStatus = document.getElementById('captureStatus');
-  faceModal.classList.add('show');
-  const started = await startVideo();
-  if (!started) { hideFaceModal(); return; }
-
-  countdown = 3;
-  captureStatus.textContent = `Capturing in ${countdown}...`;
-  countdownInterval = setInterval(async () => {
-    countdown--;
-    if (countdown > 0) {
-      captureStatus.textContent = `Capturing in ${countdown}...`;
-    } else {
-      clearInterval(countdownInterval);
-      captureStatus.textContent = "Verifying...";
-      await captureAndVerify(staff, action);
-    }
-  }, 1000);
-}
-
-function hideFaceModal() {
-  if (faceModal) faceModal.classList.remove('show');
-  if (countdownInterval) clearInterval(countdownInterval);
-  stopVideo();
-}
-
-async function startVideo() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-    videoEl.srcObject = stream;
-    await videoEl.play();
-    return true;
-  } catch (err) {
-    showPopup('Camera Error', `Access denied: ${err.message}`, false);
-    return false;
-  }
-}
-
-function stopVideo() {
-  if (videoEl && videoEl.srcObject) {
-    videoEl.srcObject.getTracks().forEach(t => t.stop());
-    videoEl.srcObject = null;
-  }
-}
-
-async function captureAndVerify(staff, action) {
-  const canvas = document.createElement('canvas');
-  canvas.width = videoEl.videoWidth;
-  canvas.height = videoEl.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
-
-  hideFaceModal();
-  showLoader(`Verifying face for ${staff.name}...`);
-
-  try {
-    const faceRes = await validateFaceWithSubject(base64, staff.name);
-    hideLoader();
-    if (!faceRes.ok) {
-      showPopup('Face Verification Failed', faceRes.error, false);
-      return;
-    }
-    await submitAttendance(action, staff);
-  } catch (err) {
-    hideLoader();
-    showPopup('Face Error', `Verification failed: ${err.message}`, false);
-  }
-}
-
-async function submitAttendance(action, staff) {
-  const gpsEl = document.getElementById('gpsCoords');
-  const lat = Number(gpsEl.dataset.lat);
-  const long = Number(gpsEl.dataset.long);
-
-  try {
-    const res = await fetch('/api/attendance/web', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        subjectName: staff.name,
-        userId: document.getElementById('userId').value.trim(),
-        latitude: lat,
-        longitude: long,
-        timestamp: new Date().toISOString()
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showPopup('Success', `Dear ${staff.name}, ${action} recorded at ${currentOffice}.`, true);
-    } else {
-      showPopup('Attendance Error', data.message, false);
-    }
-  } catch (err) {
-    showPopup('Server Error', `Connection failed: ${err.message}`, false);
-  }
-}
-
-function showPopup(title, message, success = null) {
-  const popup = document.getElementById('popup');
-  const header = document.getElementById('popupHeader');
-  const msg = document.getElementById('popupMessage');
-  header.textContent = title;
-  header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
-  msg.innerHTML = message;
-  popup.classList.add('show');
-  setTimeout(() => popup.classList.remove('show'), 5000);
-  document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
-}
-
-function showLoader(text) {
-  const loader = document.getElementById('loaderOverlay');
-  loader.querySelector('p').textContent = text;
-  loader.style.display = 'flex';
-}
-
-function hideLoader() {
-  document.getElementById('loaderOverlay').style.display = 'none';
-}
-
-async function handleClock(action) {
-  const userId = document.getElementById('userId').value.trim();
-  if (!userId) return showPopup('Missing User ID', 'Please enter your User ID.', false);
-
-  const staff = await getStaffByUserId(userId);
-  if (!staff || staff.active.toLowerCase() !== 'yes') {
-    return showPopup('Invalid User ID', 'User not found or inactive.', false);
-  }
-
-  const gpsEl = document.getElementById('gpsCoords');
-  const lat = Number(gpsEl.dataset.lat);
-  const long = Number(gpsEl.dataset.long);
-  if (!lat || !long) return showPopup('Location Error', 'No GPS data.', false);
-
-  if (!currentOffice) return showPopup('Location Error', 'Not at an approved office.', false);
-  if (!staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase())) {
-    return showPopup('Location Denied', `You are not allowed at ${currentOffice}.`, false);
-  }
-
-  showFaceModal(staff, action);
-}
-
-// Admin Dashboard
-document.getElementById('adminDashboard').addEventListener('click', () => {
-  document.getElementById('adminPopup').classList.add('show');
-});
-
-// === INITIALIZE ===
-document.addEventListener('DOMContentLoaded', () => {
-  startLocationWatch();
-});
-
-// === CLEANUP ===
-window.onunload = () => {
-  if (watchId) navigator.geolocation.clearWatch(watchId);
-  stopVideo();
-};
+  </script>
+</body>
+</html>
