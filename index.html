@@ -132,12 +132,17 @@
       border-radius: 8px;
       display: inline-block;
       margin-bottom: 8px;
+      min-height: 28px;
     }
     #status {
       font-size: 1.3em;
       color: #009245;
       font-weight: 700;
       margin: 0;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .time-box {
@@ -231,8 +236,8 @@
     <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Portal</span></h1>
 
     <div class="status-box">
-      <div id="gpsCoords">GPS: Waiting for signal...</div>
-      <p id="status" data-lat="" data-long="">Checking location...</p>
+      <div id="gpsCoords">GPS: Getting location...</div>
+      <p id="status">Detecting office...</p>
     </div>
 
     <div class="time-box">
@@ -275,12 +280,15 @@
     updateClock();
     setInterval(updateClock, 500);
 
+    // GPS UI updater
     const gpsEl = document.getElementById('gpsCoords');
     const statusEl = document.getElementById('status');
     const updateGPS = () => {
       const lat = statusEl.dataset.lat;
       const lng = statusEl.dataset.long;
-      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
+      gpsEl.textContent = lat && lng 
+        ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` 
+        : 'GPS: Getting location...';
     };
     new MutationObserver(updateGPS).observe(statusEl, { attributes: true, attributeFilter: ['data-lat', 'data-long'] });
     updateGPS();
