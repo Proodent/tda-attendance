@@ -46,7 +46,7 @@
       border-radius: 50%;
       object-fit: contain;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 1.8px solid #009245; /* 40% thinner than 3px */
+      border: 1.8px solid #009245;
       z-index: 2;
     }
 
@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – FORCE SHOW ON INPUT === */
+    /* === VALIDATION BOX – ALWAYS VISIBLE === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -108,19 +108,17 @@
       max-width: 300px;
       box-sizing: border-box;
       min-height: 40px;
-      display: none !important;
+      display: flex !important;
       align-items: center;
       justify-content: center;
       line-height: 1.4;
       background: rgba(255, 255, 255, 0.95);
     }
-    #userIdStatus.show {
-      display: flex !important;
-    }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
     #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
     #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.placeholder { color: #666; background: #f8f9fa; border: 1.5px dashed #ccc; }
 
     /* === Status & GPS === */
     .status-box {
@@ -446,7 +444,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- LOGO WITH THINNER BORDER -->
+    <!-- LOGO -->
     <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
 
     <h1>
@@ -466,10 +464,10 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + VALIDATION -->
+    <!-- USERID + ALWAYS VISIBLE VALIDATION -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
-      <div id="userIdStatus">Validating...</div>
+      <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
     </div>
 
     <!-- Buttons -->
