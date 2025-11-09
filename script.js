@@ -5,8 +5,7 @@ let videoEl, faceModal, captureStatus;
 let countdownTimeout = null;
 let locations = [];
 
-// NO SOUND
-
+// === REAL-TIME VALIDATION (INSTANT) ===
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -64,6 +63,7 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
+  // Initial state
   userIdStatus.className = 'placeholder';
   userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
@@ -73,7 +73,10 @@ const startLocationWatch = () => {
   let lastValidatedId = '';
 
   const validateUser = async () => {
-    const userId = userIdInput.value.trim();
+    const raw = userIdInput.value.trim();
+    const userId = raw === '' ? '' : String(raw); // Force string
+
+    // INSTANT RESET ON EMPTY
     if (!userId) {
       userIdStatus.className = 'placeholder';
       userIdStatus.textContent = 'Enter User ID to validate';
@@ -82,9 +85,11 @@ const startLocationWatch = () => {
       return;
     }
 
+    // Avoid re-fetch if same
     if (userId === lastValidatedId) return;
     lastValidatedId = userId;
 
+    // INSTANT LOADING
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
@@ -109,7 +114,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT VALIDATION ON EVERY KEY
+  // REAL-TIME: Every keystroke → validate
   userIdInput.addEventListener('input', () => {
     validateUser();
   });
@@ -151,7 +156,7 @@ const startLocationWatch = () => {
           userIdStatus.textContent = 'Enter User ID to validate';
           clockInBtn.disabled = clockOutBtn.disabled = true;
         } else {
-          validateUser();
+          validateUser(); // Re-validate on location change
         }
       },
       err => {
@@ -323,9 +328,10 @@ const hideLoader = () => {
 };
 
 const handleClock = async (action) => {
-  const userId = document.getElementById('userId').value.trim();
-  if (!userId) return showPopup('Error', 'Enter User ID.', false);
+  const raw = document.getElementById('userId').value.trim();
+  if (!raw) return showPopup('Error', 'Enter User ID.', false);
 
+  const userId = String(raw);
   const staff = await getStaffByUserId(userId);
   if (!staff || staff.active.toLowerCase() !== 'yes') {
     return showPopup('Error', 'User not active.', false);
@@ -333,7 +339,7 @@ const handleClock = async (action) => {
 
   const statusEl = document.getElementById('status');
   if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
-  if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+  if (!currentOffice) return showPopup('Error', 'Not in approved area.', false);
   if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
     return showPopup('Error', `Not allowed at ${current_office}.`, false);
   }
