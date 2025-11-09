@@ -68,20 +68,20 @@ function startLocationWatch() {
   const clockOutBtn = document.getElementById('clockOut');
 
   // === VALIDATION BOX ALWAYS VISIBLE ===
-  userIdStatus.classList.add('show');
+  userIdStatus.style.display = 'block';
   userIdStatus.textContent = 'Enter User ID...';
   userIdStatus.className = 'loading';
 
-  // === SINGLE INPUT LISTENER ===
+  // === INPUT LISTENER ===
   userIdInput.addEventListener('input', () => {
     const userId = userIdInput.value.trim();
     if (!userId) {
-      userIdStatus.className = 'loading';
       userIdStatus.textContent = 'Enter User ID...';
+      userIdStatus.className = 'loading';
       clockInBtn.disabled = clockOutBtn.disabled = true;
-      return;
+    } else {
+      validateUser(userId);
     }
-    validateUser(userId);
   });
 
   // === VALIDATE USER ===
@@ -120,14 +120,13 @@ function startLocationWatch() {
     locations = locs;
   });
 
-  // === GPS – FAST & FALLBACK ===
+  // === GPS WATCH – FAST WITH FALLBACK ===
   if (!navigator.geolocation) {
     statusEl.textContent = 'GPS not supported';
     gpsEl.textContent = 'GPS: Off';
     return;
   }
 
-  // Try real GPS
   watchId = navigator.geolocation.watchPosition(
     pos => {
       const { latitude, longitude } = pos.coords;
@@ -150,7 +149,6 @@ function startLocationWatch() {
         userIdInput.disabled = false;
         userIdInput.placeholder = 'Enter User ID';
         userIdInput.focus();
-        clockInBtn.disabled = clockOutBtn.disabled = true; // Wait for valid ID
       } else {
         userIdInput.disabled = true;
         userIdInput.value = '';
@@ -160,18 +158,16 @@ function startLocationWatch() {
         clockInBtn.disabled = clockOutBtn.disabled = true;
       }
 
-      // Revalidate if ID exists
       if (userIdInput.value.trim()) {
         validateUser(userIdInput.value.trim());
       }
     },
     () => {
-      // Fallback after 3s
       setTimeout(() => {
         if (!gpsEl.dataset.lat) {
           gpsEl.dataset.lat = 9.4;
           gpsEl.dataset.long = -0.85;
-          gpsEl.textContent = 'GPS: Test (9.4, -0.85)';
+          gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
           currentOffice = 'Test Office';
           statusEl.textContent = 'Test Office';
           userIdInput.disabled = false;
@@ -190,7 +186,7 @@ function startLocationWatch() {
   clockOutBtn.onclick = () => handleClock('clock out');
 }
 
-// === FACE VERIFICATION (unchanged) ===
+// === FACE VERIFICATION ===
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -210,7 +206,7 @@ async function validateFaceWithSubject(base64, subjectName) {
   }
 }
 
-// === FACE MODAL (unchanged) ===
+// === FACE MODAL ===
 async function showFaceModal(staff, action) {
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
