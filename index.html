@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS INSTANTLY === */
+    /* === VALIDATION BOX – ALWAYS VISIBLE, NEVER SHOWS "user 0" === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -437,6 +437,9 @@
       z-index: 2;
     }
     .footer a { color: #009245; text-decoration: none; }
+
+    /* === HIDDEN SOUND ELEMENTS === */
+    #successSound, #errorSound { display: none; }
   </style>
 </head>
 <body>
@@ -449,7 +452,7 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
-    <!-- GPS + Status (ONLY ONE) -->
+    <!-- GPS + Status -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status" data-lat="" data-long="">Checking location...</p>
@@ -514,6 +517,10 @@
       <p id="adminError" class="error"></p>
     </div>
   </div>
+
+  <!-- SOUNDS -->
+  <audio id="successSound" src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3"></audio>
+  <audio id="errorSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-383.mp3"></audio>
 
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
