@@ -6,7 +6,6 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
-// === UTILITY ===
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -17,7 +16,6 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// === FETCH STAFF ===
 const getStaffByUserId = async (userId) => {
   if (staff_cache.has(userId)) return staff_cache.get(userId);
   try {
@@ -39,7 +37,6 @@ const getStaffByUserId = async (userId) => {
   return null;
 };
 
-// === FETCH LOCATIONS ===
 const fetchLocations = async () => {
   try {
     const res = await fetch('/api/locations');
@@ -58,7 +55,6 @@ const fetchLocations = async () => {
   }
 };
 
-// === START GPS WATCH ===
 const startLocationWatch = () => {
   const statusEl = document.getElementById('status');
   const gpsEl = document.getElementById('gpsCoords');
@@ -68,27 +64,26 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Always show validation box
-  userIdStatus.style.display = 'flex';
-  userIdStatus.textContent = 'Enter User ID...';
-  userIdStatus.className = 'loading';
+  // Hide validation box initially
+  userIdStatus.classList.remove('show');
 
   let lastValidatedId = '';
 
-  // === INPUT HANDLER ===
   const handleInput = async () => {
     const userId = userIdInput.value.trim();
 
-    if (userId === lastValidatedId) return;
-    lastValidatedId = userId;
-
+    // Show/hide validation box
     if (!userId) {
-      userIdStatus.className = 'loading';
-      userIdStatus.textContent = 'Enter User ID...';
+      userIdStatus.classList.remove('show');
+      lastValidatedId = '';
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
 
+    if (userId === lastValidatedId) return;
+    lastValidatedId = userId;
+
+    userIdStatus.classList.add('show');
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
@@ -115,7 +110,6 @@ const startLocationWatch = () => {
 
   userIdInput.addEventListener('input', handleInput);
 
-  // === GPS WATCH ===
   fetchLocations().then(fetched => {
     locations = fetched;
     if (!locations.length) {
@@ -149,11 +143,10 @@ const startLocationWatch = () => {
 
         if (!current_office) {
           userIdInput.value = '';
-          userIdStatus.className = 'invalid';
-          userIdStatus.textContent = 'Outside approved area';
+          userIdStatus.classList.remove('show');
           clockInBtn.disabled = clockOutBtn.disabled = true;
         } else if (userIdInput.value.trim()) {
-          handleInput(); // Revalidate on location change
+          handleInput();
         }
       },
       err => {
@@ -168,7 +161,6 @@ const startLocationWatch = () => {
             current_office = 'Test Office';
             statusEl.textContent = 'Test Office';
             userIdInput.disabled = false;
-            userIdInput.placeholder = 'Enter User ID';
             if (userIdInput.value.trim()) handleInput();
           }
         }, 3000);
@@ -181,7 +173,7 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === FACE VERIFICATION ===
+// === REST OF script.js (unchanged) ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -201,7 +193,6 @@ const validateFaceWithSubject = async (base64, subjectName) => {
   }
 };
 
-// === FACE MODAL ===
 const showFaceModal = async (staff, action) => {
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
@@ -307,7 +298,6 @@ const submitAttendance = async (action, staff) => {
   }
 };
 
-// === POPUP & LOADER ===
 const showPopup = (title, message, success = null) => {
   const popup = document.getElementById('popup');
   const header = document.getElementById('popupHeader');
@@ -330,7 +320,6 @@ const hideLoader = () => {
   document.getElementById('loaderOverlay').style.display = 'none';
 };
 
-// === CLOCK ACTION ===
 const handleClock = async (action) => {
   const userId = document.getElementById('userId').value.trim();
   if (!userId) return showPopup('Error', 'Enter User ID.', false);
@@ -350,7 +339,6 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
-// === ADMIN DASHBOARD ===
 document.getElementById('adminDashboard')?.addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
@@ -387,7 +375,6 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
   }
 });
 
-// === INIT & CLEANUP ===
 document.addEventListener('DOMContentLoaded', startLocationWatch);
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
