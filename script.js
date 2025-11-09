@@ -64,20 +64,17 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Reset state
+  // Reset
   userIdStatus.classList.remove('show');
-  userIdStatus.textContent = '';
   userIdInput.value = '';
   userIdInput.disabled = true;
   clockInBtn.disabled = clockOutBtn.disabled = true;
 
   let lastValidatedId = '';
 
-  // === REAL-TIME VALIDATION ===
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
 
-    // Hide validation when empty
     if (!userId) {
       userIdStatus.classList.remove('show');
       lastValidatedId = '';
@@ -85,11 +82,9 @@ const startLocationWatch = () => {
       return;
     }
 
-    // Prevent duplicate validation
     if (userId === lastValidatedId) return;
     lastValidatedId = userId;
 
-    // Show validation box
     userIdStatus.classList.add('show');
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
@@ -115,10 +110,8 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // Attach input listener
   userIdInput.addEventListener('input', validateUser);
 
-  // === GPS WATCH ===
   fetchLocations().then(fetched => {
     locations = fetched;
     if (!locations.length) {
@@ -154,9 +147,8 @@ const startLocationWatch = () => {
           userIdInput.value = '';
           userIdStatus.classList.remove('show');
           clockInBtn.disabled = clockOutBtn.disabled = true;
-        } else {
-          // Revalidate if user already typed
-          if (userIdInput.value.trim()) validateUser();
+        } else if (userIdInput.value.trim()) {
+          validateUser();
         }
       },
       err => {
@@ -183,7 +175,25 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === FACE VERIFICATION (unchanged) ===
+// === ADMIN POPUP – X + CLICK OUTSIDE ===
+const adminPopup = document.getElementById('adminPopup');
+const adminCloseBtn = document.getElementById('adminCloseBtn');
+
+document.getElementById('adminDashboard')?.addEventListener('click', () => {
+  adminPopup.classList.add('show');
+});
+
+adminCloseBtn?.addEventListener('click', () => {
+  adminPopup.classList.remove('show');
+});
+
+adminPopup?.addEventListener('click', (e) => {
+  if (e.target === adminPopup) {
+    adminPopup.classList.remove('show');
+  }
+});
+
+// === REST OF script.js (unchanged) ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -349,11 +359,7 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
-// === ADMIN ===
-document.getElementById('adminDashboard')?.addEventListener('click', () => {
-  document.getElementById('adminPopup').classList.add('show');
-});
-
+// === ADMIN LOGIN ===
 document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
   const email = document.getElementById('adminEmail')?.value.trim();
   const password = document.getElementById('adminPassword')?.value.trim();
