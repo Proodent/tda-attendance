@@ -6,14 +6,14 @@
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* === Body === */
+    /* === BODY – LIGHT GREEN BACKGROUND === */
     body {
       font-family: Arial, sans-serif;
-      background: #f7f7f7;
+      background: #e8f5e8; /* Light green */
       text-align: center;
       margin: 0;
       padding: 20px;
-      min-height: 85vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -38,7 +38,7 @@
       background: rgba(255, 255, 255, 0.92);
     }
 
-    /* === LOGO – THINNER BORDER (1.8px) === */
+    /* === LOGO – 1.8px BORDER === */
     .logo {
       width: 60px;
       height: 60px;
@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – ALWAYS VISIBLE === */
+    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS ON EMPTY === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -133,7 +133,7 @@
       font-size: 0.8em;
       color: #006837;
       font-weight: 500;
-      background: #e8f5e8;
+      background: #d4edda;
       padding: 6px 14px;
       border-radius: 8px;
       display: inline-block;
@@ -159,7 +159,7 @@
       font-weight: 700;
       letter-spacing: 2px;
       color: #009245;
-      background: #e8f5e8;
+      background: #d4edda;
       padding: 6px 8px;
       border-radius: 8px;
       display: inline-block;
@@ -438,8 +438,7 @@
     }
     .footer a { color: #009245; text-decoration: none; }
 
-    /* === Hidden === */
-    #location { display: none !important; }
+    /* === REMOVED BOTTOM LOCATION ELEMENT === */
   </style>
 </head>
 <body>
@@ -452,7 +451,7 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
-    <!-- GPS + Status -->
+    <!-- GPS + Status (TOP ONE ONLY) -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
@@ -518,8 +517,7 @@
     </div>
   </div>
 
-  <!-- HIDDEN LOCATION -->
-  <pre id="location" data-lat="" data-long="">Location: Loading...</pre>
+  <!-- NO MORE HIDDEN <pre> LOCATION -->
 
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
@@ -544,16 +542,16 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS Display
+    // GPS Display – Now uses #status and #gpsCoords only
     const gpsEl = document.getElementById('gpsCoords');
-    const locEl = document.getElementById('location');
-    const updateGPS = () => {
-      const lat = locEl.dataset.lat;
-      const lng = locEl.dataset.long;
+    const statusEl = document.getElementById('status');
+    const updateGPSDisplay = () => {
+      const lat = statusEl.dataset.lat;
+      const lng = statusEl.dataset.long;
       gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
     };
-    updateGPS();
-    new MutationObserver(updateGPS).observe(locEl, {attributes:true});
+    updateGPSDisplay();
+    new MutationObserver(updateGPSDisplay).observe(statusEl, {attributes: true, attributeFilter: ['data-lat', 'data-long']});
   </script>
 </body>
 </html>
