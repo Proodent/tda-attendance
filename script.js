@@ -64,9 +64,9 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Reset
-  userIdStatus.classList.remove('show');
-  userIdStatus.style.display = 'none';
+  // Always show validation box
+  userIdStatus.className = 'placeholder';
+  userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
   userIdInput.disabled = true;
   clockInBtn.disabled = clockOutBtn.disabled = true;
@@ -76,10 +76,9 @@ const startLocationWatch = () => {
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
 
-    // Hide if empty
     if (!userId) {
-      userIdStatus.classList.remove('show');
-      userIdStatus.style.display = 'none';
+      userIdStatus.className = 'placeholder';
+      userIdStatus.textContent = 'Enter User ID to validate';
       lastValidatedId = '';
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
@@ -88,9 +87,6 @@ const startLocationWatch = () => {
     if (userId === lastValidatedId) return;
     lastValidatedId = userId;
 
-    // Force show
-    userIdStatus.style.display = 'flex';
-    userIdStatus.classList.add('show');
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
@@ -115,10 +111,8 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // Attach input listener
   userIdInput.addEventListener('input', validateUser);
 
-  // GPS Watch
   fetchLocations().then(fetched => {
     locations = fetched;
     if (!locations.length) {
@@ -152,8 +146,8 @@ const startLocationWatch = () => {
 
         if (!current_office) {
           userIdInput.value = '';
-          userIdStatus.classList.remove('show');
-          userIdStatus.style.display = 'none';
+          userIdStatus.className = 'placeholder';
+          userIdStatus.textContent = 'Enter User ID to validate';
           clockInBtn.disabled = clockOutBtn.disabled = true;
         } else if (userIdInput.value.trim()) {
           validateUser();
