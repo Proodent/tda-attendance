@@ -102,7 +102,7 @@ function startLocationWatch() {
 
         statusEl.textContent = currentOffice || 'Outside approved area';
 
-        // === ENABLE USERID INPUT ONLY IN OFFICE ===
+        // ENABLE USERID INPUT ONLY IN OFFICE
         if (currentOffice) {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
@@ -126,12 +126,11 @@ function startLocationWatch() {
     );
   });
 
-   // SHOW VALIDATION ON INPUT
+  // SHOW VALIDATION BOX ON INPUT
   userIdInput.addEventListener('input', () => {
     const statusEl = document.getElementById('userIdStatus');
     const value = userIdInput.value.trim();
 
-    // Always show status box when typing
     if (value) {
       statusEl.classList.add('show');
     } else {
@@ -140,8 +139,8 @@ function startLocationWatch() {
 
     updateUserStatus();
   });
-  
-  // === CLEAN VALIDATION ===
+
+  // CLEAN VALIDATION
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
     const currentLastId = userIdStatus.dataset.lastUserId;
@@ -183,7 +182,6 @@ function startLocationWatch() {
       return;
     }
 
-    // Re-check location approval
     if (userId && currentOffice) {
       const staff = await getStaffByUserId(userId);
       if (staff && staff.active.toLowerCase() === 'yes') {
@@ -200,7 +198,7 @@ function startLocationWatch() {
   clockOutBtn.addEventListener('click', () => handleClock('clock out'));
 }
 
-// === FACE VERIFICATION – UPDATED ERROR MESSAGES ===
+// === FACE VERIFICATION – ERROR MESSAGES ===
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -393,4 +391,3 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
-
