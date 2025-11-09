@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – ALWAYS VISIBLE, NEVER SHOWS "user 0" === */
+    /* === VALIDATION BOX – INSTANT CLEAR === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -219,7 +219,7 @@
     }
     #adminDashboard:hover { background: #007a3d; }
 
-    /* === FACE MODAL === */
+    /* === FACE MODAL – FASTER === */
     #faceModal {
       display: none;
       position: fixed;
@@ -486,7 +486,7 @@
         <video id="video" autoplay playsinline></video>
         <div class="face-guide"></div>
       </div>
-      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
+      <div class="capture-status" id="captureStatus">Capturing in 1...</div>
     </div>
   </div>
 
@@ -518,9 +518,13 @@
     </div>
   </div>
 
-  <!-- SOUNDS -->
-  <audio id="successSound" src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3"></audio>
-  <audio id="errorSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-383.mp3"></audio>
+  <!-- SOUNDS – USING RELIABLE CDN -->
+  <audio id="successSound" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/mdn/webaudio-examples/audio/success.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="errorSound" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/mdn/webaudio-examples/audio/error.mp3" type="audio/mpeg">
+  </audio>
 
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
