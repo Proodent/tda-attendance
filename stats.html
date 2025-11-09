@@ -6,7 +6,6 @@
   <title>Attendance Dashboard</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -155,6 +154,7 @@
       margin: 1rem;
       border-radius: 12px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      font-size: 0.85rem;
     }
 
     #attendance-table {
@@ -352,13 +352,13 @@
   </header>
 
   <section id="summary-tiles">
-    <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
-    <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
-    <div class="tile"><h3>Clock-Ins</h3><p id="clockInsToday">--</p></div>
-    <div class="tile"><h3>Clock-Outs</h3><p id="clockOutsToday">--</p></div>
-    <div class="tile"><h3>Absent</h3><p id="absentToday">--</p></div>
-    <div class="tile"><h3>Clock-In Rate</h3><p id="percentClockedIn">--%</p></div>
-    <div class="tile"><h3>Clock-Out Rate</h3><p id="percentClockedOut">--%</p></div>
+    <div class="tile"><h3>Total Staff</h3><p id="totalStaff">0</p></div>
+    <div class="tile"><h3>Active Staff</h3><p id="activeStaff">0</p></div>
+    <div class="tile"><h3>Clock-Ins</h3><p id="clockInsToday">0</p></div>
+    <div class="tile"><h3>Clock-Outs</h3><p id="clockOutsToday">0</p></div>
+    <div class="tile"><h3>Absent</h3><p id="absentToday">0</p></div>
+    <div class="tile"><h3>Clock-In Rate</h3><p id="percentClockedIn">0%</p></div>
+    <div class="tile"><h3>Clock-Out Rate</h3><p id="percentClockedOut">0%</p></div>
   </section>
 
   <section id="stats-container">
@@ -402,13 +402,13 @@
     <table>
       <thead>
         <tr>
-          <th class="sortable" data-sort="userId">User ID</th>
-          <th class="sortable" data-sort="name">Name</th>
-          <th class="sortable" data-sort="department">Department</th>
-          <th class="sortable" data-sort="timeIn">Time In</th>
-          <th class="sortable" data-sort="timeOut">Time Out</th>
-          <th class="sortable" data-sort="workTime">Work Time</th>
-          <th class="sortable" data-sort="clockInLocation">Location</th>
+          <th>User ID</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Time In</th>
+          <th>Time Out</th>
+          <th>Work Time</th>
+          <th>Location</th>
         </tr>
       </thead>
       <tbody id="attendance-body"></tbody>
@@ -424,412 +424,4 @@
       <label for="start-date">Start Date:</label>
       <input type="date" id="start-date">
     </div>
-    <div class="pdf-filter-group">
-      <label for="end-date">End Date:</label>
-      <input type="date" id="end-date">
-    </div>
-    <div class="pdf-filter-group">
-      <label for="month-select">Month:</label>
-      <select id="month-select">
-        <option value="">All</option>
-        <option value="01">January</option><option value="02">February</option><option value="03">March</option>
-        <option value="04">April</option><option value="05">May</option><option value="06">June</option>
-        <option value="07">July</option><option value="08">August</option><option value="09">September</option>
-        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-      </select>
-    </div>
-    <div class="button-group">
-      <div class="pdf-filter-group">
-        <label style="visibility: hidden;">.</label>
-        <button id="pdf-export-btn">Export PDF</button>
-      </div>
-    </div>
-  </section>
-
-  <div id="log"></div>
-
-  <script>
-    const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
-    const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
-    const currentDate = new Date().toISOString().split('T')[0];
-    const SESSION_TIMEOUT = 60 * 60 * 1000;
-    let timeoutId;
-
-    const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
-    const logout = () => {
-      clearTimeout(timeoutId);
-      ['mousemove','click','keypress','scroll'].forEach(e => document.removeEventListener(e, resetTimeout));
-      localStorage.clear();
-      window.location.href = 'index.html';
-    };
-    const resetTimeout = () => {
-      localStorage.setItem('lastActivity', Date.now());
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        alert('Session expired after 60 minutes of inactivity.');
-        logout();
-      }, SESSION_TIMEOUT);
-    };
-
-    const log = (msg) => {
-      const box = document.getElementById('log');
-      if (box) {
-        box.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
-        box.scrollTop = box.scrollHeight;
-      }
-    };
-
-    let charts = {};
-    const createChart = (id, config) => {
-      const ctx = document.getElementById(id)?.getContext('2d');
-      if (!ctx) return null;
-      if (charts[id]) charts[id].destroy();
-      charts[id] = new Chart(ctx, { ...config, responsive: true, maintainAspectRatio: false });
-      return charts[id];
-    };
-
-    const wholeNumberTicks = { stepSize: 1, callback: v => Number.isInteger(v) ? v : null, min: 0 };
-
-    let staffAttendanceData = [];
-    let allStaff = [];
-    let allLocations = [];
-    let allAttendanceHistory = [];
-
-    async function loadDashboardData() {
-      if (!isLoggedIn()) { logout(); return; }
-
-      const selectedDate = document.getElementById('date-select').value || currentDate;
-
-      try {
-        const [staffRes, statsRes, locRes, historyRes] = await Promise.all([
-          fetch(`${backendURL}/staff`).then(r => r.json()),
-          fetch(`${backendURL}/stats?date=${selectedDate}`).then(r => r.json()),
-          fetch(`${backendURL}/locations`).then(r => r.json()),
-          fetchGoogleSheetData(`Attendance Sheet!A2:G`)
-        ]);
-
-        allStaff = staffRes.staff || [];
-        allLocations = locRes.locations || [];
-        allAttendanceHistory = historyRes;
-
-        const totalStaff = allStaff.length;
-        const activeStaff = allStaff.filter(s => s.active?.toLowerCase() === 'yes').length;
-        const attendanceToday = statsRes.staffAttendance || [];
-
-        // Add User ID
-        staffAttendanceData = attendanceToday.map(entry => {
-          const user = allStaff.find(s => s.name === entry.name);
-          return { ...entry, userId: user?.userId || 'N/A' };
-        });
-
-        const clockedIn = staffAttendanceData.filter(a => a.timeIn).length;
-        const clockedOut = staffAttendanceData.filter(a => a.timeOut).length;
-        const absent = activeStaff - clockedIn;
-        const inRate = activeStaff ? Math.round((clockedIn / activeStaff) * 100) : 0;
-        const outRate = clockedIn ? Math.round((clockedOut / clockedIn) * 100) : 0;
-
-        // Update Summary Tiles
-        document.getElementById('totalStaff').textContent = totalStaff;
-        document.getElementById('activeStaff').textContent = activeStaff;
-        document.getElementById('clockInsToday').textContent = clockedIn;
-        document.getElementById('clockOutsToday').textContent = clockedOut;
-        document.getElementById('absentToday').textContent = absent;
-        document.getElementById('percentClockedIn').textContent = inRate + '%';
-        document.getElementById('percentClockedOut').textContent = outRate + '%';
-
-        // Update Title with Date
-        document.getElementById('attendance-title').textContent = 
-          `Staff Attendance Details – ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
-
-        updateTable();
-        updateCharts(allStaff, staffAttendanceData, allLocations, allAttendanceHistory, selectedDate);
-        populateDepartments(allStaff);
-
-      } catch (err) {
-        log('Error: ' + err.message);
-      }
-    }
-
-    function updateTable() {
-      const tbody = document.getElementById('attendance-body');
-      tbody.innerHTML = '';
-      const dept = document.getElementById('department-select').value;
-      const search = document.getElementById('name-search').value.toLowerCase();
-
-      const filtered = staffAttendanceData.filter(entry => {
-        const matchesDept = !dept || entry.department === dept;
-        const searchStr = `${entry.userId} ${entry.name} ${entry.department} ${entry.timeIn} ${entry.timeOut} ${entry.clockInLocation}`.toLowerCase();
-        const matchesSearch = !search || searchStr.includes(search);
-        return matchesDept && matchesSearch;
-      });
-
-      filtered.forEach(entry => {
-        const workTime = entry.timeIn && entry.timeOut 
-          ? calculateWorkTime(entry.timeIn, entry.timeOut) 
-          : '--';
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${entry.userId}</td>
-          <td>${entry.name}</td>
-          <td>${entry.department}</td>
-          <td>${entry.timeIn || '--'}</td>
-          <td>${entry.timeOut || '--'}</td>
-          <td>${workTime}</td>
-          <td>${entry.clockInLocation || 'Unknown'}</td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      document.getElementById('attendance-count').textContent = 
-        `Showing ${filtered.length} of ${staffAttendanceData.length} entries`;
-    }
-
-    function calculateWorkTime(inT, outT) {
-      const [ih, im] = inT.split(':').map(Number);
-      const [oh, om] = outT.split(':').map(Number);
-      const mins = (oh * 60 + om) - (ih * 60 + im);
-      return `${Math.floor(mins/60)}h ${mins%60}m`;
-    }
-
-    function updateCharts(staff, attendance, locations, history, selectedDate) {
-      const activeStaff = staff.filter(s => s.active?.toLowerCase() === 'yes').length;
-      const present = attendance.filter(a => a.timeIn).length;
-      const absent = activeStaff - present;
-
-      const inBefore10 = attendance.filter(a => a.timeIn && parseInt(a.timeIn.replace(':', '')) < 1000).length;
-      const inAfter10 = present - inBefore10;
-      const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
-      const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
-
-      // Doughnut Charts
-      createChart('generalAttendanceChart', {
-        type: 'doughnut',
-        data: { labels: ['Present', 'Absent'], datasets: [{ data: [present, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
-        options: { plugins: { legend: { position: 'bottom' } } }
-      });
-      createChart('reportingChart', {
-        type: 'doughnut',
-        data: { labels: ['Before 10AM', 'After 10AM'], datasets: [{ data: [inBefore10, inAfter10], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { plugins: { legend: { position: 'bottom' } } }
-      });
-      createChart('departureChart', {
-        type: 'doughnut',
-        data: { labels: ['Before 4PM', 'After 4PM'], datasets: [{ data: [outBefore4, outAfter4], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { plugins: { legend: { position: 'bottom' } } }
-      });
-
-      // Department: All Depts from Staff Sheet
-      const deptMap = {};
-      staff.forEach(s => {
-        if (s.active?.toLowerCase() === 'yes') deptMap[s.department] = (deptMap[s.department] || 0) + 1;
-      });
-      const deptLabels = Object.keys(deptMap).sort();
-      const deptIn = deptLabels.map(d => attendance.filter(a => a.department === d && a.timeIn).length);
-      const deptOut = deptLabels.map(d => attendance.filter(a => a.department === d && a.timeOut).length);
-
-      createChart('departmentChart', {
-        type: 'bar',
-        data: {
-          labels: deptLabels,
-          datasets: [
-            { label: 'Total Active', data: deptLabels.map(d => deptMap[d]), backgroundColor: '#cbd5e0' },
-            { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
-            { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
-          ]
-        },
-        options: { scales: { y: wholeNumberTicks } }
-      });
-
-      // Location: All from Locations Sheet
-      const locCounts = locations.map(l => attendance.filter(a => a.clockInLocation === l.name).length);
-      createChart('locationChart', {
-        type: 'bar',
-        data: { labels: locations.map(l => l.name), datasets: [{ label: 'Count', data: locCounts, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
-      });
-
-      // 90 Days Trend
-      const today = new Date(selectedDate);
-      const labels90 = [];
-      for (let i = 89; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        labels90.push(d.toISOString().split('T')[0]);
-      }
-      const historyMap = {};
-      history.forEach(row => {
-        let date = row[0];
-        if (date) {
-          const d = new Date(date);
-          if (!isNaN(d)) date = d.toISOString().split('T')[0];
-          else if (date.includes('/')) {
-            const [m,d,y] = date.split('/');
-            date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-          }
-          const name = row[2];
-          const timeIn = row[3];
-          if (date && name && timeIn) {
-            historyMap[date] = (historyMap[date] || 0) + 1;
-          }
-        }
-      });
-      const trendData = labels90.map(d => historyMap[d] || 0);
-      createChart('trendChart', {
-        type: 'line',
-        data: { labels: labels90, datasets: [{ label: 'Attendance', data: trendData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.2)', fill: true }] },
-        options: { scales: { y: wholeNumberTicks } }
-      });
-
-      // Weekly: Last 7 Days
-      const weeklyLabels = [];
-      const weeklyData = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        weeklyLabels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
-        weeklyData.push(historyMap[dateStr] || 0);
-      }
-      createChart('weeklyAttendanceChart', {
-        type: 'bar',
-        data: { labels: weeklyLabels, datasets: [{ label: 'Present', data: weeklyData, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks } }
-      });
-    }
-
-    function populateDepartments(staff) {
-      const unique = [...new Set(staff.map(s => s.department))].sort();
-      ['department-select', 'department-select-pdf'].forEach(id => {
-        const sel = document.getElementById(id);
-        sel.innerHTML = '<option value="">All</option>';
-        unique.forEach(d => {
-          const opt = document.createElement('option');
-          opt.value = opt.textContent = d;
-          sel.appendChild(opt);
-        });
-      });
-    }
-
-    async function fetchGoogleSheetData(range) {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
-      try {
-        const res = await fetch(url, { mode: 'cors' });
-        const data = await res.json();
-        return data.values || [];
-      } catch (e) {
-        log(`Sheet error: ${e.message}`);
-        return [];
-      }
-    }
-
-    // Events
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
-      resetTimeout();
-      ['mousemove','click','keypress','scroll'].forEach(e => document.addEventListener(e, resetTimeout));
-      document.getElementById('date-select').value = currentDate;
-      loadDashboardData();
-      setInterval(loadDashboardData, 30000);
-    });
-
-    document.getElementById('logoutBtn').addEventListener('click', () => confirm('Log out?') && logout());
-
-    document.getElementById('clear-filter-btn').addEventListener('click', () => {
-      document.getElementById('department-select').value = '';
-      document.getElementById('name-search').value = '';
-      updateTable();
-    });
-
-    document.getElementById('export-btn').addEventListener('click', () => {
-      const csv = "User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
-        staffAttendanceData.map(r => `${r.userId},${r.name},${r.department},${r.timeIn||''},${r.timeOut||''},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation||''}`).join("\n");
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `attendance_${currentDate}.csv`; a.click();
-    });
-
-    ['date-select', 'department-select', 'name-search'].forEach(id => {
-      document.getElementById(id).addEventListener('input', updateTable);
-      document.getElementById(id).addEventListener('change', () => {
-        if (id === 'date-select') loadDashboardData();
-        else updateTable();
-      });
-    });
-
-    // PDF Export with Filters
-    document.getElementById('pdf-export-btn').addEventListener('click', async () => {
-      const dept = document.getElementById('department-select-pdf').value;
-      const start = document.getElementById('start-date').value;
-      const end = document.getElementById('end-date').value;
-      const month = document.getElementById('month-select').value;
-
-      if (!start && !end && !month) {
-        alert("Please select date range or month");
-        return;
-      }
-
-      let dates = [];
-      if (start && end) {
-        const s = new Date(start), e = new Date(end);
-        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-          if (d.getDay() !== 0 && d.getDay() !== 6) {
-            dates.push(d.toISOString().split('T')[0]);
-          }
-        }
-      } else if (month) {
-        const year = new Date().getFullYear();
-        const days = new Date(year, month, 0).getDate();
-        for (let d = 1; d <= days; d++) {
-          const date = new Date(`${year}-${month}-${d.toString().padStart(2,'0')}`);
-          if (date.getDay() !== 0 && date.getDay() !== 6) {
-            dates.push(date.toISOString().split('T')[0]);
-          }
-        }
-      }
-
-      const history = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
-      const attMap = {};
-      history.forEach(row => {
-        let date = row[0];
-        if (date) {
-          const d = new Date(date);
-          if (!isNaN(d)) date = d.toISOString().split('T')[0];
-          else if (date.includes('/')) {
-            const [m,d,y] = date.split('/');
-            date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-          }
-          const name = row[2];
-          if (dates.includes(date) && name && (row[3] || row[4])) {
-            if (!attMap[name]) attMap[name] = {};
-            attMap[name][date] = { in: row[3], out: row[4] };
-          }
-        }
-      });
-
-      const temp = document.createElement('div');
-      temp.innerHTML = `<h2>Attendance Report</h2><table border="1" style="width:100%; border-collapse:collapse;">
-        <thead><tr><th>Name</th><th>Dept</th>${dates.map(d => `<th>${d}</th>`).join('')}</tr></thead>
-        <tbody>
-        ${allStaff.filter(s => !dept || s.department === dept).map(s => {
-          const att = attMap[s.name] || {};
-          return `<tr><td>${s.name}</td><td>${s.department}</td>${dates.map(d => `<td>${att[d]?.in || ''}/${att[d]?.out || ''}</td>`).join('')}</tr>`;
-        }).join('')}
-        </tbody></table>`;
-      document.body.appendChild(temp);
-
-      const { jsPDF } = window.jspdf;
-      html2canvas(temp).then(canvas => {
-        const img = canvas.toDataURL('image/png');
-        const doc = new jsPDF('l', 'mm', 'a4');
-        const width = doc.internal.pageSize.getWidth() - 20;
-        const height = (canvas.height * width) / canvas.width;
-        doc.addImage(img, 'PNG', 10, 10, width, height);
-        doc.save(`report_${dept || 'all'}_${start || month}.pdf`);
-        document.body.removeChild(temp);
-      });
-    });
-  </script>
-</body>
-</html>
+    <div
