@@ -60,12 +60,11 @@ async function fetchLocations() {
 // === START GPS WATCH ===
 function startLocationWatch() {
   const statusEl = document.getElementById('status');
-  const gpsEl = document.getElementById('gpsCoords');
-  const locationEl = document.getElementById('location');
+  const gpsEl = document.getElementById('gpsCoords'); // Now holds data-lat/long
   const userIdInput = document.getElementById('userId');
   const userIdStatus = document.getElementById('userIdStatus');
-  const clockInBtn = document.getElementById('clockIn');     // FIXED TYPO
-  const clockOutBtn = document.getElementById('clockOut');   // FIXED TYPO
+  const clockInBtn = document.getElementById('clockIn');
+  const clockOutBtn = document.getElementById('clockOut');
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
@@ -73,7 +72,9 @@ function startLocationWatch() {
   userIdInput.placeholder = 'Outside approved area';
   userIdStatus.classList.remove('show');
   statusEl.textContent = 'Loading locations...';
-  gpsEl.textContent = 'GPS: Waiting...';
+  gpsEl.textContent = 'GPS: Acquiring...';
+  gpsEl.dataset.lat = '';
+  gpsEl.dataset.long = '';
 
   fetchLocations().then(locations => {
     if (locations.length === 0) {
@@ -84,7 +85,6 @@ function startLocationWatch() {
     }
 
     statusEl.textContent = 'Waiting for GPS signal...';
-    gpsEl.textContent = 'GPS: Acquiring...';
 
     if (!navigator.geolocation) {
       showPopup('Geolocation Error', 'Your browser does not support GPS.', false);
@@ -96,8 +96,8 @@ function startLocationWatch() {
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
-        locationEl.dataset.lat = latitude;
-        locationEl.dataset.long = longitude;
+        gpsEl.dataset.lat = latitude;
+        gpsEl.dataset.long = longitude;
         gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         currentOffice = null;
@@ -111,13 +111,12 @@ function startLocationWatch() {
 
         statusEl.textContent = currentOffice || 'Outside approved area';
 
-        // ENABLE INPUT + ATTACH LISTENER ONLY WHEN IN OFFICE
+        // ENABLE INPUT + ATTACH LISTENER
         if (currentOffice && userIdInput.disabled) {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
           userIdInput.focus();
 
-          // Attach input listener ONCE
           userIdInput.addEventListener('input', handleUserIdInput);
           userIdInput.addEventListener('focus', () => {
             if (userIdInput.value.trim()) userIdStatus.classList.add('show');
@@ -325,9 +324,9 @@ async function captureAndVerify(staff, action) {
 }
 
 async function submitAttendance(action, staff) {
-  const locationEl = document.getElementById('location');
-  const lat = Number(locationEl.dataset.lat);
-  const long = Number(locationEl.dataset.long);
+  const gpsEl = document.getElementById('gpsCoords');
+  const lat = Number(gpsEl.dataset.lat);
+  const long = Number(gpsEl.dataset.long);
 
   try {
     const res = await fetch('/api/attendance/web', {
@@ -384,9 +383,9 @@ async function handleClock(action) {
     return showPopup('Invalid User ID', 'User not found or inactive.', false);
   }
 
-  const locationEl = document.getElementById('location');
-  const lat = Number(locationEl.dataset.lat);
-  const long = Number(locationEl.dataset.long);
+  const gpsEl = document.getElementById('gpsCoords');
+  const lat = Number(gpsEl.dataset.lat);
+  const long = Number(gpsEl.dataset.long);
   if (!lat || !long) return showPopup('Location Error', 'No GPS data.', false);
 
   if (!currentOffice) return showPopup('Location Error', 'Not at an approved office.', false);
