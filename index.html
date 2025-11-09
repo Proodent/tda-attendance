@@ -219,7 +219,7 @@
     }
     #adminDashboard:hover { background: #007a3d; }
 
-    /* === FACE MODAL – FASTER === */
+    /* === FACE MODAL === */
     #faceModal {
       display: none;
       position: fixed;
@@ -438,7 +438,7 @@
     }
     .footer a { color: #009245; text-decoration: none; }
 
-    /* === HIDDEN SOUND ELEMENTS === */
+    /* === SOUNDS – LOUD & RELIABLE === */
     #successSound, #errorSound { display: none; }
   </style>
 </head>
@@ -493,7 +493,7 @@
   <!-- LOADER -->
   <div id="loaderOverlay">
     <div class="loader"></div>
-    <p>Verifying face...</p>
+    <p id="loaderText">Verifying...</p>
   </div>
 
   <!-- POPUP -->
@@ -518,12 +518,12 @@
     </div>
   </div>
 
-  <!-- SOUNDS – USING RELIABLE CDN -->
+  <!-- LOUD SOUNDS – CDN + PRELOAD -->
   <audio id="successSound" preload="auto">
-    <source src="https://cdn.jsdelivr.net/gh/mdn/webaudio-examples/audio/success.mp3" type="audio/mpeg">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3" type="audio/mpeg">
   </audio>
   <audio id="errorSound" preload="auto">
-    <source src="https://cdn.jsdelivr.net/gh/mdn/webaudio-examples/audio/error.mp3" type="audio/mpeg">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-383.mp3" type="audio/mpeg">
   </audio>
 
   <div class="footer">
