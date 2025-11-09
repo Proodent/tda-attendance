@@ -3,32 +3,8 @@ let current_office = null;
 let staff_cache = new Map();
 let videoEl, faceModal, captureStatus;
 let countdown = 0;
-let countdownTimeout = null;
+let countdownInterval = null;
 let locations = [];
-
-// === SOUND – UNLOCKED & LOUD ===
-const successSound = document.getElementById('successSound');
-const errorSound = document.getElementById('errorSound');
-
-const unlockAudio = () => {
-  successSound.play().catch(() => {});
-  errorSound.play().catch(() => {});
-  document.body.removeEventListener('click', unlockAudio);
-  document.body.removeEventListener('touchstart', unlockAudio);
-};
-document.body.addEventListener('click', unlockAudio);
-document.body.addEventListener('touchstart', unlockAudio);
-
-const playSuccess = () => {
-  successSound.currentTime = 0;
-  successSound.volume = 1.0;
-  successSound.play().catch(() => {});
-};
-const playError = () => {
-  errorSound.currentTime = 0;
-  errorSound.volume = 1.0;
-  errorSound.play().catch(() => {});
-};
 
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -75,7 +51,6 @@ const fetchLocations = async () => {
     }));
   } catch (err) {
     showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
-    playError();
     return [];
   }
 };
@@ -88,7 +63,7 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // FULL RESET
+  // Initial state
   userIdStatus.className = 'placeholder';
   userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
@@ -96,22 +71,19 @@ const startLocationWatch = () => {
   clockInBtn.disabled = clockOutBtn.disabled = true;
 
   let lastValidatedId = '';
-  let isValidating = false;
 
   const validateUser = async () => {
-    if (isValidating) return;
     const userId = userIdInput.value.trim();
 
-    if (!userId || userId === lastValidatedId) return;
+    if (!userId) return; // Handled in input listener
+
+    if (userId === lastValidatedId) return;
     lastValidatedId = userId;
-    isValidating = true;
 
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
     const staff = await getStaffByUserId(userId);
-    isValidating = false;
-
     if (!staff) {
       userIdStatus.className = 'invalid';
       userIdStatus.textContent = `User ${userId} not found`;
@@ -132,7 +104,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT CLEAR ON EMPTY
+  // INSTANT CLEAR + DEBOUNCE
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -141,7 +113,6 @@ const startLocationWatch = () => {
       userIdStatus.className = 'placeholder';
       userIdStatus.textContent = 'Enter User ID to validate';
       lastValidatedId = '';
-      isValidating = false;
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
@@ -153,26 +124,19 @@ const startLocationWatch = () => {
     locations = fetched;
     if (!locations.length) {
       statusEl.textContent = 'No locations configured.';
-      gpsEl.textContent = 'GPS: No locations';
       return;
     }
 
     if (!navigator.geolocation) {
       showPopup('GPS Error', 'Geolocation not supported.', false);
-      playError();
-      statusEl.textContent = 'GPS not supported';
-      gpsEl.textContent = 'GPS: Not supported';
       return;
     }
 
-    // GPS SHOWS IMMEDIATELY
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
         statusEl.dataset.lat = latitude;
         statusEl.dataset.long = longitude;
-
-        // UPDATE GPS IMMEDIATELY
         gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         current_office = null;
@@ -200,8 +164,6 @@ const startLocationWatch = () => {
         console.error('GPS Error:', err);
         statusEl.textContent = `GPS error: ${err.message}`;
         gpsEl.textContent = 'GPS: Failed';
-
-        // TEST MODE AFTER 3s
         setTimeout(() => {
           if (!statusEl.dataset.lat) {
             statusEl.dataset.lat = 9.4;
@@ -214,7 +176,7 @@ const startLocationWatch = () => {
           }
         }, 3000);
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
     );
   });
 
@@ -222,11 +184,43 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === FACE VERIFICATION – INSTANT ===
-let currentStaffName = '';
+// === ADMIN POPUP ===
+const adminPopup = document.getElementById('adminPopup');
+const adminCloseBtn = document.getElementById('adminCloseBtn');
+
+document.getElementById('adminDashboard')?.addEventListener('click', () => {
+  adminPopup.classList.add('show');
+});
+
+adminCloseBtn?.addEventListener('click', () => {
+  adminPopup.classList.remove('show');
+});
+
+adminPopup?.addEventListener('click', (e) => {
+  if (e.target === adminPopup) adminPopup.classList.remove('show');
+});
+
+// === FACE VERIFICATION ===
+const validateFaceWithSubject = async (base64, subjectName) => {
+  try {
+    const res = await fetch('/api/proxy/face-recognition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: base64, subject: subjectName })
+    });
+    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
+    const data = await res.json();
+    if (data?.result?.[0]?.subjects?.length) {
+      const match = data.result[0].subjects.find(s => s.subject === subjectName);
+      if (match && match.similarity >= 0.7) return { ok: true, similarity: match.similarity };
+    }
+    return { ok: false, error: 'Face not recognized' };
+  } catch (err) {
+    return { ok: false, error: 'Face service error' };
+  }
+};
 
 const showFaceModal = async (staff, action) => {
-  currentStaffName = staff.name;
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
   captureStatus = document.getElementById('captureStatus');
@@ -237,16 +231,23 @@ const showFaceModal = async (staff, action) => {
     return;
   }
 
-  countdown = 1;
+  countdown = 3;
   captureStatus.textContent = `Capturing in ${countdown}...`;
-  countdownTimeout = setTimeout(async () => {
-    await captureAndVerify(staff, action);
+  countdownInterval = setInterval(async () => {
+    countdown--;
+    if (countdown > 0) {
+      captureStatus.textContent = `Capturing in ${countdown}...`;
+    } else {
+      clearInterval(countdownInterval);
+      captureStatus.textContent = 'Verifying...';
+      await captureAndVerify(staff, action);
+    }
   }, 1000);
 };
 
 const hideFaceModal = () => {
   if (faceModal) faceModal.classList.remove('show');
-  if (countdownTimeout) clearTimeout(countdownTimeout);
+  if (countdownInterval) clearInterval(countdownInterval);
   stopVideo();
 };
 
@@ -258,7 +259,6 @@ const startVideo = async () => {
     return true;
   } catch (err) {
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
-    playError();
     return false;
   }
 };
@@ -278,17 +278,16 @@ const captureAndVerify = async (staff, action) => {
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
   hideFaceModal();
-  showLoader(`Verifying ${currentStaffName}...`);
+  showLoader(`Verifying face for ${staff.name}...`);
 
   const result = await validateFaceWithSubject(base64, staff.name);
   hideLoader();
 
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
-    playError();
     return;
   }
 
@@ -314,7 +313,6 @@ const submitAttendance = async (action, staff) => {
       })
     });
     const data = await res.json();
-
     showPopup(
       data.success ? 'Success' : 'Error',
       data.success
@@ -322,20 +320,8 @@ const submitAttendance = async (action, staff) => {
         : data.message || 'Attendance failed.',
       data.success
     );
-
-    if (data.success) {
-      playSuccess();
-      document.getElementById('userId').value = '';
-      document.getElementById('userIdStatus').className = 'placeholder';
-      document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
-      document.getElementById('clockIn').disabled = true;
-      document.getElementById('clockOut').disabled = true;
-    } else {
-      playError();
-    }
   } catch (err) {
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
-    playError();
   }
 };
 
@@ -353,7 +339,7 @@ const showPopup = (title, message, success = null) => {
 
 const showLoader = (text) => {
   const loader = document.getElementById('loaderOverlay');
-  document.getElementById('loaderText').textContent = text;
+  loader.querySelector('p').textContent = text;
   loader.style.display = 'flex';
 };
 
@@ -414,12 +400,7 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
 });
 
 // === INIT ===
-document.addEventListener('DOMContentLoaded', () => {
-  successSound.load();
-  errorSound.load();
-  startLocationWatch();
-});
-
+document.addEventListener('DOMContentLoaded', startLocationWatch);
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
