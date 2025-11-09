@@ -9,7 +9,7 @@
     /* === BODY – LIGHT GREEN BACKGROUND === */
     body {
       font-family: Arial, sans-serif;
-      background: #e8f5e8; /* Light green */
+      background: #e8f5e8;
       text-align: center;
       margin: 0;
       padding: 20px;
@@ -97,7 +97,7 @@
       cursor: not-allowed;
     }
 
-    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS ON EMPTY === */
+    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS INSTANTLY === */
     #userIdStatus {
       font-size: 0.85em;
       font-weight: 600;
@@ -437,8 +437,6 @@
       z-index: 2;
     }
     .footer a { color: #009245; text-decoration: none; }
-
-    /* === REMOVED BOTTOM LOCATION ELEMENT === */
   </style>
 </head>
 <body>
@@ -451,10 +449,10 @@
       <span class="subtitle">Staff Attendance Portal</span>
     </h1>
 
-    <!-- GPS + Status (TOP ONE ONLY) -->
+    <!-- GPS + Status (ONLY ONE) -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
-      <p id="status">Checking location...</p>
+      <p id="status" data-lat="" data-long="">Checking location...</p>
     </div>
 
     <!-- Clock -->
@@ -463,7 +461,7 @@
       <div id="liveDate">Monday, 03 November 2025</div>
     </div>
 
-    <!-- USERID + ALWAYS VISIBLE VALIDATION -->
+    <!-- USERID + VALIDATION -->
     <div class="input-group">
       <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
@@ -517,8 +515,6 @@
     </div>
   </div>
 
-  <!-- NO MORE HIDDEN <pre> LOCATION -->
-
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
@@ -542,7 +538,7 @@
     updateClock();
     setInterval(updateClock, 500);
 
-    // GPS Display – Now uses #status and #gpsCoords only
+    // GPS Display
     const gpsEl = document.getElementById('gpsCoords');
     const statusEl = document.getElementById('status');
     const updateGPSDisplay = () => {
