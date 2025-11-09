@@ -79,12 +79,6 @@
       font-weight: 600;
       box-sizing: border-box;
       background: rgba(255, 255, 255, 0.95);
-      -moz-appearance: textfield;
-    }
-    .input-group input::-webkit-outer-spin-button,
-    .input-group input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
     }
     .input-group input::placeholder { color: #aaa; font-weight: 500; }
     .input-group input:focus {
@@ -113,7 +107,7 @@
       justify-content: center;
       line-height: 1.4;
       background: rgba(255, 255, 255, 0.95);
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
     #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
     #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
@@ -216,198 +210,6 @@
     }
     #adminDashboard:hover { background: #007a3d; }
 
-    #faceModal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,.6);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-    }
-    #faceModal.show { display: flex; }
-    #faceModal .popup-content {
-      background: #fff;
-      padding: 20px;
-      border-radius: 14px;
-      max-width: 380px;
-      width: 90%;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,.3);
-    }
-    #faceModal .popup-header {
-      background: #009245;
-      color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      font-weight: bold;
-      margin-bottom: 15px;
-    }
-    #faceModal .video-container {
-      position: relative;
-      margin: 15px auto;
-      width: 280px;
-      height: 210px;
-      border: 3px solid #009245;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    #faceModal video {
-      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
-    }
-    #faceModal .face-guide {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 140px; height: 180px;
-      border: 2px dashed #fff;
-      border-radius: 50%;
-      opacity: 0.7;
-    }
-    #faceModal .capture-status {
-      margin: 15px 0;
-      font-weight: 600;
-      color: #009245;
-    }
-
-    #loaderOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(255,255,255,.95);
-      z-index: 3000;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      backdrop-filter: blur(3px);
-    }
-    .loader {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #009245;
-      border-radius: 50%;
-      width: 55px; height: 55px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,.4);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-    }
-    .popup.show { display: flex; }
-    .popup-content {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 380px;
-      text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,.2);
-    }
-    .popup-header {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-      padding: 8px;
-      border-radius: 6px;
-    }
-    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
-    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
-
-    #adminPopup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,.5);
-      z-index: 2500;
-      justify-content: center;
-      align-items: center;
-    }
-    #adminPopup.show { display: flex; }
-    #adminPopup .popup-content {
-      background: #fff;
-      padding: 25px;
-      border-radius: 12px;
-      max-width: 360px;
-      width: 90%;
-      box-shadow: 0 8px 25px rgba(0,0,0,.2);
-      position: relative;
-    }
-    #adminPopup h2 {
-      margin: 0 0 15px;
-      color: #009245;
-      font-size: 1.3em;
-    }
-    #adminPopup input {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border: 1.5px solid #ccc;
-      border-radius: 8px;
-      font-size: 15px;
-      box-sizing: border-box;
-    }
-
-    #adminLoginBtn {
-      width: 100%;
-      padding: 12px;
-      background: #009245;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 10px;
-      position: relative;
-      transition: background .3s;
-    }
-    #adminLoginBtn:disabled { background: #ccc; cursor: not-allowed; }
-    #adminLoginBtn .spinner {
-      display: none;
-      width: 16px; height: 16px;
-      border: 2px solid #fff;
-      border-top: 2px solid transparent;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    #adminLoginBtn.loading .spinner { display: block; }
-
-    #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
-
-    .popup-close {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: transparent;
-      color: #999;
-      border: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: color .2s;
-    }
-    .popup-close:hover { color: #d32f2f; }
-
     .footer {
       margin-top: auto;
       font-size: .9em;
@@ -439,54 +241,13 @@
     </div>
 
     <div class="input-group">
-      <input type="number" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
     </div>
 
     <div class="button-group">
       <button id="clockIn" disabled>Clock In</button>
       <button id="clockOut" disabled>Clock Out</button>
-    </div>
-  </div>
-
-  <!-- FACE MODAL -->
-  <div id="faceModal">
-    <div class="popup-content">
-      <div class="popup-header">Face Verification</div>
-      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
-      <div class="video-container">
-        <video id="video" autoplay playsinline></video>
-        <div class="face-guide"></div>
-      </div>
-      <div class="capture-status" id="captureStatus">Capturing in 1...</div>
-    </div>
-  </div>
-
-  <!-- LOADER -->
-  <div id="loaderOverlay">
-    <div class="loader"></div>
-    <p id="loaderText">Verifying...</p>
-  </div>
-
-  <!-- POPUP -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <div class="popup-header" id="popupHeader">Title</div>
-      <div id="popupMessage">Message</div>
-      <button id="popupCloseBtn">Close</button>
-    </div>
-  </div>
-
-  <!-- ADMIN POPUP -->
-  <div id="adminPopup">
-    <div class="popup-content">
-      <button class="popup-close" id="adminCloseBtn">X</button>
-      <h2>Admin Login</h2>
-      <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
-      <input type="email" id="adminEmail" placeholder="Email" />
-      <input type="password" id="adminPassword" placeholder="Password" />
-      <button id="adminLoginBtn">Login <span class="spinner"></span></button>
-      <p id="adminError" class="error"></p>
     </div>
   </div>
 
