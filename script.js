@@ -3,7 +3,7 @@ let current_office = null;
 let staff_cache = new Map();
 let videoEl, faceModal, captureStatus;
 let countdown = 0;
-let countdownInterval = null;
+let countdownTimeout = null;
 let locations = [];
 
 // === SOUND – UNLOCKED & LOUD ===
@@ -28,6 +28,16 @@ const playError = () => {
   errorSound.currentTime = 0;
   errorSound.volume = 1.0;
   errorSound.play().catch(() => {});
+};
+
+const toRad = v => v * Math.PI / 180;
+const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
 const getStaffByUserId = async (userId) => {
@@ -122,7 +132,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT FULL CLEAR ON EMPTY
+  // INSTANT CLEAR ON EMPTY
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -143,20 +153,26 @@ const startLocationWatch = () => {
     locations = fetched;
     if (!locations.length) {
       statusEl.textContent = 'No locations configured.';
+      gpsEl.textContent = 'GPS: No locations';
       return;
     }
 
     if (!navigator.geolocation) {
       showPopup('GPS Error', 'Geolocation not supported.', false);
       playError();
+      statusEl.textContent = 'GPS not supported';
+      gpsEl.textContent = 'GPS: Not supported';
       return;
     }
 
+    // GPS SHOWS IMMEDIATELY
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
         statusEl.dataset.lat = latitude;
         statusEl.dataset.long = longitude;
+
+        // UPDATE GPS IMMEDIATELY
         gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         current_office = null;
@@ -184,6 +200,8 @@ const startLocationWatch = () => {
         console.error('GPS Error:', err);
         statusEl.textContent = `GPS error: ${err.message}`;
         gpsEl.textContent = 'GPS: Failed';
+
+        // TEST MODE AFTER 3s
         setTimeout(() => {
           if (!statusEl.dataset.lat) {
             statusEl.dataset.lat = 9.4;
@@ -196,7 +214,7 @@ const startLocationWatch = () => {
           }
         }, 3000);
       },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   });
 
@@ -221,14 +239,14 @@ const showFaceModal = async (staff, action) => {
 
   countdown = 1;
   captureStatus.textContent = `Capturing in ${countdown}...`;
-  countdownInterval = setTimeout(async () => {
+  countdownTimeout = setTimeout(async () => {
     await captureAndVerify(staff, action);
   }, 1000);
 };
 
 const hideFaceModal = () => {
   if (faceModal) faceModal.classList.remove('show');
-  if (countdownInterval) clearTimeout(countdownInterval);
+  if (countdownTimeout) clearTimeout(countdownTimeout);
   stopVideo();
 };
 
@@ -362,6 +380,7 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
+// === ADMIN LOGIN ===
 document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
   const email = document.getElementById('adminEmail')?.value.trim();
   const password = document.getElementById('adminPassword')?.value.trim();
@@ -394,11 +413,13 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
   }
 });
 
+// === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
   successSound.load();
   errorSound.load();
   startLocationWatch();
 });
+
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
