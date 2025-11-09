@@ -66,28 +66,21 @@ function startLocationWatch() {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // === ATTACH INPUT LISTENERS IMMEDIATELY (BEFORE GPS) ===
-  const showValidationBox = () => {
-    if (userIdInput.value.trim() && !userIdStatus.classList.contains('show')) {
+  // === INPUT LISTENERS – ALWAYS ACTIVE ===
+  const validateAndShow = () => {
+    const value = userIdInput.value.trim();
+    if (value) {
       userIdStatus.classList.add('show');
-    }
-  };
-  const hideValidationBox = () => {
-    if (!userIdInput.value.trim()) {
+    } else {
       userIdStatus.classList.remove('show');
     }
+    updateUserStatus();
   };
 
-  // Multiple event listeners for 100% coverage
   ['input', 'keydown', 'keyup', 'paste', 'change'].forEach(event => {
-    userIdInput.addEventListener(event, () => {
-      showValidationBox();
-      updateUserStatus();
-    });
+    userIdInput.addEventListener(event, validateAndShow);
   });
-
-  // Fallback: show on focus if already has value
-  userIdInput.addEventListener('focus', showValidationBox);
+  userIdInput.addEventListener('focus', validateAndShow);
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
@@ -134,21 +127,23 @@ function startLocationWatch() {
 
         statusEl.textContent = currentOffice || 'Outside approved area';
 
-        // ENABLE INPUT
         if (currentOffice && userIdInput.disabled) {
           userIdInput.disabled = false;
           userIdInput.placeholder = 'Enter User ID';
           userIdInput.focus();
-          showValidationBox(); // In case user already typed
+          validateAndShow(); // Re-check if already typed
         } else if (!currentOffice && !userIdInput.disabled) {
           userIdInput.disabled = true;
           userIdInput.value = '';
           userIdInput.placeholder = 'Outside approved area';
-          hideValidationBox();
+          userIdStatus.classList.remove('show');
           clockInBtn.disabled = clockOutBtn.disabled = true;
         }
 
-        updateUserStatus();
+        // Revalidate only if UserID has content
+        if (userIdInput.value.trim()) {
+          updateUserStatus();
+        }
       },
       err => {
         console.error('GPS Error:', err);
@@ -164,55 +159,43 @@ function startLocationWatch() {
     );
   });
 
-  // VALIDATION LOGIC
+  // === FULL VALIDATION WITH NAME, ACTIVE, APPROVAL ===
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
     const currentLastId = userIdStatus.dataset.lastUserId;
 
-    if (currentLastId !== userId) {
-      userIdStatus.dataset.lastUserId = userId;
+    // Only revalidate if ID changed
+    if (currentLastId === userId) return;
+    userIdStatus.dataset.lastUserId = userId;
 
-      if (!userId) {
-        userIdStatus.className = 'loading';
-        userIdStatus.textContent = 'Enter User ID...';
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-        return;
-      }
-
+    if (!userId) {
       userIdStatus.className = 'loading';
-      userIdStatus.textContent = 'Validating...';
-
-      const staff = await getStaffByUserId(userId);
-      if (!staff) {
-        userIdStatus.className = 'invalid';
-        userIdStatus.textContent = `User ${userId} not found`;
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-        return;
-      }
-
-      if (staff.active.toLowerCase() !== 'yes') {
-        userIdStatus.className = 'inactive';
-        userIdStatus.textContent = `User ${userId} : ${staff.name} is Inactive`;
-        clockInBtn.disabled = clockOutBtn.disabled = true;
-        return;
-      }
-
-      const approved = currentOffice && staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
-      const icon = approved ? 'Approved' : 'Not Approved';
-
-      userIdStatus.className = approved ? 'valid' : 'invalid';
-      userIdStatus.textContent = `User ${userId} found : ${staff.name} ${icon}`;
-      clockInBtn.disabled = clockOutBtn.disabled = !approved;
-    } else if (userId && currentOffice) {
-      const staff = await getStaffByUserId(userId);
-      if (staff && staff.active.toLowerCase() === 'yes') {
-        const approved = staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
-        const icon = approved ? 'Approved' : 'Not Approved';
-        userIdStatus.className = approved ? 'valid' : 'invalid';
-        userIdStatus.textContent = `User ${userId} found : ${staff.name} ${icon}`;
-        clockInBtn.disabled = clockOutBtn.disabled = !approved;
-      }
+      userIdStatus.textContent = 'Enter User ID...';
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
     }
+
+    userIdStatus.className = 'loading';
+    userIdStatus.textContent = 'Validating...';
+
+    const staff = await getStaffByUserId(userId);
+    if (!staff) {
+      userIdStatus.className = 'invalid';
+      userIdStatus.textContent = `User ${userId} not found`;
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
+
+    const isActive = staff.active.toLowerCase() === 'yes';
+    const isApproved = currentOffice && staff.allowedLocations.map(l => l.toLowerCase()).includes(currentOffice.toLowerCase());
+
+    const activeText = isActive ? 'Active' : 'Inactive';
+    const approvalText = isApproved ? 'Approved' : 'Not Approved';
+
+    userIdStatus.className = isActive && isApproved ? 'valid' : 'invalid';
+    userIdStatus.textContent = `User ${userId} : ${staff.name} – ${activeText} – ${approvalText}`;
+
+    clockInBtn.disabled = clockOutBtn.disabled = !(isActive && isApproved);
   }
 
   clockInBtn.addEventListener('click', () => handleClock('clock in'));
@@ -235,13 +218,8 @@ async function validateFaceWithSubject(base64, subjectName) {
     }
 
     const match = data.result[0].subjects.find(s => s.subject === subjectName);
-    if (!match) {
-      return { ok: false, error: 'Face not added' };
-    }
-
-    if (match.similarity < 0.7) {
-      return { ok: false, error: 'Face mismatch' };
-    }
+    if (!match) return { ok: false, error: 'Face not added' };
+    if (match.similarity < 0.7) return { ok: false, error: 'Face mismatch' };
 
     return { ok: true, similarity: match.similarity };
   } catch (err) {
@@ -316,7 +294,7 @@ async function captureAndVerify(staff, action) {
     hideLoader();
 
     if (!faceRes.ok) {
-    showPopup('Face Verification Failed', faceRes.error, false);
+      showPopup('Face Verification Failed', faceRes.error, false);
       return;
     }
 
@@ -405,7 +383,7 @@ document.getElementById('adminDashboard').addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
 
-// === INITIALIZE ON LOAD ===
+// === INITIALIZE ===
 document.addEventListener('DOMContentLoaded', () => {
   startLocationWatch();
 });
