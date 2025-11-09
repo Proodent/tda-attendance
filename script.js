@@ -5,29 +5,7 @@ let videoEl, faceModal, captureStatus;
 let countdownTimeout = null;
 let locations = [];
 
-// === SOUND UNLOCK ===
-const successSound = document.getElementById('successSound');
-const errorSound = document.getElementById('errorSound');
-
-const unlockAudio = () => {
-  successSound.play().catch(() => {});
-  errorSound.play().catch(() => {});
-  document.body.removeEventListener('click', unlockAudio);
-  document.body.removeEventListener('touchstart', unlockAudio);
-};
-document.body.addEventListener('click', unlockAudio);
-document.body.addEventListener('touchstart', unlockAudio);
-
-const playSuccess = () => {
-  successSound.currentTime = 0;
-  successSound.volume = 1.0;
-  successSound.play().catch(() => {});
-};
-const playError = () => {
-  errorSound.currentTime = 0;
-  errorSound.volume = 1.0;
-  errorSound.play().catch(() => {});
-};
+// NO SOUND
 
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -74,7 +52,6 @@ const fetchLocations = async () => {
     }));
   } catch (err) {
     showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
-    playError();
     return [];
   }
 };
@@ -97,7 +74,15 @@ const startLocationWatch = () => {
 
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
-    if (!userId || userId === lastValidatedId) return;
+    if (!userId) {
+      userIdStatus.className = 'placeholder';
+      userIdStatus.textContent = 'Enter User ID to validate';
+      lastValidatedId = '';
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
+
+    if (userId === lastValidatedId) return;
     lastValidatedId = userId;
 
     userIdStatus.className = 'loading';
@@ -124,19 +109,9 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
+  // INSTANT VALIDATION ON EVERY KEY
   userIdInput.addEventListener('input', () => {
-    clearTimeout(window.validateTimeout);
-    const userId = userIdInput.value.trim();
-
-    if (!userId) {
-      userIdStatus.className = 'placeholder';
-      userIdStatus.textContent = 'Enter User ID to validate';
-      lastValidatedId = '';
-      clockInBtn.disabled = clockOutBtn.disabled = true;
-      return;
-    }
-
-    window.validateTimeout = setTimeout(validateUser, 300);
+    validateUser();
   });
 
   fetchLocations().then(fetched => {
@@ -149,7 +124,6 @@ const startLocationWatch = () => {
 
     if (!navigator.geolocation) {
       showPopup('GPS Error', 'Geolocation not supported.', false);
-      playError();
       return;
     }
 
@@ -158,7 +132,6 @@ const startLocationWatch = () => {
         const { latitude, longitude } = pos.coords;
         statusEl.dataset.lat = latitude;
         statusEl.dataset.long = longitude;
-        // GPSEl updated via HTML observer
 
         current_office = null;
         for (const loc of locations) {
@@ -177,7 +150,7 @@ const startLocationWatch = () => {
           userIdStatus.className = 'placeholder';
           userIdStatus.textContent = 'Enter User ID to validate';
           clockInBtn.disabled = clockOutBtn.disabled = true;
-        } else if (userIdInput.value.trim()) {
+        } else {
           validateUser();
         }
       },
@@ -192,7 +165,7 @@ const startLocationWatch = () => {
             current_office = 'Test Office';
             statusEl.textContent = 'Test Office';
             userIdInput.disabled = false;
-            if (userIdInput.value.trim()) validateUser();
+            validateUser();
           }
         }, 3000);
       },
@@ -204,7 +177,7 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === FACE (1s capture) ===
+// === FACE (1s) ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -253,7 +226,6 @@ const startVideo = async () => {
     return true;
   } catch (err) {
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
-    playError();
     return false;
   }
 };
@@ -283,7 +255,6 @@ const captureAndVerify = async (staff, action) => {
 
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
-    playError();
     return;
   }
 
@@ -318,18 +289,14 @@ const submitAttendance = async (action, staff) => {
     );
 
     if (data.success) {
-      playSuccess();
       document.getElementById('userId').value = '';
       document.getElementById('userIdStatus').className = 'placeholder';
       document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
       document.getElementById('clockIn').disabled = true;
       document.getElementById('clockOut').disabled = true;
-    } else {
-      playError();
     }
   } catch (err) {
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
-    playError();
   }
 };
 
@@ -420,11 +387,7 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
 });
 
 // === INIT ===
-document.addEventListener('DOMContentLoaded', () => {
-  successSound.load();
-  errorSound.load();
-  startLocationWatch();
-});
+document.addEventListener('DOMContentLoaded', startLocationWatch);
 
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
