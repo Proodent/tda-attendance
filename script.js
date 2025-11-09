@@ -2,9 +2,32 @@ let watchId = null;
 let current_office = null;
 let staff_cache = new Map();
 let videoEl, faceModal, captureStatus;
-let countdown = 0;
-let countdownInterval = null;
+let countdownTimeout = null;
 let locations = [];
+
+// === SOUND UNLOCK ===
+const successSound = document.getElementById('successSound');
+const errorSound = document.getElementById('errorSound');
+
+const unlockAudio = () => {
+  successSound.play().catch(() => {});
+  errorSound.play().catch(() => {});
+  document.body.removeEventListener('click', unlockAudio);
+  document.body.removeEventListener('touchstart', unlockAudio);
+};
+document.body.addEventListener('click', unlockAudio);
+document.body.addEventListener('touchstart', unlockAudio);
+
+const playSuccess = () => {
+  successSound.currentTime = 0;
+  successSound.volume = 1.0;
+  successSound.play().catch(() => {});
+};
+const playError = () => {
+  errorSound.currentTime = 0;
+  errorSound.volume = 1.0;
+  errorSound.play().catch(() => {});
+};
 
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -51,6 +74,7 @@ const fetchLocations = async () => {
     }));
   } catch (err) {
     showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
+    playError();
     return [];
   }
 };
@@ -63,7 +87,6 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Initial state
   userIdStatus.className = 'placeholder';
   userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
@@ -74,10 +97,7 @@ const startLocationWatch = () => {
 
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
-
-    if (!userId) return; // Handled in input listener
-
-    if (userId === lastValidatedId) return;
+    if (!userId || userId === lastValidatedId) return;
     lastValidatedId = userId;
 
     userIdStatus.className = 'loading';
@@ -104,7 +124,6 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT CLEAR + DEBOUNCE
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -124,11 +143,13 @@ const startLocationWatch = () => {
     locations = fetched;
     if (!locations.length) {
       statusEl.textContent = 'No locations configured.';
+      gpsEl.textContent = 'GPS: No locations';
       return;
     }
 
     if (!navigator.geolocation) {
       showPopup('GPS Error', 'Geolocation not supported.', false);
+      playError();
       return;
     }
 
@@ -137,7 +158,7 @@ const startLocationWatch = () => {
         const { latitude, longitude } = pos.coords;
         statusEl.dataset.lat = latitude;
         statusEl.dataset.long = longitude;
-        gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        // GPSEl updated via HTML observer
 
         current_office = null;
         for (const loc of locations) {
@@ -168,7 +189,6 @@ const startLocationWatch = () => {
           if (!statusEl.dataset.lat) {
             statusEl.dataset.lat = 9.4;
             statusEl.dataset.long = -0.85;
-            gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
             current_office = 'Test Office';
             statusEl.textContent = 'Test Office';
             userIdInput.disabled = false;
@@ -176,7 +196,7 @@ const startLocationWatch = () => {
           }
         }, 3000);
       },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   });
 
@@ -184,23 +204,7 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === ADMIN POPUP ===
-const adminPopup = document.getElementById('adminPopup');
-const adminCloseBtn = document.getElementById('adminCloseBtn');
-
-document.getElementById('adminDashboard')?.addEventListener('click', () => {
-  adminPopup.classList.add('show');
-});
-
-adminCloseBtn?.addEventListener('click', () => {
-  adminPopup.classList.remove('show');
-});
-
-adminPopup?.addEventListener('click', (e) => {
-  if (e.target === adminPopup) adminPopup.classList.remove('show');
-});
-
-// === FACE VERIFICATION ===
+// === FACE (1s capture) ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -231,23 +235,13 @@ const showFaceModal = async (staff, action) => {
     return;
   }
 
-  countdown = 3;
-  captureStatus.textContent = `Capturing in ${countdown}...`;
-  countdownInterval = setInterval(async () => {
-    countdown--;
-    if (countdown > 0) {
-      captureStatus.textContent = `Capturing in ${countdown}...`;
-    } else {
-      clearInterval(countdownInterval);
-      captureStatus.textContent = 'Verifying...';
-      await captureAndVerify(staff, action);
-    }
-  }, 1000);
+  captureStatus.textContent = 'Capturing in 1...';
+  countdownTimeout = setTimeout(() => captureAndVerify(staff, action), 1000);
 };
 
 const hideFaceModal = () => {
   if (faceModal) faceModal.classList.remove('show');
-  if (countdownInterval) clearInterval(countdownInterval);
+  if (countdownTimeout) clearTimeout(countdownTimeout);
   stopVideo();
 };
 
@@ -259,6 +253,7 @@ const startVideo = async () => {
     return true;
   } catch (err) {
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
+    playError();
     return false;
   }
 };
@@ -281,13 +276,14 @@ const captureAndVerify = async (staff, action) => {
   const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
   hideFaceModal();
-  showLoader(`Verifying face for ${staff.name}...`);
+  showLoader(`Verifying ${staff.name}...`);
 
   const result = await validateFaceWithSubject(base64, staff.name);
   hideLoader();
 
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
+    playError();
     return;
   }
 
@@ -320,8 +316,20 @@ const submitAttendance = async (action, staff) => {
         : data.message || 'Attendance failed.',
       data.success
     );
+
+    if (data.success) {
+      playSuccess();
+      document.getElementById('userId').value = '';
+      document.getElementById('userIdStatus').className = 'placeholder';
+      document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
+      document.getElementById('clockIn').disabled = true;
+      document.getElementById('clockOut').disabled = true;
+    } else {
+      playError();
+    }
   } catch (err) {
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
+    playError();
   }
 };
 
@@ -339,7 +347,7 @@ const showPopup = (title, message, success = null) => {
 
 const showLoader = (text) => {
   const loader = document.getElementById('loaderOverlay');
-  loader.querySelector('p').textContent = text;
+  document.getElementById('loaderText').textContent = text;
   loader.style.display = 'flex';
 };
 
@@ -366,7 +374,19 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
-// === ADMIN LOGIN ===
+// === ADMIN ===
+document.getElementById('adminDashboard')?.addEventListener('click', () => {
+  document.getElementById('adminPopup').classList.add('show');
+});
+document.getElementById('adminCloseBtn')?.addEventListener('click', () => {
+  document.getElementById('adminPopup').classList.remove('show');
+});
+document.getElementById('adminPopup')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('adminPopup')) {
+    document.getElementById('adminPopup').classList.remove('show');
+  }
+});
+
 document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
   const email = document.getElementById('adminEmail')?.value.trim();
   const password = document.getElementById('adminPassword')?.value.trim();
@@ -400,7 +420,12 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
 });
 
 // === INIT ===
-document.addEventListener('DOMContentLoaded', startLocationWatch);
+document.addEventListener('DOMContentLoaded', () => {
+  successSound.load();
+  errorSound.load();
+  startLocationWatch();
+});
+
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
