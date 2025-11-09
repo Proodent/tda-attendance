@@ -69,6 +69,8 @@ function startLocationWatch() {
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
+  userIdInput.disabled = true;
+  userIdInput.placeholder = 'Outside approved area';
 
   fetchLocations().then(locations => {
     if (locations.length === 0) {
@@ -99,6 +101,19 @@ function startLocationWatch() {
         }
 
         statusEl.textContent = currentOffice || 'Outside approved area';
+
+        // === ENABLE USERID INPUT ONLY IN OFFICE ===
+        if (currentOffice) {
+          userIdInput.disabled = false;
+          userIdInput.placeholder = 'Enter User ID';
+        } else {
+          userIdInput.disabled = true;
+          userIdInput.value = '';
+          userIdInput.placeholder = 'Outside approved area';
+          userIdStatus.classList.remove('show');
+          clockInBtn.disabled = clockOutBtn.disabled = true;
+        }
+
         updateUserStatus(); // Revalidate on GPS change
       },
       err => {
@@ -111,14 +126,22 @@ function startLocationWatch() {
     );
   });
 
-  userIdInput.addEventListener('input', updateUserStatus);
+  // === SHOW VALIDATION ON INPUT ===
+  userIdInput.addEventListener('input', () => {
+    const statusEl = document.getElementById('userIdStatus');
+    if (userIdInput.value.trim()) {
+      statusEl.classList.add('show');
+    } else {
+      statusEl.classList.remove('show');
+    }
+    updateUserStatus();
+  });
 
   // === CLEAN VALIDATION ===
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
     const currentLastId = userIdStatus.dataset.lastUserId;
 
-    // Only revalidate if UserID changed
     if (currentLastId !== userId) {
       userIdStatus.dataset.lastUserId = userId;
 
@@ -156,7 +179,7 @@ function startLocationWatch() {
       return;
     }
 
-    // If UserID same, still check location approval
+    // Re-check location approval
     if (userId && currentOffice) {
       const staff = await getStaffByUserId(userId);
       if (staff && staff.active.toLowerCase() === 'yes') {
@@ -171,6 +194,36 @@ function startLocationWatch() {
 
   clockInBtn.addEventListener('click', () => handleClock('clock in'));
   clockOutBtn.addEventListener('click', () => handleClock('clock out'));
+}
+
+// === FACE VERIFICATION – UPDATED ERROR MESSAGES ===
+async function validateFaceWithSubject(base64, subjectName) {
+  try {
+    const res = await fetch('/api/proxy/face-recognition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: base64, subject: subjectName })
+    });
+    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
+
+    const data = await res.json();
+    if (!data?.result?.length || !data.result[0].subjects?.length) {
+      return { ok: false, error: 'Face not added' };
+    }
+
+    const match = data.result[0].subjects.find(s => s.subject === subjectName);
+    if (!match) {
+      return { ok: false, error: 'Face not added' };
+    }
+
+    if (match.similarity < 0.7) {
+      return { ok: false, error: 'Face mismatch' };
+    }
+
+    return { ok: true, similarity: match.similarity };
+  } catch (err) {
+    return { ok: false, error: 'Face service error' };
+  }
 }
 
 // === FACE MODAL ===
@@ -239,8 +292,8 @@ async function captureAndVerify(staff, action) {
     const faceRes = await validateFaceWithSubject(base64, staff.name);
     hideLoader();
 
-    if (!faceRes.ok || faceRes.similarity < 0.7) {
-      showPopup('Face Verification Failed', faceRes.error || 'Face similarity too low.', false);
+    if (!faceRes.ok) {
+      showPopup('Face Verification Failed', faceRes.error, false);
       return;
     }
 
@@ -277,25 +330,6 @@ async function submitAttendance(action, staff) {
     }
   } catch (err) {
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
-  }
-}
-
-async function validateFaceWithSubject(base64, subjectName) {
-  try {
-    const res = await fetch('/api/proxy/face-recognition', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: base64, subject: subjectName })
-    });
-    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
-    const data = await res.json();
-    if (data?.result?.length && data.result[0].subjects?.length) {
-      const match = data.result[0].subjects.find(s => s.subject === subjectName);
-      if (match) return { ok: true, similarity: match.similarity };
-    }
-    return { ok: false, error: 'Face not found' };
-  } catch (err) {
-    return { ok: false, error: 'Face service error' };
   }
 }
 
@@ -345,28 +379,6 @@ async function handleClock(action) {
 
 document.getElementById('adminDashboard').addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
-});
-
-document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
-  const email = document.getElementById('adminEmail')?.value.trim();
-  const password = document.getElementById('adminPassword')?.value.trim();
-  const error = document.getElementById('adminError');
-
-  if (!email || !password) {
-    error.textContent = 'Please fill in both fields.';
-    return;
-  }
-
-  fetch('/api/admin-logins')
-    .then(r => r.json())
-    .then(data => {
-      if (data.success && data.logins.some(row => row[0] === email && row[1] === password)) {
-        localStorage.setItem('isLoggedIn', 'true');
-        window.location.href = 'stats.html';
-      } else {
-        error.textContent = 'Invalid email or password.';
-      }
-    });
 });
 
 document.addEventListener('DOMContentLoaded', () => {
