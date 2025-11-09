@@ -6,6 +6,13 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
+// === SOUND ELEMENTS ===
+const successSound = document.getElementById('successSound');
+const errorSound = document.getElementById('errorSound');
+
+const playSuccess = () => { successSound.currentTime = 0; successSound.play().catch(() => {}); };
+const playError = () => { errorSound.currentTime = 0; errorSound.play().catch(() => {}); };
+
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -51,6 +58,7 @@ const fetchLocations = async () => {
     }));
   } catch (err) {
     showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
+    playError();
     return [];
   }
 };
@@ -63,7 +71,7 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Initial state
+  // Reset
   userIdStatus.className = 'placeholder';
   userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
@@ -71,19 +79,22 @@ const startLocationWatch = () => {
   clockInBtn.disabled = clockOutBtn.disabled = true;
 
   let lastValidatedId = '';
+  let isValidating = false;
 
   const validateUser = async () => {
+    if (isValidating) return;
     const userId = userIdInput.value.trim();
 
-    if (!userId) return; // Handled in input listener
-
-    if (userId === lastValidatedId) return;
+    if (!userId || userId === lastValidatedId) return;
     lastValidatedId = userId;
+    isValidating = true;
 
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
 
     const staff = await getStaffByUserId(userId);
+    isValidating = false;
+
     if (!staff) {
       userIdStatus.className = 'invalid';
       userIdStatus.textContent = `User ${userId} not found`;
@@ -104,7 +115,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT CLEAR + DEBOUNCE
+  // INSTANT CLEAR + NO "user 0"
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -113,6 +124,7 @@ const startLocationWatch = () => {
       userIdStatus.className = 'placeholder';
       userIdStatus.textContent = 'Enter User ID to validate';
       lastValidatedId = '';
+      isValidating = false;
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
@@ -129,6 +141,7 @@ const startLocationWatch = () => {
 
     if (!navigator.geolocation) {
       showPopup('GPS Error', 'Geolocation not supported.', false);
+      playError();
       return;
     }
 
@@ -259,6 +272,7 @@ const startVideo = async () => {
     return true;
   } catch (err) {
     showPopup('Camera Error', `Access denied: ${err.message}`, false);
+    playError();
     return false;
   }
 };
@@ -288,6 +302,7 @@ const captureAndVerify = async (staff, action) => {
 
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
+    playError();
     return;
   }
 
@@ -320,8 +335,20 @@ const submitAttendance = async (action, staff) => {
         : data.message || 'Attendance failed.',
       data.success
     );
+    if (data.success) {
+      playSuccess();
+      // Clear input after success
+      document.getElementById('userId').value = '';
+      document.getElementById('userIdStatus').className = 'placeholder';
+      document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
+      document.getElementById('clockIn').disabled = true;
+      document.getElementById('clockOut').disabled = true;
+    } else {
+      playError();
+    }
   } catch (err) {
     showPopup('Server Error', `Connection failed: ${err.message}`, false);
+    playError();
   }
 };
 
