@@ -6,12 +6,18 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
-// === SOUND ELEMENTS ===
+// === SOUND – RELIABLE & PRELOADED ===
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
 
-const playSuccess = () => { successSound.currentTime = 0; successSound.play().catch(() => {}); };
-const playError = () => { errorSound.currentTime = 0; errorSound.play().catch(() => {}); };
+const playSuccess = () => {
+  successSound.currentTime = 0;
+  successSound.play().catch(() => {});
+};
+const playError = () => {
+  errorSound.currentTime = 0;
+  errorSound.play().catch(() => {});
+};
 
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -115,7 +121,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT CLEAR + NO "user 0"
+  // INSTANT CLEAR – NO "user 0"
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -213,7 +219,7 @@ adminPopup?.addEventListener('click', (e) => {
   if (e.target === adminPopup) adminPopup.classList.remove('show');
 });
 
-// === FACE VERIFICATION ===
+// === FACE VERIFICATION – FASTER + IMMEDIATE POPUP ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -244,15 +250,13 @@ const showFaceModal = async (staff, action) => {
     return;
   }
 
-  countdown = 3;
+  // FASTER: 1-second countdown
+  countdown = 1;
   captureStatus.textContent = `Capturing in ${countdown}...`;
   countdownInterval = setInterval(async () => {
     countdown--;
-    if (countdown > 0) {
-      captureStatus.textContent = `Capturing in ${countdown}...`;
-    } else {
+    if (countdown <= 0) {
       clearInterval(countdownInterval);
-      captureStatus.textContent = 'Verifying...';
       await captureAndVerify(staff, action);
     }
   }, 1000);
@@ -292,14 +296,15 @@ const captureAndVerify = async (staff, action) => {
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+  const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Faster JPEG
 
   hideFaceModal();
-  showLoader(`Verifying face for ${staff.name}...`);
+  showLoader('Verifying...');
 
   const result = await validateFaceWithSubject(base64, staff.name);
   hideLoader();
 
+  // IMMEDIATE POPUP – NO DELAY
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
     playError();
@@ -328,6 +333,8 @@ const submitAttendance = async (action, staff) => {
       })
     });
     const data = await res.json();
+
+    // IMMEDIATE POPUP
     showPopup(
       data.success ? 'Success' : 'Error',
       data.success
@@ -335,9 +342,10 @@ const submitAttendance = async (action, staff) => {
         : data.message || 'Attendance failed.',
       data.success
     );
+
     if (data.success) {
       playSuccess();
-      // Clear input after success
+      // Clear input
       document.getElementById('userId').value = '';
       document.getElementById('userIdStatus').className = 'placeholder';
       document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
@@ -427,7 +435,12 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
 });
 
 // === INIT ===
-document.addEventListener('DOMContentLoaded', startLocationWatch);
+document.addEventListener('DOMContentLoaded', () => {
+  // Preload sounds
+  successSound.load();
+  errorSound.load();
+  startLocationWatch();
+});
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
