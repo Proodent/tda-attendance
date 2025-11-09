@@ -126,17 +126,21 @@ function startLocationWatch() {
     );
   });
 
-  // === SHOW VALIDATION ON INPUT ===
+   // SHOW VALIDATION ON INPUT
   userIdInput.addEventListener('input', () => {
     const statusEl = document.getElementById('userIdStatus');
-    if (userIdInput.value.trim()) {
+    const value = userIdInput.value.trim();
+
+    // Always show status box when typing
+    if (value) {
       statusEl.classList.add('show');
     } else {
       statusEl.classList.remove('show');
     }
+
     updateUserStatus();
   });
-
+  
   // === CLEAN VALIDATION ===
   async function updateUserStatus() {
     const userId = userIdInput.value.trim();
@@ -389,3 +393,4 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
