@@ -56,9 +56,8 @@ const fetchLocations = async () => {
 };
 
 const startLocationWatch = () => {
-  const statusEl = document.getElementById('status');
+  const statusEl = document.getElementById('status'); // Now holds lat/long
   const gpsEl = document.getElementById('gpsCoords');
-  const locEl = document.getElementById('location');
   const userIdInput = document.getElementById('userId');
   const userIdStatus = document.getElementById('userIdStatus');
   const clockInBtn = document.getElementById('clockIn');
@@ -76,6 +75,7 @@ const startLocationWatch = () => {
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
 
+    // CLEAR ON EMPTY
     if (!userId) {
       userIdStatus.className = 'placeholder';
       userIdStatus.textContent = 'Enter User ID to validate';
@@ -128,8 +128,8 @@ const startLocationWatch = () => {
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
-        locEl.dataset.lat = latitude;
-        locEl.dataset.long = longitude;
+        statusEl.dataset.lat = latitude;
+        statusEl.dataset.long = longitude;
         gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         current_office = null;
@@ -158,9 +158,9 @@ const startLocationWatch = () => {
         statusEl.textContent = `GPS error: ${err.message}`;
         gpsEl.textContent = 'GPS: Failed';
         setTimeout(() => {
-          if (!locEl.dataset.lat) {
-            locEl.dataset.lat = 9.4;
-            locEl.dataset.long = -0.85;
+          if (!statusEl.dataset.lat) {
+            statusEl.dataset.lat = 9.4;
+            statusEl.dataset.long = -0.85;
             gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
             current_office = 'Test Office';
             statusEl.textContent = 'Test Office';
@@ -290,9 +290,9 @@ const captureAndVerify = async (staff, action) => {
 };
 
 const submitAttendance = async (action, staff) => {
-  const locEl = document.getElementById('location');
-  const lat = Number(locEl.dataset.lat);
-  const long = Number(locEl.dataset.long);
+  const statusEl = document.getElementById('status');
+  const lat = Number(statusEl.dataset.lat);
+  const long = Number(statusEl.dataset.long);
 
   try {
     const res = await fetch('/api/attendance/web', {
@@ -351,8 +351,8 @@ const handleClock = async (action) => {
     return showPopup('Error', 'User not active.', false);
   }
 
-  const locEl = document.getElementById('location');
-  if (!locEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+  const statusEl = document.getElementById('status');
+  if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
   if (!current_office) return showPopup('Error', 'Not in approved area.', false);
   if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
     return showPopup('Error', `Not allowed at ${current_office}.`, false);
