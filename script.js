@@ -64,15 +64,20 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Hide validation box initially
+  // Reset state
   userIdStatus.classList.remove('show');
+  userIdStatus.textContent = '';
+  userIdInput.value = '';
+  userIdInput.disabled = true;
+  clockInBtn.disabled = clockOutBtn.disabled = true;
 
   let lastValidatedId = '';
 
-  const handleInput = async () => {
+  // === REAL-TIME VALIDATION ===
+  const validateUser = async () => {
     const userId = userIdInput.value.trim();
 
-    // Show/hide validation box
+    // Hide validation when empty
     if (!userId) {
       userIdStatus.classList.remove('show');
       lastValidatedId = '';
@@ -80,9 +85,11 @@ const startLocationWatch = () => {
       return;
     }
 
+    // Prevent duplicate validation
     if (userId === lastValidatedId) return;
     lastValidatedId = userId;
 
+    // Show validation box
     userIdStatus.classList.add('show');
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
@@ -108,8 +115,10 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  userIdInput.addEventListener('input', handleInput);
+  // Attach input listener
+  userIdInput.addEventListener('input', validateUser);
 
+  // === GPS WATCH ===
   fetchLocations().then(fetched => {
     locations = fetched;
     if (!locations.length) {
@@ -145,8 +154,9 @@ const startLocationWatch = () => {
           userIdInput.value = '';
           userIdStatus.classList.remove('show');
           clockInBtn.disabled = clockOutBtn.disabled = true;
-        } else if (userIdInput.value.trim()) {
-          handleInput();
+        } else {
+          // Revalidate if user already typed
+          if (userIdInput.value.trim()) validateUser();
         }
       },
       err => {
@@ -161,7 +171,7 @@ const startLocationWatch = () => {
             current_office = 'Test Office';
             statusEl.textContent = 'Test Office';
             userIdInput.disabled = false;
-            if (userIdInput.value.trim()) handleInput();
+            if (userIdInput.value.trim()) validateUser();
           }
         }, 3000);
       },
@@ -173,7 +183,7 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === REST OF script.js (unchanged) ===
+// === FACE VERIFICATION (unchanged) ===
 const validateFaceWithSubject = async (base64, subjectName) => {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -339,6 +349,7 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
+// === ADMIN ===
 document.getElementById('adminDashboard')?.addEventListener('click', () => {
   document.getElementById('adminPopup').classList.add('show');
 });
@@ -375,6 +386,7 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
   }
 });
 
+// === INIT ===
 document.addEventListener('DOMContentLoaded', startLocationWatch);
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
