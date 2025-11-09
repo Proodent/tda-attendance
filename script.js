@@ -5,6 +5,7 @@ let videoEl, faceModal, captureStatus;
 let countdown = 0;
 let countdownInterval = null;
 let locations = [];
+let validationTimeout = null;
 
 // === UTILITY ===
 function toRad(v) { return v * Math.PI / 180; }
@@ -53,8 +54,8 @@ async function fetchLocations() {
       radiusMeters: Number(l.radiusMeters)
     }));
   } catch (error) {
-    console.error('Locations fetch error:', error);
-    return []; // Don't show popup – let GPS work
+    console.error('Locations error:', error);
+    return [];
   }
 }
 
@@ -67,52 +68,50 @@ function startLocationWatch() {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // === INPUT LISTENERS – ALWAYS ACTIVE ===
-  const validateAndShow = () => {
+  // === INSTANT INPUT LISTENER ===
+  userIdInput.addEventListener('input', () => {
     const value = userIdInput.value.trim();
+    
+    // SHOW BOX IMMEDIATELY
     if (value) {
       userIdStatus.classList.add('show');
+      userIdStatus.className = 'loading';
+      userIdStatus.textContent = 'Validating...';
     } else {
       userIdStatus.classList.remove('show');
     }
-    updateUserStatus();
-  };
 
-  ['input', 'keydown', 'keyup', 'paste', 'change'].forEach(event => {
-    userIdInput.addEventListener(event, validateAndShow);
+    // DEBOUNCE VALIDATION (50ms)
+    clearTimeout(validationTimeout);
+    validationTimeout = setTimeout(() => {
+      updateUserStatus();
+    }, 50);
   });
-  userIdInput.addEventListener('focus', validateAndShow);
 
   // Initialize
   userIdStatus.dataset.lastUserId = '';
   userIdInput.disabled = true;
   userIdInput.placeholder = 'Outside approved area';
   userIdStatus.classList.remove('show');
-  statusEl.textContent = 'Initializing...';
+  statusEl.textContent = 'Loading...';
   gpsEl.textContent = 'GPS: Starting...';
-  gpsEl.dataset.lat = '';
-  gpsEl.dataset.long = '';
 
-  // === FETCH LOCATIONS IN BACKGROUND ===
+  // === FETCH LOCATIONS ===
   fetchLocations().then(locs => {
     locations = locs;
     if (locations.length === 0) {
-      statusEl.textContent = 'No locations available';
-      gpsEl.textContent = 'GPS: Ready';
+      statusEl.textContent = 'No locations';
     }
-  }).catch(err => console.error('Locations failed:', err));
+  });
 
   if (!navigator.geolocation) {
-    showPopup('Geolocation Error', 'GPS not supported by browser.', false);
+    showPopup('Geolocation Error', 'GPS not supported.', false);
     statusEl.textContent = 'GPS: Disabled';
-    gpsEl.textContent = 'GPS: Offline';
+    gpsEl.textContent = 'GPS: Off';
     return;
   }
 
-  // === GPS WATCH – FASTER & RELIABLE ===
-  statusEl.textContent = 'Acquiring GPS...';
-  gpsEl.textContent = 'GPS: Searching...';
-
+  // === GPS WATCH – FAST & RELIABLE ===
   watchId = navigator.geolocation.watchPosition(
     pos => {
       const { latitude, longitude } = pos.coords;
@@ -129,9 +128,6 @@ function startLocationWatch() {
             break;
           }
         }
-      } else {
-        // Fallback for testing – use Ghana coordinates
-        currentOffice = 'Test Office';
       }
 
       statusEl.textContent = currentOffice || 'Outside approved area';
@@ -151,68 +147,33 @@ function startLocationWatch() {
 
       // Revalidate if input has text
       if (userIdInput.value.trim()) {
-        validateAndShow();
+        updateUserStatus();
       }
     },
     err => {
       console.error('GPS Error:', err);
-      let msg = 'GPS failed';
-      if (err.code === 1) msg = 'Permission denied';
-      if (err.code === 2) msg = 'Position unavailable';
-      if (err.code === 3) msg = 'Timeout – retrying...';
-      statusEl.textContent = msg;
-      gpsEl.textContent = 'GPS: Retry...';
-
-      // Fallback – simulate GPS after 5s
-      setTimeout(() => {
-        if (!gpsEl.dataset.lat) {
-          gpsEl.dataset.lat = 9.4;
-          gpsEl.dataset.long = -0.85;
-          gpsEl.textContent = 'GPS: Fallback (9.4, -0.85)';
-          statusEl.textContent = 'Test mode – in office';
-          currentOffice = 'Test Office';
-          userIdInput.disabled = false;
-          userIdInput.placeholder = 'Enter User ID';
-          userIdInput.focus();
-          if (userIdInput.value.trim()) validateAndShow();
-        }
-      }, 5000);
+      statusEl.textContent = 'GPS: Failed';
+      gpsEl.textContent = 'GPS: Error';
     },
-    { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }  // Faster settings
+    { enableHighAccuracy: false, maximumAge: 5000, timeout: 10000 }
   );
-
-  // Force update every 10s if stuck
-  setInterval(() => {
-    if (!gpsEl.dataset.lat && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        gpsEl.dataset.lat = pos.coords.latitude;
-        gpsEl.dataset.long = pos.coords.longitude;
-        gpsEl.textContent = `GPS: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-        statusEl.textContent = 'GPS updated';
-        updateUserStatus();
-      }, () => {}, { timeout: 5000 });
-    }
-  }, 10000);
 }
 
-// === VALIDATION – FULL STATUS ===
+// === LIGHTNING-FAST VALIDATION ===
 async function updateUserStatus() {
   const userId = document.getElementById('userId').value.trim();
   const userIdStatus = document.getElementById('userIdStatus');
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Always show if text exists
-  if (userId) {
-    userIdStatus.classList.add('show');
-  } else {
+  if (!userId) {
     userIdStatus.classList.remove('show');
     clockInBtn.disabled = clockOutBtn.disabled = true;
     return;
   }
 
   const currentLastId = userIdStatus.dataset.lastUserId;
-  if (currentLastId === userId) return;  // No change
+  if (currentLastId === userId) return;
   userIdStatus.dataset.lastUserId = userId;
 
   userIdStatus.className = 'loading';
@@ -238,7 +199,7 @@ async function updateUserStatus() {
   clockInBtn.disabled = clockOutBtn.disabled = !(isActive && isApproved);
 }
 
-// === FACE VERIFICATION ===
+// === FACE VERIFICATION (unchanged) ===
 async function validateFaceWithSubject(base64, subjectName) {
   try {
     const res = await fetch('/api/proxy/face-recognition', {
@@ -263,7 +224,7 @@ async function validateFaceWithSubject(base64, subjectName) {
   }
 }
 
-// === FACE MODAL ===
+// === FACE MODAL (unchanged) ===
 async function showFaceModal(staff, action) {
   faceModal = document.getElementById('faceModal');
   videoEl = document.getElementById('video');
