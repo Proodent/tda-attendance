@@ -6,9 +6,18 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
-// === SOUND – LOUD & PRELOADED ===
+// === SOUND – UNLOCKED & LOUD ===
 const successSound = document.getElementById('successSound');
 const errorSound = document.getElementById('errorSound');
+
+const unlockAudio = () => {
+  successSound.play().catch(() => {});
+  errorSound.play().catch(() => {});
+  document.body.removeEventListener('click', unlockAudio);
+  document.body.removeEventListener('touchstart', unlockAudio);
+};
+document.body.addEventListener('click', unlockAudio);
+document.body.addEventListener('touchstart', unlockAudio);
 
 const playSuccess = () => {
   successSound.currentTime = 0;
@@ -19,16 +28,6 @@ const playError = () => {
   errorSound.currentTime = 0;
   errorSound.volume = 1.0;
   errorSound.play().catch(() => {});
-};
-
-const toRad = v => v * Math.PI / 180;
-const getDistanceKm = (lat1, lon1, lat2, lon2) => {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 };
 
 const getStaffByUserId = async (userId) => {
@@ -79,7 +78,7 @@ const startLocationWatch = () => {
   const clockInBtn = document.getElementById('clockIn');
   const clockOutBtn = document.getElementById('clockOut');
 
-  // Reset
+  // FULL RESET
   userIdStatus.className = 'placeholder';
   userIdStatus.textContent = 'Enter User ID to validate';
   userIdInput.value = '';
@@ -123,7 +122,7 @@ const startLocationWatch = () => {
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
-  // INSTANT CLEAR – NO "user 0"
+  // INSTANT FULL CLEAR ON EMPTY
   userIdInput.addEventListener('input', () => {
     clearTimeout(window.validateTimeout);
     const userId = userIdInput.value.trim();
@@ -205,7 +204,7 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// === FACE VERIFICATION – SHOW NAME + INSTANT POPUP ===
+// === FACE VERIFICATION – INSTANT ===
 let currentStaffName = '';
 
 const showFaceModal = async (staff, action) => {
@@ -222,18 +221,14 @@ const showFaceModal = async (staff, action) => {
 
   countdown = 1;
   captureStatus.textContent = `Capturing in ${countdown}...`;
-  countdownInterval = setInterval(async () => {
-    countdown--;
-    if (countdown <= 0) {
-      clearInterval(countdownInterval);
-      await captureAndVerify(staff, action);
-    }
+  countdownInterval = setTimeout(async () => {
+    await captureAndVerify(staff, action);
   }, 1000);
 };
 
 const hideFaceModal = () => {
   if (faceModal) faceModal.classList.remove('show');
-  if (countdownInterval) clearInterval(countdownInterval);
+  if (countdownInterval) clearTimeout(countdownInterval);
   stopVideo();
 };
 
@@ -268,12 +263,11 @@ const captureAndVerify = async (staff, action) => {
   const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
   hideFaceModal();
-  showLoader(`Verifying ${currentStaffName}...`); // SHOW NAME
+  showLoader(`Verifying ${currentStaffName}...`);
 
   const result = await validateFaceWithSubject(base64, staff.name);
   hideLoader();
 
-  // INSTANT POPUP – NO DELAY
   if (!result.ok) {
     showPopup('Face Verification Failed', result.error, false);
     playError();
@@ -303,7 +297,6 @@ const submitAttendance = async (action, staff) => {
     });
     const data = await res.json();
 
-    // IMMEDIATE POPUP
     showPopup(
       data.success ? 'Success' : 'Error',
       data.success
@@ -314,7 +307,6 @@ const submitAttendance = async (action, staff) => {
 
     if (data.success) {
       playSuccess();
-      // Clear input
       document.getElementById('userId').value = '';
       document.getElementById('userIdStatus').className = 'placeholder';
       document.getElementById('userIdStatus').textContent = 'Enter User ID to validate';
@@ -370,7 +362,6 @@ const handleClock = async (action) => {
   showFaceModal(staff, action);
 };
 
-// === ADMIN LOGIN ===
 document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
   const email = document.getElementById('adminEmail')?.value.trim();
   const password = document.getElementById('adminPassword')?.value.trim();
@@ -403,22 +394,9 @@ document.getElementById('adminLoginBtn')?.addEventListener('click', async () => 
   }
 });
 
-// === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
-  // Preload & unlock audio
   successSound.load();
   errorSound.load();
-
-  // Unlock audio on first user interaction
-  const unlockAudio = () => {
-    successSound.play().catch(() => {});
-    errorSound.play().catch(() => {});
-    document.body.removeEventListener('click', unlockAudio);
-    document.body.removeEventListener('touchstart', unlockAudio);
-  };
-  document.body.addEventListener('click', unlockAudio);
-  document.body.addEventListener('touchstart', unlockAudio);
-
   startLocationWatch();
 });
 window.onunload = () => {
