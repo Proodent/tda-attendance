@@ -196,7 +196,7 @@
       text-overflow: ellipsis;
       min-width: 0;
     }
-    button:hover {
+    button魅:hover {
       background: #38a169;
     }
     .filter-group {
@@ -335,7 +335,7 @@
       .chart-tile h3 { font-size: 1.1rem; }
       .full-width-chart { height: 350px; }
       .full-width-chart .chart-container { height: 250px; }
-      #filters, #pdf-export { flex-direction: column; gap: 0.75rem; padding: 1rem; }
+      #filters, #pdf-export { flex-direction: column; gap: 0.75rem;; padding: 1rem; }
       .filter-group, .pdf-filter-group { min-width: 100%; }
       .button-group { width: 100%; justify-content: stretch; }
       button { flex: 1; height: 38px; }
@@ -615,15 +615,15 @@
       callback: value => Number.isInteger(value) ? value : null
     };
 
-    // DOUGHNUT OPTIONS – PERFECTLY ROUND & BEAUTIFUL
+    // DOUGHNUT OPTIONS – THICK, ROUND, UNIFORM
     const doughnutOptions = {
-      cutout: '68%',
+      cutout: '65%',
       aspectRatio: 1,
       plugins: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff' },
         legend: { display: false }
       },
-      elements: { arc: { borderWidth: 4, borderColor: '#fff' } }
+      elements: { arc: { borderWidth: 6, borderColor: '#fff' } }
     };
 
     let staffAttendanceData = [];
@@ -650,14 +650,14 @@
         allLocations = Array.isArray(locRes.locations) ? locRes.locations : [];
         allAttendanceHistory = Array.isArray(historyRes) ? historyRes : [];
 
-        // TOTAL STAFF = ALL STAFF IN SHEET
+        // TOTAL STAFF = ALL ROWS
         const totalStaff = allStaff.length;
 
-        // ACTIVE STAFF = ONLY WHERE Active = "Yes" (case-insensitive)
-        const activeStaff = allStaff.filter(s => 
-          s.active !== undefined && 
-          s.active.toString().trim().toLowerCase() === 'yes'
-        ).length;
+        // ACTIVE STAFF = "Yes" in Active column (case-insensitive, trimmed)
+        const activeStaff = allStaff.filter(s => {
+          const activeVal = s.active?.toString().trim();
+          return activeVal && activeVal.toLowerCase() === 'yes';
+        }).length;
 
         const attendanceToday = Array.isArray(statsRes.staffAttendance) ? statsRes.staffAttendance : [];
 
@@ -742,10 +742,10 @@
     }
 
     function updateCharts(staff, attendance, locations, history, selectedDate) {
-      const activeStaff = staff.filter(s => 
-        s.active !== undefined && 
-        s.active.toString().trim().toLowerCase() === 'yes'
-      ).length;
+      const activeStaff = staff.filter(s => {
+        const activeVal = s.active?.toString().trim();
+        return activeVal && activeVal.toLowerCase() === 'yes';
+      }).length;
       const present = attendance.filter(a => a.timeIn).length;
       const absent = activeStaff - present;
 
@@ -754,7 +754,7 @@
       const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
       const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
 
-      // DOUGHNUT CHARTS – USING YOUR REQUESTED STYLE
+      // DOUGHNUT CHARTS – THICK & ROUND
       createChart('generalAttendanceChart', {
         type: 'doughnut',
         data: {
@@ -763,7 +763,7 @@
             data: [present, absent],
             backgroundColor: ['#48bb78', '#e2e8f0'],
             hoverBackgroundColor: ['#38a169', '#cbd5e0'],
-            borderWidth: 3,
+            borderWidth: 6,
             borderColor: '#fff'
           }]
         },
@@ -777,7 +777,9 @@
           datasets: [{
             data: [inBefore10, inAfter10],
             backgroundColor: ['#48bb78', '#f56565'],
-            hoverBackgroundColor: ['#38a169', '#e53e3e']
+            hoverBackgroundColor: ['#38a169', '#e53e3e'],
+            borderWidth: 6,
+            borderColor: '#fff'
           }]
         },
         options: doughnutOptions
@@ -790,7 +792,9 @@
           datasets: [{
             data: [outBefore4, outAfter4],
             backgroundColor: ['#48bb78', '#f56565'],
-            hoverBackgroundColor: ['#38a169', '#e53e3e']
+            hoverBackgroundColor: ['#38a169', '#e53e3e'],
+            borderWidth: 6,
+            borderColor: '#fff'
           }]
         },
         options: doughnutOptions
@@ -799,7 +803,8 @@
       // Department Chart
       const deptMap = {};
       staff.forEach(s => {
-        if (s.active !== undefined && s.active.toString().trim().toLowerCase() === 'yes') {
+        const activeVal = s.active?.toString().trim();
+        if (activeVal && activeVal.toLowerCase() === 'yes') {
           const dept = s.department || 'Unknown';
           deptMap[dept] = (deptMap[dept] || 0) + 1;
         }
