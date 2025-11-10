@@ -159,27 +159,27 @@
       overflow: hidden;
     }
     #filters {
-      padding: 1rem;
+      padding: 1.5rem;
       border-bottom: 3px solid #48bb78;
       background: #e6f7ed;
       display: flex;
-      gap: 0.75rem;
+      gap: 1rem;
       flex-wrap: wrap;
       align-items: flex-end;
     }
     #filters label {
       font-weight: 600;
       color: #2d3748;
-      font-size: 0.8rem;
-      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
       display: block;
     }
     input, select, button {
-      padding: 0.4rem;
+      padding: 0.5rem;
       border-radius: 6px;
       border: 2px solid #e2e8f0;
-      font-size: 0.85rem;
-      height: 36px;
+      font-size: 0.9rem;
+      height: 38px;
     }
     input:focus, select:focus, button:focus {
       border-color: #48bb78;
@@ -203,7 +203,7 @@
       display: flex;
       flex-direction: column;
       flex: 1;
-      min-width: 140px;
+      min-width: 18.75%;
     }
     .button-group {
       display: flex;
@@ -335,9 +335,10 @@
       .chart-tile h3 { font-size: 1.1rem; }
       .full-width-chart { height: 350px; }
       .full-width-chart .chart-container { height: 250px; }
-      #filters { padding: 0.75rem; gap: 0.5rem; }
-      input, select, button { height: 34px; font-size: 0.8rem; }
-      .filter-group { min-width: 120px; }
+      #filters, #pdf-export { flex-direction: column; gap: 0.75rem; padding: 1rem; }
+      .filter-group, .pdf-filter-group { min-width: 100%; }
+      .button-group { width: 100%; justify-content: stretch; }
+      button { flex: 1; height: 38px; }
     }
 
     @media (max-width: 768px) {
@@ -352,10 +353,6 @@
       .chart-tile h3 { font-size: 1rem; }
       .full-width-chart { height: 300px; }
       .full-width-chart .chart-container { height: 200px; }
-      #filters { flex-direction: column; padding: 0.75rem; gap: 0.5rem; }
-      .filter-group { min-width: 100%; }
-      .button-group { width: 100%; justify-content: stretch; }
-      button { flex: 1; height: 36px; font-size: 0.8rem; }
       #attendance-table th, #attendance-table td { font-size: 0.7rem; padding: 0.25rem; }
       #log { height: 150px; padding: 0.75rem; margin: 1rem; }
     }
@@ -371,10 +368,9 @@
       .chart-tile h3 { font-size: 0.9rem; }
       .full-width-chart { height: 250px; }
       .full-width-chart .chart-container { height: 150px; }
-      #filters { padding: 0.5rem; gap: 0.4rem; }
-      input, select, button { height: 34px; font-size: 0.75rem; padding: 0.3rem; }
-      #filters label { font-size: 0.75rem; }
       #attendance-table th, #attendance-table td { font-size: 0.6rem; padding: 0.2rem; }
+      #filters label, #pdf-export label { font-size: 0.8rem; }
+      input, select, button { font-size: 0.8rem; height: 40px; }
     }
   </style>
 </head>
@@ -470,16 +466,16 @@
   <section id="attendance-section">
     <div id="filters">
       <div class="filter-group">
-        <label for="date-select">Date:</label>
+        <label for="date-select">Select Date:</label>
         <input type="date" id="date-select">
       </div>
       <div class="filter-group">
-        <label for="department-select">Dept:</label>
-        <select id="department-select"><option value="">All</option></select>
+        <label for="department-select">Filter Department:</label>
+        <select id="department-select"><option value="">All Departments</option></select>
       </div>
       <div class="filter-group">
-        <label for="name-search">Search:</label>
-        <input type="text" id="name-search" placeholder="ID, Name, Dept...">
+        <label for="name-search">Search All Fields:</label>
+        <input type="text" id="name-search" placeholder="User ID, Name, Dept, etc.">
       </div>
       <div class="button-group">
         <div class="filter-group">
@@ -553,7 +549,7 @@
   </div>
 
   <script>
-    // High-DPI & Perfect Circle
+    // High-DPI & Sharp Rendering
     Chart.defaults.devicePixelRatio = 2;
     Chart.defaults.plugins.legend.display = false;
 
@@ -596,18 +592,18 @@
 
       const canvas = ctx.canvas;
       const parent = canvas.parentElement;
-      const size = Math.min(parent.clientWidth, parent.clientHeight) * 0.9;
-      canvas.width = size * 2;
-      canvas.height = size * 2;
-      canvas.style.width = size + 'px';
-      canvas.style.height = size + 'px';
+      const width = parent.clientWidth;
+      const height = parent.clientHeight;
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
       ctx.scale(2, 2);
 
       charts[id] = new Chart(ctx, {
         ...config,
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
+        maintainAspectRatio: false,
         animation: { duration: 0 }
       });
       return charts[id];
@@ -619,16 +615,15 @@
       callback: value => Number.isInteger(value) ? value : null
     };
 
-    // PERFECTLY ROUND DOUGHNUT
+    // DOUGHNUT OPTIONS – THICK, ROUND, UNIFORM
     const doughnutOptions = {
-      cutout: '70%',
+      cutout: '60%',
       aspectRatio: 1,
-      maintainAspectRatio: true,
       plugins: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff' },
         legend: { display: false }
       },
-      elements: { arc: { borderWidth: 7, borderColor: '#fff' } }
+      elements: { arc: { borderWidth: 8, borderColor: '#fff' } }
     };
 
     let staffAttendanceData = [];
@@ -644,24 +639,31 @@
       try {
         log(`Fetching data for ${selectedDate}...`);
 
-        const [staffRes, statsRes, locRes, historyRes] = await Promise.all([
-          fetch(`${backendURL}/staff`).then(r => r.ok ? r.json() : { staff: [] }),
+        // FETCH STAFF FROM GOOGLE SHEETS (NOT API) — THIS IS THE FIX
+        const staffSheetData = await fetchGoogleSheetData(`Staff!A2:H`);
+        allStaff = staffSheetData.map(row => ({
+          userId: row[0] || '',
+          name: row[1] || '',
+          department: row[2] || '',
+          active: row[7] || ''  // Column H = Active (Yes/No)
+        }));
+
+        const [statsRes, locRes, historyRes] = await Promise.all([
           fetch(`${backendURL}/stats?date=${selectedDate}`).then(r => r.ok ? r.json() : { staffAttendance: [] }),
           fetch(`${backendURL}/locations`).then(r => r.ok ? r.json() : { locations: [] }),
           fetchGoogleSheetData(`Attendance Sheet!A2:G`)
         ]);
 
-        allStaff = Array.isArray(staffRes.staff) ? staffRes.staff : [];
         allLocations = Array.isArray(locRes.locations) ? locRes.locations : [];
         allAttendanceHistory = Array.isArray(historyRes) ? historyRes : [];
 
-        // TOTAL STAFF
+        // TOTAL STAFF = ALL ROWS IN STAFF SHEET
         const totalStaff = allStaff.length;
 
-        // ACTIVE STAFF – FIXED: "Yes", "yes", "YES", " Yes "
+        // ACTIVE STAFF = ONLY "Yes" IN COLUMN H (case-insensitive, trimmed)
         const activeStaff = allStaff.filter(s => {
           const val = s.active?.toString().trim();
-          return val && ['yes', 'y', '1', 'true'].includes(val.toLowerCase());
+          return val && val.toLowerCase() === '.yes';
         }).length;
 
         const attendanceToday = Array.isArray(statsRes.staffAttendance) ? statsRes.staffAttendance : [];
@@ -681,7 +683,7 @@
         const inRate = activeStaff ? Math.round((clockedIn / activeStaff) * 100) : 0;
         const outRate = clockedIn ? Math.round((clockedOut / clockedIn) * 100) : 0;
 
-        // Update Tiles
+        // UPDATE TILES
         document.getElementById('totalStaff').textContent = totalStaff;
         document.getElementById('activeStaff').textContent = activeStaff;
         document.getElementById('clockInsToday').textContent = clockedIn;
@@ -697,7 +699,7 @@
         updateCharts(allStaff, staffAttendanceData, allLocations, allAttendanceHistory, selectedDate);
         populateDepartments(allStaff);
 
-        log(`Loaded: ${totalStaff} total, ${activeStaff} active, ${clockedIn} present`, 'success');
+        log(`LOADED: ${totalStaff} total, ${activeStaff} active, ${clockedIn} present`, 'success');
 
       } catch (err) {
         log(`ERROR: ${err.message}`, 'error');
@@ -749,7 +751,7 @@
     function updateCharts(staff, attendance, locations, history, selectedDate) {
       const activeStaff = staff.filter(s => {
         const val = s.active?.toString().trim();
-        return val && ['yes', 'y', '1', 'true'].includes(val.toLowerCase());
+        return val && val.toLowerCase() === 'yes';
       }).length;
       const present = attendance.filter(a => a.timeIn).length;
       const absent = activeStaff - present;
@@ -759,7 +761,7 @@
       const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
       const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
 
-      // DOUGHNUT CHARTS – PERFECT CIRCLE
+      // DOUGHNUT CHARTS – THICK & ROUND
       createChart('generalAttendanceChart', {
         type: 'doughnut',
         data: {
@@ -768,7 +770,7 @@
             data: [present, absent],
             backgroundColor: ['#48bb78', '#e2e8f0'],
             hoverBackgroundColor: ['#38a169', '#cbd5e0'],
-            borderWidth: 7,
+            borderWidth: 8,
             borderColor: '#fff'
           }]
         },
@@ -783,7 +785,7 @@
             data: [inBefore10, inAfter10],
             backgroundColor: ['#48bb78', '#f56565'],
             hoverBackgroundColor: ['#38a169', '#e53e3e'],
-            borderWidth: 7,
+            borderWidth: 8,
             borderColor: '#fff'
           }]
         },
@@ -798,7 +800,7 @@
             data: [outBefore4, outAfter4],
             backgroundColor: ['#48bb78', '#f56565'],
             hoverBackgroundColor: ['#38a169', '#e53e3e'],
-            borderWidth: 7,
+            borderWidth: 8,
             borderColor: '#fff'
           }]
         },
@@ -809,8 +811,8 @@
       const deptMap = {};
       staff.forEach(s => {
         const val = s.active?.toString().trim();
-        if (val && ['yes', 'y', '1', 'true'].includes(val.toLowerCase())) {
-          const dept = s.department?.trim() || 'Unknown';
+        if (val && val.toLowerCase() === 'yes') {
+          const dept = s.department || 'Unknown';
           deptMap[dept] = (deptMap[dept] || 0) + 1;
         }
       });
@@ -890,9 +892,7 @@
     }
 
     function populateDepartments(staff) {
-      const unique = [...new Set(staff.map(s => s.department?.trim() || 'Unknown'))]
-        .filter(d => d !== '')
-        .sort();
+      const unique = [...new Set(staff.map(s => s.department || 'Unknown'))].sort();
       ['department-select', 'department-select-pdf'].forEach(id => {
         const sel = document.getElementById(id);
         sel.innerHTML = '<option value="">All</option>';
