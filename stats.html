@@ -11,7 +11,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <!-- Font Awesome for Logout Icon -->
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <style>
@@ -168,6 +168,7 @@
       height: 32px;
       transition: background .2s;
       white-space: nowrap;
+      min-width: 60px;
     }
     .filters-inline button:hover { background: #38a169; }
 
@@ -194,9 +195,6 @@
     }
     #attendance-table-content th:hover { background: #4a5568; }
     #attendance-table-content tr:nth-child(even) { background: #f7fafc; }
-    .sort-arrow { display: inline-block; margin-left: 5px; }
-    .asc::after { content: " Up"; }
-    .desc::after { content: " Down"; }
 
     #log {
       background: #1a202c;
@@ -270,8 +268,6 @@
 
     @media (max-width: 1024px) {
       #summary-tiles { grid-template-columns: repeat(4, 1fr); }
-      .tile h3 { font-size: .9rem; }
-      .tile p { font-size: 1.5rem; }
       #stats-container { grid-template-columns: repeat(2, 1fr); }
       .chart-tile { height: 300px; }
       .full-width-chart { height: 350px; }
@@ -281,19 +277,12 @@
       header { font-size: 1.5rem; padding: .75rem; }
       header img { height: 1.5rem; margin: 0 .5rem; }
       #summary-tiles { grid-template-columns: repeat(2, 1fr); }
-      .tile p { font-size: 1.25rem; }
       #stats-container { grid-template-columns: 1fr; }
       .chart-tile { height: 250px; }
       .full-width-chart { height: 300px; }
       .full-width-chart .chart-container { height: 200px; }
       .table-header { flex-direction: column; align-items: stretch; }
-      .filters-inline { justify-content: center; flex-wrap: wrap; }
-    }
-    @media (max-width: 480px) {
-      header img { height: 1.25rem; }
-      .filters-inline input, .filters-inline select, .filters-inline button { font-size: .75rem; height: 30px; }
-      .filters-inline label { font-size: .7rem; }
-      #attendance-table-content th, #attendance-table-content td { font-size: .65rem; padding: .5rem; }
+      .filters-inline { justify-content: center; flex-wrap: wrap; gap: .5rem; }
     }
   </style>
 </head>
@@ -325,7 +314,7 @@
     <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>90 Days Staff Attendance Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
-    <div class="chart-tile full-width-chart"><h3>Weekly Attendance Summary</h3><div class="chart-container"><canvas id="weeklyAttendanceChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>7-Day Attendance Trend</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
   </section>
 
   <section id="attendance-section">
@@ -382,7 +371,7 @@
   </section>
 
   <div id="log">
-    <button id="clear-log-btn" onclick="document.getElementById('log').innerHTML='';log('Logs cleared')">Clear Logs</button>
+    <button id="clear-log-btn" onclick="clearLogs()">Clear Logs</button>
   </div>
 
   <script>
@@ -411,6 +400,11 @@
       }
     };
 
+    const clearLogs = () => {
+      document.getElementById('log').innerHTML = '';
+      log('Logs cleared');
+    };
+
     const resetTimeout = () => {
       const last = localStorage.getItem('lastActivity');
       if (last && Date.now() - parseInt(last,10) >= SESSION_TIMEOUT) {
@@ -423,9 +417,9 @@
       timeoutId = setTimeout(() => { alert('Session expired'); logout(); }, SESSION_TIMEOUT);
     };
 
-    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyAttendanceChart;
+    let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyChart;
     let sortConfig = { key: null, direction: "asc" };
-    let departments = [], staffAttendanceData = [];
+    let departments = [], staffAttendanceData = [], trendData = [];
 
     document.addEventListener('DOMContentLoaded', () => {
       if (!isLoggedIn()) { window.location.href='index.html'; return; }
@@ -440,10 +434,8 @@
     async function fetchJSON(url) {
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const text = await res.text();
-        log(`Fetched from ${url}: ${text.substring(0, 100)}...`);
-        return JSON.parse(text);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
       } catch (e) { log(`Fetch error: ${e.message}`); throw e; }
     }
 
@@ -451,20 +443,18 @@
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
       try {
         const res = await fetch(url, { mode: 'cors' });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        if (!res.ok) throw new Error(`Sheet HTTP ${res.status}`);
         const data = await res.json();
         return data.values || [];
       } catch (e) { log(`Sheet error: ${e.message}`); return []; }
     }
 
-    function calculateWorkTime(timeIn, timeOut) {
-      if (!timeIn || !timeOut) return "N/A";
-      const [inH, inM] = timeIn.split(":").map(Number);
-      const [outH, outM] = timeOut.split(":").map(Number);
-      const workMinutes = outH * 60 + outM - (inH * 60 + inM);
-      const hours = Math.floor(workMinutes / 60);
-      const minutes = workMinutes % 60;
-      return `${hours}h ${minutes}m`;
+    function calculateWorkTime(inT, outT) {
+      if (!inT || !outT) return "N/A";
+      const [ih, im] = inT.split(":").map(Number);
+      const [oh, om] = outT.split(":").map(Number);
+      const mins = oh * 60 + om - (ih * 60 + im);
+      return `${Math.floor(mins/60)}h ${mins%60}m`;
     }
 
     function updateTable(data) {
@@ -472,13 +462,10 @@
       body.innerHTML = "";
       const dept = document.getElementById("department-select").value;
       const name = document.getElementById("name-search").value.toLowerCase();
-      const filtered = data.filter(e => 
-        (!dept || e.department === dept) && 
-        e.name.toLowerCase().includes(name)
-      );
+      const filtered = data.filter(e => (!dept || e.department === dept) && e.name.toLowerCase().includes(name));
       const sorted = sortConfig.key ? sortData(filtered, sortConfig.key, sortConfig.direction) : filtered;
       sorted.forEach(e => {
-        const row = `<tr>
+        body.innerHTML += `<tr>
           <td>${e.name || '--'}</td>
           <td>${e.department || '--'}</td>
           <td>${e.timeIn || '--'}</td>
@@ -486,7 +473,6 @@
           <td>${calculateWorkTime(e.timeIn, e.timeOut)}</td>
           <td>${e.clockInLocation || 'Unknown'}</td>
         </tr>`;
-        body.innerHTML += row;
       });
       document.getElementById("attendance-count").textContent = `Showing ${sorted.length} of ${data.length} entries`;
     }
@@ -501,116 +487,125 @@
     }
 
     function exportToCSV() {
-      const csv = "data:text/csv;charset=utf-8,Name,Department,Time In,Time Out,Work Time,Clock In Location\n" +
-        staffAttendanceData.map(e => {
-          const wt = calculateWorkTime(e.timeIn, e.timeOut);
-          return `${e.name},${e.department},${e.timeIn},${e.timeOut},${wt},${e.clockInLocation || 'Unknown'}`;
-        }).join("\n");
-      const link = document.createElement("a");
-      link.href = encodeURI(csv);
-      link.download = "staff_attendance.csv";
+      const csv = "data:text/csv;charset=utf-8,Name,Department,Time In,Time Out,Work Time,Location\n" +
+        staffAttendanceData.map(e => `${e.name},${e.department},${e.timeIn},${e.timeOut},${calculateWorkTime(e.timeIn,e.timeOut)},${e.clockInLocation}`).join("\n");
+      const link = Object.assign(document.createElement("a"), { href: encodeURI(csv), download: "attendance.csv" });
       link.click();
     }
 
     async function populateDepartmentDropdown() {
       const data = await fetchJSON(`${backendURL}/staff`);
       departments = [...new Set(data.staff?.map(s => s.department) || [])];
-      const sel1 = document.getElementById("department-select");
-      const sel2 = document.getElementById("department-select-pdf");
-      [sel1, sel2].forEach(sel => {
+      ['department-select', 'department-select-pdf'].forEach(id => {
+        const sel = document.getElementById(id);
         sel.innerHTML = '<option value="">All</option>';
         departments.forEach(d => sel.innerHTML += `<option value="${d}">${d}</option>`);
       });
     }
 
-    function updateGeneralAttendanceChart(p, a) {
-      const ctx = document.getElementById("generalAttendanceChart")?.getContext('2d');
+    function updateChart(ctxId, config) {
+      const ctx = document.getElementById(ctxId)?.getContext('2d');
       if (!ctx) return;
-      if (generalAttendanceChart) generalAttendanceChart.destroy();
-      generalAttendanceChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: ['Present','Absent'], datasets: [{ data: [p||0,a||0], backgroundColor: ['#48bb78','#e2e8f0'] }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-      });
+      const chart = window[ctxId.replace('Chart','') + 'Chart'];
+      if (chart) chart.destroy();
+      window[ctxId.replace('Chart','') + 'Chart'] = new Chart(ctx, { ...config, options: { ...config.options, responsive: true, maintainAspectRatio: false } });
     }
 
-    function updateReportingChart(b, a) {
-      const ctx = document.getElementById("reportingChart")?.getContext('2d');
-      if (!ctx) return;
-      if (reportingChart) reportingChart.destroy();
-      reportingChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: ['Before 10 AM','After 10 AM'], datasets: [{ data: [b||0,a||0], backgroundColor: ['#48bb78','#e2e8f0'] }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-      });
-    }
+    async function loadDashboardData() {
+      if (!isLoggedIn()) return logout();
+      const date = document.getElementById("date-select").value || currentDate;
 
-    function updateDepartureChart(b, a) {
-      const ctx = document.getElementById("departureChart")?.getContext('2d');
-      if (!ctx) return;
-      if (departureChart) departureChart.destroy();
-      departureChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels: ['Before 4 PM','After 4 PM'], datasets: [{ data: [b||0,a||0], backgroundColor: ['#48bb78','#e2e8f0'] }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-      });
-    }
+      try {
+        const [staff, stats, locations, sheetData] = await Promise.all([
+          fetchJSON(`${backendURL}/staff`),
+          fetchJSON(`${backendURL}/stats?date=${date}`),
+          fetchJSON(`${backendURL}/locations`),
+          fetchGoogleSheetData(`Attendance Sheet!A2:G`)
+        ]);
 
-    function updateDepartmentChart(labels, inData, outData, total) {
-      const ctx = document.getElementById("departmentChart")?.getContext('2d');
-      if (!ctx) return;
-      if (departmentChart) departmentChart.destroy();
-      departmentChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [
-          { label: 'Total Staff', data: total, backgroundColor: 'rgba(45,55,72,0.2)' },
-          { label: 'Clock In', data: inData, backgroundColor: '#48bb78' },
-          { label: 'Clock Out', data: outData, backgroundColor: '#f56565' }
-        ]},
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-      });
-    }
+        staffAttendanceData = stats.staffAttendance || [];
+        const total = staff.totalStaff || staff.staff.length;
+        const active = staff.staffCount || staff.staff.filter(s => s.active).length;
+        const inToday = staffAttendanceData.filter(e => e.timeIn).length;
+        const outToday = staffAttendanceData.filter(e => e.timeOut).length;
+        const absent = active - inToday;
 
-    function updateLocationChart(labels, values) {
-      const ctx = document.getElementById("locationChart")?.getContext('2d');
-      if (!ctx) return;
-      if (locationChart) locationChart.destroy();
-      locationChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Attendance', data: values, backgroundColor: '#48bb78' }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
-      });
-    }
+        // Update tiles
+        ['totalStaff','activeStaff','clockInsToday','clockOutsToday','absentToday'].forEach((id, i) => {
+          document.getElementById(id).innerText = [total, active, inToday, outToday, absent][i];
+        });
+        document.getElementById("percentClockedIn").innerText = active ? Math.round(inToday/active*100) + '%' : '0%';
+        document.getElementById("percentClockedOut").innerText = inToday ? Math.round(outToday/inToday*100) + '%' : '0%';
 
-    function updateTrendChart(data) {
-      const ctx = document.getElementById("trendChart")?.getContext('2d');
-      if (!ctx) return;
-      if (trendChart) trendChart.destroy();
-      const today = new Date("2025-11-10");
-      const labels = [];
-      for (let i = 89; i >= 0; i--) {
-        const d = new Date(today); d.setDate(d.getDate() - i);
-        labels.push(d.toISOString().split('T')[0]);
-      }
-      const counts = labels.map(d => data.find(e => e.date === d)?.present || 0);
-      trendChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets: [{ label: 'Attendance', data: counts, borderColor: '#48bb78', fill: true }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
+        // Charts
+        updateChart('generalAttendanceChart', { type: 'doughnut', data: { labels: ['Present','Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
+        updateChart('reportingChart', { type: 'doughnut', data: { labels: ['Before 10AM','After 10AM'], datasets: [{ data: [staffAttendanceData.filter(e=>e.timeIn && e.timeIn < "10:00").length, staffAttendanceData.filter(e=>e.timeIn && e.timeIn >= "10:00").length], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
+        updateChart('departureChart', { type: 'doughnut', data: { labels: ['Before 4PM','After 4PM'], datasets: [{ data: [staffAttendanceData.filter(e=>e.timeOut && e.timeOut < "16:00").length, staffAttendanceData.filter(e=>e.timeOut && e.timeOut >= "16:00").length], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
 
-    function updateWeeklyAttendanceChart(data) {
-      const ctx = document.getElementById("weeklyAttendanceChart")?.getContext('2d');
-      if (!ctx) return;
-      if (weeklyAttendanceChart) weeklyAttendanceChart.destroy();
-      const labels = data.map(w => `Week ${w.week}`);
-      const values = data.map(w => w.totalPresent);
-      weeklyAttendanceChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Present', data: values, backgroundColor: '#48bb78' }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
+        // Department Chart
+        const deptMap = {};
+        staff.staff.forEach(s => deptMap[s.department] = (deptMap[s.department] || 0) + 1);
+        const deptIn = {}, deptOut = {};
+        staffAttendanceData.forEach(e => {
+          if (e.timeIn) deptIn[e.department] = (deptIn[e.department] || 0) + 1;
+          if (e.timeOut) deptOut[e.department] = (deptOut[e.department] || 0) + 1;
+        });
+        const deptLabels = departments;
+        updateChart('departmentChart', {
+          type: 'bar',
+          data: { labels: deptLabels, datasets: [
+            { label: 'Total', data: deptLabels.map(d => deptMap[d] || 0), backgroundColor: 'rgba(45,55,72,0.2)' },
+            { label: 'In', data: deptLabels.map(d => deptIn[d] || 0), backgroundColor: '#48bb78' },
+            { label: 'Out', data: deptLabels.map(d => deptOut[d] || 0), backgroundColor: '#f56565' }
+          ]}
+        });
+
+        // Location Chart
+        const locMap = {};
+        staffAttendanceData.forEach(e => locMap[e.clockInLocation || 'Unknown'] = (locMap[e.clockInLocation || 'Unknown'] || 0) + 1);
+        const locLabels = locations.locations?.map(l => l.name) || Object.keys(locMap);
+        updateChart('locationChart', {
+          type: 'bar',
+          data: { labels: locLabels, datasets: [{ label: 'Count', data: locLabels.map(l => locMap[l] || 0), backgroundColor: '#48bb78' }] }
+        });
+
+        // 90-Day Trend
+        const dateCount = {};
+        sheetData.forEach(row => {
+          let date = row[0];
+          if (date) {
+            const d = new Date(date);
+            if (!isNaN(d)) date = d.toISOString().split('T')[0];
+            else if (date.includes('/')) {
+              const [m,d,y] = date.split('/');
+              date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+            }
+            if (date && row[3]) dateCount[date] = (dateCount[date] || 0) + 1;
+          }
+        });
+        const today = new Date();
+        const trendLabels = [], trendValues = [];
+        for (let i = 89; i >= 0; i--) {
+          const d = new Date(today); d.setDate(d.getDate() - i);
+          const ds = d.toISOString().split('T')[0];
+          trendLabels.push(ds);
+          trendValues.push(dateCount[ds] || 0);
+        }
+        updateChart('trendChart', { type: 'line', data: { labels: trendLabels, datasets: [{ label: 'Attendance', data: trendValues, borderColor: '#48bb78', fill: true }] } });
+
+        // 7-Day Trend
+        const weekLabels = [], weekValues = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today); d.setDate(d.getDate() - i);
+          const ds = d.toISOString().split('T')[0];
+          weekLabels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+          weekValues.push(dateCount[ds] || 0);
+        }
+        updateChart('weeklyChart', { type: 'bar', data: { labels: weekLabels, datasets: [{ label: 'Daily', data: weekValues, backgroundColor: '#48bb78' }] } });
+
+        updateTable(staffAttendanceData);
+        log("Dashboard loaded successfully");
+      } catch (e) { log("Load error: " + e.message); }
     }
 
     function handleSort(key) {
@@ -623,48 +618,6 @@
 
     function sortData(data, key, dir) {
       return [...data].sort((a,b) => (a[key] || '').localeCompare(b[key] || '') * (dir === "asc" ? 1 : -1));
-    }
-
-    async function loadDashboardData() {
-      if (!isLoggedIn()) return logout();
-      const date = document.getElementById("date-select").value || currentDate;
-      try {
-        const staff = await fetchJSON(`${backendURL}/staff`);
-        const stats = await fetchJSON(`${backendURL}/stats?date=${date}`);
-        staffAttendanceData = stats.staffAttendance || [];
-
-        const total = staff.totalStaff || staff.staff.length;
-        const active = staff.staffCount || staff.staff.filter(s => s.active).length;
-        const inToday = staffAttendanceData.filter(e => e.timeIn).length;
-        const outToday = staffAttendanceData.filter(e => e.timeOut).length;
-        const absent = active - inToday;
-
-        document.getElementById("totalStaff").innerText = total;
-        document.getElementById("activeStaff").innerText = active;
-        document.getElementById("clockInsToday").innerText = inToday;
-        document.getElementById("clockOutsToday").innerText = outToday;
-        document.getElementById("absentToday").innerText = absent;
-        document.getElementById("percentClockedIn").innerText = active ? Math.round(inToday/active*100) + '%' : '0%';
-        document.getElementById("percentClockedOut").innerText = inToday ? Math.round(outToday/inToday*100) + '%' : '0%';
-
-        updateTable(staffAttendanceData);
-        updateGeneralAttendanceChart(inToday, absent);
-        updateReportingChart(
-          staffAttendanceData.filter(e => e.timeIn && parseInt(e.timeIn) < 1000).length,
-          staffAttendanceData.filter(e => e.timeIn && parseInt(e.timeIn) >= 1000).length
-        );
-        updateDepartureChart(
-          staffAttendanceData.filter(e => e.timeOut && parseInt(e.timeOut) < 1600).length,
-          staffAttendanceData.filter(e => e.timeOut && parseInt(e.timeOut) >= 1600).length
-        );
-
-        log("Dashboard updated");
-      } catch (e) { log("Load error: " + e.message); }
-    }
-
-    async function exportToPDF() {
-      // Full PDF export logic from your original code (kept intact)
-      // ... (same as in your second file)
     }
 
     document.querySelectorAll(".sortable").forEach(th => th.addEventListener("click", () => handleSort(th.dataset.sort)));
