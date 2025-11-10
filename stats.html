@@ -484,7 +484,7 @@
         </div>
         <div class="filter-group">
           <label style="visibility: hidden;">.</label>
-          <button id="export-btn"><i class="fas fa-file-csv mr-1"></i> Export CSV</button>
+          <button id="export-btn">Export CSV</button>
         </div>
       </div>
     </div>
@@ -536,7 +536,7 @@
     <div class="button-group">
       <div class="pdf-filter-group">
         <label style="visibility: hidden;">.</label>
-        <button id="pdf-export-btn"><i class="fas fa-file-pdf mr-1"></i> Export PDF</button>
+        <button id="pdf-export-btn">Export PDF</button>
       </div>
     </div>
   </section>
@@ -615,6 +615,17 @@
       callback: value => Number.isInteger(value) ? value : null
     };
 
+    // DOUGHNUT OPTIONS – PERFECTLY ROUND & BEAUTIFUL
+    const doughnutOptions = {
+      cutout: '68%',
+      aspectRatio: 1,
+      plugins: {
+        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff' },
+        legend: { display: false }
+      },
+      elements: { arc: { borderWidth: 4, borderColor: '#fff' } }
+    };
+
     let staffAttendanceData = [];
     let allStaff = [];
     let allLocations = [];
@@ -639,13 +650,13 @@
         allLocations = Array.isArray(locRes.locations) ? locRes.locations : [];
         allAttendanceHistory = Array.isArray(historyRes) ? historyRes : [];
 
-        // TOTAL STAFF = ALL STAFF (even inactive)
+        // TOTAL STAFF = ALL STAFF IN SHEET
         const totalStaff = allStaff.length;
 
-        // ACTIVE STAFF = only those with active: yes/true
+        // ACTIVE STAFF = ONLY WHERE Active = "Yes" (case-insensitive)
         const activeStaff = allStaff.filter(s => 
           s.active !== undefined && 
-          (s.active.toString().toLowerCase() === 'yes' || s.active === true)
+          s.active.toString().trim().toLowerCase() === 'yes'
         ).length;
 
         const attendanceToday = Array.isArray(statsRes.staffAttendance) ? statsRes.staffAttendance : [];
@@ -733,7 +744,7 @@
     function updateCharts(staff, attendance, locations, history, selectedDate) {
       const activeStaff = staff.filter(s => 
         s.active !== undefined && 
-        (s.active.toString().toLowerCase() === 'yes' || s.active === true)
+        s.active.toString().trim().toLowerCase() === 'yes'
       ).length;
       const present = attendance.filter(a => a.timeIn).length;
       const absent = activeStaff - present;
@@ -743,17 +754,7 @@
       const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
       const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
 
-      // BEAUTIFUL DOUGHNUTS
-      const doughnutOptions = {
-        cutout: '68%',
-        aspectRatio: 1,
-        plugins: {
-          tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff' },
-          legend: { display: false }
-        },
-        elements: { arc: { borderWidth: 4, borderColor: '#fff' } }
-      };
-
+      // DOUGHNUT CHARTS – USING YOUR REQUESTED STYLE
       createChart('generalAttendanceChart', {
         type: 'doughnut',
         data: {
@@ -798,7 +799,7 @@
       // Department Chart
       const deptMap = {};
       staff.forEach(s => {
-        if (s.active !== undefined && (s.active.toString().toLowerCase() === 'yes' || s.active === true)) {
+        if (s.active !== undefined && s.active.toString().trim().toLowerCase() === 'yes') {
           const dept = s.department || 'Unknown';
           deptMap[dept] = (deptMap[dept] || 0) + 1;
         }
@@ -817,14 +818,14 @@
             { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
           ]
         },
-        options: { scales: { y: wholeNumberTicks } }
+        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
       });
 
       const locCounts = locations.map(l => attendance.filter(a => a.clockInLocation === l.name).length);
       createChart('locationChart', {
         type: 'bar',
         data: { labels: locations.map(l => l.name), datasets: [{ label: 'Count', data: locCounts, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks } }
+        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
       });
 
       const today = new Date(selectedDate);
@@ -859,7 +860,7 @@
       createChart('trendChart', {
         type: 'line',
         data: { labels: labels90, datasets: [{ label: 'Attendance', data: trendData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.2)', fill: true }] },
-        options: { scales: { y: wholeNumberTicks } }
+        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
       });
 
       const weeklyLabels = [];
@@ -874,7 +875,7 @@
       createChart('weeklyAttendanceChart', {
         type: 'bar',
         data: { labels: weeklyLabels, datasets: [{ label: 'Present', data: weeklyData, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks } }
+        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
       });
     }
 
