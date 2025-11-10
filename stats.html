@@ -33,7 +33,7 @@
       position: relative;
     }
     header img {
-      height: 2.5rem; /* 50% of original 5rem */
+      height: 2.5rem;
       margin: 0 2rem;
     }
     header .logout-icon {
@@ -117,8 +117,11 @@
       flex: 1;
       position: relative;
       min-height: 0;
+      width: 100%;
     }
     .chart-container canvas {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
       max-height: 100% !important;
       width: 100% !important;
     }
@@ -191,6 +194,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
     }
     button:hover {
       background: #38a169;
@@ -545,6 +549,11 @@
   </div>
 
   <script>
+    // Force high-DPI rendering
+    Chart.defaults.scale.grid.drawOnChartArea = true;
+    Chart.defaults.plugins.legend.display = false;
+    Chart.defaults.devicePixelRatio = 2;
+
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
@@ -581,10 +590,28 @@
       const ctx = document.getElementById(id)?.getContext('2d');
       if (!ctx) return null;
       if (charts[id]) charts[id].destroy();
-      charts[id] = new Chart(ctx, { ...config, responsive: true, maintainAspectRatio: false });
+
+      // Force high-DPI
+      const canvas = ctx.canvas;
+      const parent = canvas.parentElement;
+      const width = parent.clientWidth;
+      const height = parent.clientHeight;
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.scale(2, 2);
+
+      charts[id] = new Chart(ctx, {
+        ...config,
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 }
+      });
       return charts[id];
     };
 
+    // Force whole numbers
     const wholeNumberTicks = {
       stepSize: 1,
       min: 0,
@@ -615,7 +642,7 @@
         allLocations = Array.isArray(locRes.locations) ? locRes.locations : [];
         allAttendanceHistory = Array.isArray(historyRes) ? historyRes : [];
 
-        const totalStaff = allStaff.length;
+        const totalStaff = allStaff.length; // ALL STAFF IN SHEET
         const activeStaff = allStaff.filter(s => 
           s.active !== undefined && 
           (s.active.toString().toLowerCase() === 'yes' || s.active === true)
@@ -716,22 +743,23 @@
       const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
       const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
 
+      // Doughnut: Force circular
       createChart('generalAttendanceChart', {
         type: 'doughnut',
         data: { labels: ['Present', 'Absent'], datasets: [{ data: [present, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
-        options: { plugins: { legend: { display: false } } }
+        options: { cutout: '70%', aspectRatio: 1 }
       });
 
       createChart('reportingChart', {
         type: 'doughnut',
         data: { labels: ['Before 10AM', 'After 10AM'], datasets: [{ data: [inBefore10, inAfter10], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { plugins: { legend: { display: false } } }
+        options: { cutout: '70%', aspectRatio: 1 }
       });
 
       createChart('departureChart', {
         type: 'doughnut',
         data: { labels: ['Before 4PM', 'After 4PM'], datasets: [{ data: [outBefore4, outAfter4], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { plugins: { legend: { display: false } } }
+        options: { cutout: '70%', aspectRatio: 1 }
       });
 
       const deptMap = {};
@@ -755,14 +783,14 @@
             { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
           ]
         },
-        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
+        options: { scales: { y: wholeNumberTicks } }
       });
 
       const locCounts = locations.map(l => attendance.filter(a => a.clockInLocation === l.name).length);
       createChart('locationChart', {
         type: 'bar',
         data: { labels: locations.map(l => l.name), datasets: [{ label: 'Count', data: locCounts, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
+        options: { scales: { y: wholeNumberTicks } }
       });
 
       const today = new Date(selectedDate);
@@ -797,7 +825,7 @@
       createChart('trendChart', {
         type: 'line',
         data: { labels: labels90, datasets: [{ label: 'Attendance', data: trendData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.2)', fill: true }] },
-        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
+        options: { scales: { y: wholeNumberTicks } }
       });
 
       const weeklyLabels = [];
@@ -812,7 +840,7 @@
       createChart('weeklyAttendanceChart', {
         type: 'bar',
         data: { labels: weeklyLabels, datasets: [{ label: 'Present', data: weeklyData, backgroundColor: '#48bb78' }] },
-        options: { scales: { y: wholeNumberTicks }, plugins: { legend: { display: false } } }
+        options: { scales: { y: wholeNumberTicks } }
       });
     }
 
