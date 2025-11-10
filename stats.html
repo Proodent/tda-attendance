@@ -549,10 +549,9 @@
   </div>
 
   <script>
-    // Force high-DPI rendering
-    Chart.defaults.scale.grid.drawOnChartArea = true;
-    Chart.defaults.plugins.legend.display = false;
+    // High-DPI & Sharp Rendering
     Chart.defaults.devicePixelRatio = 2;
+    Chart.defaults.plugins.legend.display = false;
 
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
@@ -591,7 +590,6 @@
       if (!ctx) return null;
       if (charts[id]) charts[id].destroy();
 
-      // Force high-DPI
       const canvas = ctx.canvas;
       const parent = canvas.parentElement;
       const width = parent.clientWidth;
@@ -611,7 +609,6 @@
       return charts[id];
     };
 
-    // Force whole numbers
     const wholeNumberTicks = {
       stepSize: 1,
       min: 0,
@@ -642,7 +639,10 @@
         allLocations = Array.isArray(locRes.locations) ? locRes.locations : [];
         allAttendanceHistory = Array.isArray(historyRes) ? historyRes : [];
 
-        const totalStaff = allStaff.length; // ALL STAFF IN SHEET
+        // TOTAL STAFF = ALL STAFF (even inactive)
+        const totalStaff = allStaff.length;
+
+        // ACTIVE STAFF = only those with active: yes/true
         const activeStaff = allStaff.filter(s => 
           s.active !== undefined && 
           (s.active.toString().toLowerCase() === 'yes' || s.active === true)
@@ -743,25 +743,59 @@
       const outBefore4 = attendance.filter(a => a.timeOut && parseInt(a.timeOut.replace(':', '')) < 1600).length;
       const outAfter4 = attendance.filter(a => a.timeOut).length - outBefore4;
 
-      // Doughnut: Force circular
+      // BEAUTIFUL DOUGHNUTS
+      const doughnutOptions = {
+        cutout: '68%',
+        aspectRatio: 1,
+        plugins: {
+          tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#fff' },
+          legend: { display: false }
+        },
+        elements: { arc: { borderWidth: 4, borderColor: '#fff' } }
+      };
+
       createChart('generalAttendanceChart', {
         type: 'doughnut',
-        data: { labels: ['Present', 'Absent'], datasets: [{ data: [present, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
-        options: { cutout: '70%', aspectRatio: 1 }
+        data: {
+          labels: ['Present', 'Absent'],
+          datasets: [{
+            data: [present, absent],
+            backgroundColor: ['#48bb78', '#e2e8f0'],
+            hoverBackgroundColor: ['#38a169', '#cbd5e0'],
+            borderWidth: 3,
+            borderColor: '#fff'
+          }]
+        },
+        options: doughnutOptions
       });
 
       createChart('reportingChart', {
         type: 'doughnut',
-        data: { labels: ['Before 10AM', 'After 10AM'], datasets: [{ data: [inBefore10, inAfter10], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { cutout: '70%', aspectRatio: 1 }
+        data: {
+          labels: ['Before 10AM', 'After 10AM'],
+          datasets: [{
+            data: [inBefore10, inAfter10],
+            backgroundColor: ['#48bb78', '#f56565'],
+            hoverBackgroundColor: ['#38a169', '#e53e3e']
+          }]
+        },
+        options: doughnutOptions
       });
 
       createChart('departureChart', {
         type: 'doughnut',
-        data: { labels: ['Before 4PM', 'After 4PM'], datasets: [{ data: [outBefore4, outAfter4], backgroundColor: ['#48bb78', '#f56565'] }] },
-        options: { cutout: '70%', aspectRatio: 1 }
+        data: {
+          labels: ['Before 4PM', 'After 4PM'],
+          datasets: [{
+            data: [outBefore4, outAfter4],
+            backgroundColor: ['#48bb78', '#f56565'],
+            hoverBackgroundColor: ['#38a169', '#e53e3e']
+          }]
+        },
+        options: doughnutOptions
       });
 
+      // Department Chart
       const deptMap = {};
       staff.forEach(s => {
         if (s.active !== undefined && (s.active.toString().toLowerCase() === 'yes' || s.active === true)) {
@@ -907,11 +941,6 @@
         if (id === 'date-select') loadDashboardData();
         else updateTable();
       });
-    });
-
-    // PDF Export (unchanged)
-    document.getElementById('pdf-export-btn').addEventListener('click', async () => {
-      // ... (same as before)
     });
   </script>
 </body>
