@@ -12,73 +12,298 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <style>
-    body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);margin:0;padding:0;min-height:100vh;color:#1a202c}
-    header{background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:1.5rem;text-align:center;font-size:2rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;position:relative}
-    header img{height:5rem;margin:0 5rem}
-    header .logout-icon{position:absolute;right:1rem;top:50%;transform:translateY(-50%);width:2.5rem;height:2.5rem;background:transparent;border:none;color:#fff;font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color .2s}
-    header .logout-icon:hover{color:#e53e3e}
-
-    #summary-tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:1.5rem;padding:2rem}
-    .tile{background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1rem;text-align:center;transition:transform .2s}
-    .tile:hover{transform:translateY(-5px)}
-    .tile h3{color:#2d3748;font-size:1rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .tile p{font-size:1.75rem;font-weight:700;margin:0;color:#48bb78}
-    .tile.error p{color:#f56565}
-
-    #stats-container{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;padding:2rem}
-    .chart-tile{background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1.5rem;transition:transform .2s;height:350px;display:flex;flex-direction:column}
-    .chart-tile:hover{transform:translateY(-5px)}
-    .chart-tile h3{text-align:center;color:#2d3748;margin-bottom:1rem;font-size:1.25rem;font-weight:600;height:40px;display:flex;align-items:center;justify-content:center}
-    .chart-container{flex:1;position:relative;min-height:0}
-    .chart-container canvas{width:100%!important;height:100%!important}
-    .full-width-chart{grid-column:1/-1;height:400px}
-    .full-width-chart .chart-container{height:300px}
-
-    #attendance-section{margin:1rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);overflow:hidden}
-    .table-header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;background:#2d3748;color:#fff;flex-wrap:wrap;gap:.75rem}
-    .table-header h3{margin:0;font-size:1.25rem;font-weight:600}
-    .filters-inline{display:flex;gap:.75rem;align-items:center;flex-wrap:nowrap}
-    .filters-inline .filter-group{display:flex;flex-direction:column}
-    .filters-inline label{font-size:.75rem;color:#fff;margin-bottom:.25rem;white-space:nowrap}
-    .filters-inline input,.filters-inline select{padding:.35rem .5rem;font-size:.8rem;border-radius:6px;border:1px solid #cbd5e0;height:32px;background:#fff;color:#000}
-    .filters-inline button{background:#48bb78;color:#fff;padding:0 .75rem;border:none;border-radius:6px;cursor:pointer;font-size:.75rem;height:32px;transition:background .2s;white-space:nowrap;min-width:60px}
-    .filters-inline button:hover{background:#38a169}
-
-    #attendance-table-content{padding:0 1.5rem 1.5rem}
-    #attendance-table-content table{width:100%;border-collapse:collapse;margin-top:1rem}
-    #attendance-table-content th,#attendance-table-content td{padding:.75rem;text-align:left;border-bottom:1px solid #e2e8f0;color:#1a202c}
-    #attendance-table-content th{background:#2d3748;color:#fff;cursor:pointer;font-size:.9rem}
-    #attendance-table-content th:hover{background:#4a5568}
-    #attendance-table-content tr:nth-child(even){background:#f7fafc}
-
-    #log{background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1.5rem;height:200px;overflow-y:auto;margin:1rem;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);position:relative}
-    #clear-log-btn{position:absolute;top:.5rem;right:.5rem;background:#e53e3e;color:#fff;border:none;padding:.35rem .75rem;font-size:.75rem;border-radius:6px;cursor:pointer}
-    #clear-log-btn:hover{background:#c53030}
-
-    #pdf-export{margin:1rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap}
-    #pdf-export label{font-weight:600;color:#2d3748;white-space:nowrap;font-size:.9rem;margin-bottom:.5rem;display:block}
-    #department-select-pdf,#start-date,#end-date,#month-select{padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.9rem;width:100%;height:2.5rem}
-    #pdf-export-btn{background:#48bb78;color:#fff;padding:.5rem 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;height:2.5rem;transition:background .2s;white-space:nowrap;align-self:flex-end}
-    #pdf-export-btn:hover{background:#38a169}
-    .pdf-filter-group{flex:1;min-width:18.75%;display:flex;flex-direction:column}
-
-    @media(max-width:1024px){
-      #summary-tiles{grid-template-columns:repeat(4,1fr)}
-      #stats-container{grid-template-columns:repeat(2,1fr)}
-      .chart-tile{height:300px}
-      .full-width-chart{height:350px}
-      .full-width-chart .chart-container{height:250px}
+    :root {
+      --primary: #48bb78;
+      --primary-dark: #38a169;
+      --danger: #f56565;
+      --dark: #1a202c;
+      --light: #f7fafc;
+      --gray: #e2e8f0;
     }
-    @media(max-width:768px){
-      header{font-size:1.5rem;padding:.75rem}
-      header img{height:1.5rem;margin:0 .5rem}
-      #summary-tiles{grid-template-columns:repeat(2,1fr)}
-      #stats-container{grid-template-columns:1fr}
-      .chart-tile{height:250px}
-      .full-width-chart{height:300px}
-      .full-width-chart .chart-container{height:200px}
-      .table-header{flex-direction:column;align-items:stretch}
-      .filters-inline{justify-content:center;flex-wrap:wrap;gap:.5rem}
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      color: #1a202c;
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    header img {
+      height: 2.5rem;
+    }
+    header .logout-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: background 0.2s, color 0.2s;
+    }
+    header .logout-icon:hover {
+      background: rgba(255,255,255,0.2);
+      color: #e53e3e;
+    }
+
+    #summary-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .tile {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      padding: 1rem;
+      text-align: center;
+      transition: transform .2s;
+    }
+    .tile:hover { transform: translateY(-3px); }
+    .tile h3 {
+      color: #2d3748;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tile p {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--primary);
+    }
+    .tile.error p { color: var(--danger); }
+
+    #stats-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1rem;
+    }
+    @media (min-width: 768px) {
+      #stats-container { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (min-width: 1024px) {
+      #stats-container { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .chart-tile {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      height: 280px;
+      transition: transform .2s;
+    }
+    .chart-tile:hover { transform: translateY(-3px); }
+    .chart-tile h3 {
+      text-align: center;
+      color: #2d3748;
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .chart-container {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      width: 100%;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .full-width-chart {
+      grid-column: 1 / -1;
+      height: 320px;
+    }
+
+    #attendance-section {
+      margin: 1rem;
+      background: #d1e2fa;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      overflow: hidden;
+    }
+    .table-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: #2d3748;
+      color: #fff;
+    }
+    .table-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .filters-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      width: 100%;
+    }
+    .filters-inline .filter-group {
+      flex: 1;
+      min-width: 120px;
+    }
+    .filters-inline label {
+      font-size: 0.75rem;
+      color: #fff;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+    .filters-inline input,
+    .filters-inline select {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5e0;
+      background: #fff;
+      color: #000;
+    }
+    .filters-inline button {
+      background: var(--primary);
+      color: #fff;
+      padding: 0 0.75rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      height: 38px;
+      white-space: nowrap;
+      transition: background .2s;
+    }
+    .filters-inline button:hover { background: var(--primary-dark); }
+
+    #attendance-table-content {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    #attendance-table-content table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    #attendance-table-content th,
+    #attendance-table-content td {
+      padding: 0.5rem;
+      text-align: left;
+      border-bottom: 1px solid var(--gray);
+    }
+    #attendance-table-content th {
+      background: #2d3748;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    #attendance-table-content th:hover { background: #4a5568; }
+    #attendance-table-content tr:nth-child(even) { background: #f7fafc; }
+
+    #log {
+      background: #1a202c;
+      color: #25e876;
+      font-family: 'Courier New', monospace;
+      padding: 1rem;
+      height: 150px;
+      overflow-y: auto;
+      margin: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      position: relative;
+      font-size: 0.8rem;
+    }
+    #clear-log-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: #e53e3e;
+      color: #fff;
+      border: none;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #clear-log-btn:hover { background: #c53030; }
+
+    #pdf-export {
+      margin: 1rem;
+      padding: 1rem;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.1);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    @media (min-width: 640px) {
+      #pdf-export { grid-template-columns: repeat(4, 1fr) auto; }
+    }
+    #pdf-export label {
+      font-weight: 600;
+      color: #2d3748;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+    #department-select-pdf, #start-date, #end-date, #month-select {
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 2px solid var(--gray);
+      font-size: 0.85rem;
+    }
+    #pdf-export-btn {
+      background: var(--primary);
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      align-self: end;
+      transition: background .2s;
+    }
+    #pdf-export-btn:hover { background: var(--primary-dark); }
+
+    @media (max-width: 480px) {
+      header { font-size: 1.2rem; padding: 0.75rem; }
+      header img { height: 2rem; }
+      .tile h3 { font-size: 0.75rem; }
+      .tile p { font-size: 1.25rem; }
+      .chart-tile { height: 220px; }
+      .full-width-chart { height: 260px; }
+      #attendance-table-content th,
+      #attendance-table-content td { font-size: 0.7rem; padding: 0.3rem; }
+      #log { height: 120px; font-size: 0.7rem; }
     }
   </style>
 </head>
@@ -120,8 +345,8 @@
         <select id="department-select" onchange="filterTable()"><option value="">All</option></select>
       </div>
       <div class="filter-group"><label for="name-search">Name</label><input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search..."></div>
-      <button id="clear-filter-btn" onclick="clearFilters()">Clear</button>
-      <button id="export-btn" onclick="exportToCSV()">Export CSV</button>
+      <div class="filter-group"><button id="clear-filter-btn" onclick="clearFilters()">Clear</button></div>
+      <div class="filter-group"><button id="export-btn" onclick="exportToCSV()">Export CSV</button></div>
     </div>
   </div>
 
@@ -144,14 +369,12 @@
 </section>
 
 <section id="pdf-export">
-  <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label>
-    <select id="department-select-pdf"><option value="">All Departments</option></select>
-  </div>
-  <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
-  <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
-  <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
+  <div><label for="department-select-pdf">Department:</label><select id="department-select-pdf"><option value="">All</option></select></div>
+  <div><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
+  <div><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
+  <div><label for="month-select">Month:</label>
     <select id="month-select">
-      <option value="">All Months</option>
+      <option value="">All</option>
       <option value="01">January</option><option value="02">February</option>
       <option value="03">March</option><option value="04">April</option><option value="05">May</option>
       <option value="06">June</option><option value="07">July</option><option value="08">August</option>
@@ -159,9 +382,7 @@
       <option value="11">November</option><option value="12">December</option>
     </select>
   </div>
-  <div class="pdf-filter-group"><label style="visibility:hidden;">Export</label>
-    <button id="pdf-export-btn" onclick="exportToPDF()">Export PDF</button>
-  </div>
+  <div><button id="pdf-export-btn" onclick="exportToPDF()">Export PDF</button></div>
 </section>
 
 <div id="log"><button id="clear-log-btn" onclick="clearLogs()">Clear Logs</button></div>
@@ -170,19 +391,10 @@
   const backendURL = "https://tolon-attendance.proodentit.com/api";
   const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
   const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
-  const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+  const SESSION_TIMEOUT = 15 * 60 * 1000;
   let timeoutId = null;
 
-  // ---------- SESSION ----------
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
-  const login = (u, p) => {
-    if (u === 'admin' && p === 'password') {
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('lastActivity', Date.now());
-      return true;
-    }
-    return false;
-  };
   const logout = () => {
     clearTimeout(timeoutId);
     ['mousemove','keypress','click'].forEach(ev => document.removeEventListener(ev, resetTimeout));
@@ -195,15 +407,14 @@
     localStorage.setItem('lastActivity', Date.now());
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
-      alert('Session expired due to inactivity');
+      alert('Session expired');
       logout();
     }, SESSION_TIMEOUT);
   };
 
-  // ---------- CHARTS & DATA ----------
   let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyChart;
   let sortConfig = { key: null, direction: "asc" };
-  let departments = [], staffAttendanceData = [], trendData = [];
+  let departments = [], staffAttendanceData = [];
 
   document.addEventListener('DOMContentLoaded', () => {
     if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
@@ -243,7 +454,7 @@
     const dept = document.getElementById("department-select").value;
     const name = document.getElementById("name-search").value.toLowerCase();
     const f = d.filter(e => (!dept || e.department === dept) && e.name.toLowerCase().includes(name));
-    const s = sortConfig.key ? sortData(f, sortConfig.key, sortConfig.direction) : f;
+    const s = sortConfig.key ? [...f].sort((a,b) => (a[sortConfig.key] || '').localeCompare(b[sortConfig.key] || '') * (sortConfig.direction === "asc" ? 1 : -1)) : f;
     s.forEach(e => b.innerHTML += `<tr><td>${e.name || '--'}</td><td>${e.department || '--'}</td><td>${e.timeIn || '--'}</td><td>${e.timeOut || '--'}</td><td>${calculateWorkTime(e.timeIn, e.timeOut)}</td><td>${e.clockInLocation || 'Unknown'}</td></tr>`);
     document.getElementById("attendance-count").textContent = `Showing ${s.length} of ${d.length} entries`;
   };
@@ -275,9 +486,16 @@
   const updateChart = (id, cfg) => {
     const ctx = document.getElementById(id)?.getContext('2d');
     if (!ctx) return;
-    const c = window[id.replace('Chart', '') + 'Chart'];
-    if (c) c.destroy();
-    window[id.replace('Chart', '') + 'Chart'] = new Chart(ctx, { ...cfg, options: { ...cfg.options, responsive: true, maintainAspectRatio: false } });
+    const chartVar = id.replace('Chart', '') + 'Chart';
+    if (window[chartVar]) window[chartVar].destroy();
+    window[chartVar] = new Chart(ctx, {
+      ...cfg,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        ...cfg.options
+      }
+    });
   };
 
   async function loadDashboardData() {
@@ -320,7 +538,6 @@
       const locLabels = locations.locations?.map(l => l.name) || Object.keys(locMap);
       updateChart('locationChart', { type: 'bar', data: { labels: locLabels, datasets: [{ label: 'Count', data: locLabels.map(l => locMap[l] || 0), backgroundColor: '#48bb78' }] } });
 
-      // 90-DAY TREND (REAL TODAY: Nov 11, 2025)
       const dateCount = {};
       sheet.forEach(r => {
         let d = r[0];
@@ -331,7 +548,7 @@
           if (d && r[3]) dateCount[d] = (dateCount[d] || 0) + 1;
         }
       });
-      const today = new Date(); // REAL TODAY
+      const today = new Date();
       const trendLabels = [], trendValues = [];
       for (let i = 89; i >= 0; i--) {
         const dd = new Date(today); dd.setDate(dd.getDate() - i);
@@ -340,7 +557,6 @@
       }
       updateChart('trendChart', { type: 'line', data: { labels: trendLabels, datasets: [{ label: 'Attendance', data: trendValues, borderColor: '#48bb78', fill: true }] } });
 
-      // 7-DAY TREND
       const weekLabels = [], weekValues = [];
       for (let i = 6; i >= 0; i--) {
         const dd = new Date(today); dd.setDate(dd.getDate() - i);
@@ -355,21 +571,19 @@
     } catch (e) { log("Load error: " + e.message); }
   }
 
-  const handleSort = k => {
+  document.querySelectorAll(".sortable").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.sort;
     sortConfig.direction = sortConfig.key === k && sortConfig.direction === "asc" ? "desc" : "asc";
     sortConfig.key = k;
     document.querySelectorAll(".sortable").forEach(el => el.classList.remove("asc","desc"));
-    document.querySelector(`th[data-sort="${k}"]`)?.classList.add(sortConfig.direction);
+    th.classList.add(sortConfig.direction);
     updateTable(staffAttendanceData);
-  };
-  const sortData = (d, k, dir) => [...d].sort((a,b) => (a[k] || '').localeCompare(b[k] || '') * (dir === "asc" ? 1 : -1));
+  }));
 
-  document.querySelectorAll(".sortable").forEach(th => th.addEventListener("click", () => handleSort(th.dataset.sort)));
   document.getElementById('logoutBtn').addEventListener('click', logout);
 
-  // PDF EXPORT
   async function exportToPDF() {
-    if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
+    if (!isLoggedIn()) return window.location.href = 'index.html';
     const dept = document.getElementById("department-select-pdf").value;
     const start = document.getElementById("start-date").value;
     const end = document.getElementById("end-date").value;
@@ -404,16 +618,14 @@
     });
 
     const tbl = document.createElement('table'); tbl.style.width = '100%'; tbl.style.borderCollapse = 'collapse';
-    const thead = `<tr><th>Name</th><th>Dept</th>${dates.map(d => `<th>${new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}<br>In/Out</th>`).join('')}<th>Total</th><th>Present</th><th>Absent</th><th>%</th></tr>`;
-    let tbody = '';
-    staff.staff.forEach(s => {
-      if (dept && s.department !== dept) return;
-      const att = map[s.name] || {};
-      const pres = dates.filter(d => att[d]?.in).length;
-      const tot = dates.length; const abs = tot - pres; const pct = tot ? Math.round(pres/tot*100) : 0;
-      tbody += `<tr><td>${s.name}</td><td>${s.department}</td>${dates.map(d => `<td>${att[d]?.in || '--'} / ${att[d]?.out || '--'}</td>`).join('')}<td>${tot}</td><td>${pres}</td><td>${abs}</td><td>${pct}%</td></tr>`;
-    });
-    tbl.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+    tbl.innerHTML = `<thead><tr><th>Name</th><th>Dept</th>${dates.map(d => `<th>${new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}<br>In/Out</th>`).join('')}<th>Total</th><th>Present</th><th>Absent</th><th>%</th></tr></thead><tbody>${
+      staff.staff.filter(s => !dept || s.department === dept).map(s => {
+        const att = map[s.name] || {};
+        const pres = dates.filter(d => att[d]?.in).length;
+        const tot = dates.length; const abs = tot - pres; const pct = tot ? Math.round(pres/tot*100) : 0;
+        return `<tr><td>${s.name}</td><td>${s.department}</td>${dates.map(d => `<td>${att[d]?.in || '--'} / ${att[d]?.out || '--'}</td>`).join('')}<td>${tot}</td><td>${pres}</td><td>${abs}</td><td>${pct}%</td></tr>`;
+      }).join('')
+    }</tbody>`;
     document.body.appendChild(tbl);
 
     const { jsPDF } = window.jspdf;
