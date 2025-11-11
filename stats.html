@@ -6,7 +6,6 @@
   <title>Attendance Dashboard</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -22,104 +21,95 @@
     header {
       background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
       color: #fff;
-      padding: 1.5rem;
+      padding: 1rem;
       text-align: center;
-      font-size: 2rem;
+      font-size: 1.8rem;
       font-weight: 700;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
     header img {
-      height: 5rem;
-      margin: 0 5rem;
+      height: 2.5rem; /* 50% of original 5rem */
     }
     header .logout-icon {
       position: absolute;
-      right: 0;
+      right: 1rem;
       top: 50%;
       transform: translateY(-50%);
-      padding: 0.75rem;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      font-size: 1.2rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: color 0.2s;
+      width: 2.5rem;
+      height: 2.5rem;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 2.5rem;
-      height: 2.5rem;
-      background: transparent;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all .2s;
     }
     header .logout-icon:hover {
-      color: #e53e3e;
+      background: #e53e3e;
+      color: #fff;
     }
-    header .logout-icon::before {
-      content: 'Exit'; /* Unicode logout symbol */
-    }
-    #summary-tiles {
+
+    #summary-tiles, #avg-times {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 1.5rem;
-      padding: 2rem;
+      padding: 1.5rem;
     }
     .tile {
-      background: white;
+      background: #fff;
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       padding: 1rem;
       text-align: center;
-      transition: transform 0.2s;
+      transition: transform .2s;
     }
-    .tile:hover {
-      transform: translateY(-5px);
-    }
+    .tile:hover { transform: translateY(-5px); }
     .tile h3 {
       color: #2d3748;
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
+      font-size: .9rem;
+      margin-bottom: .5rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .tile p {
-      font-size: 1.75rem;
+      font-size: 1.6rem;
       font-weight: 700;
       margin: 0;
       color: #48bb78;
     }
-    .tile.error p {
-      color: #f56565;
-    }
+    .tile.error p { color: #f56565; }
+
     #stats-container {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 1.5rem;
-      padding: 2rem;
+      padding: 1.5rem;
     }
     .chart-tile {
-      background: white;
+      background: #fff;
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      padding: 1.5rem;
-      transition: transform 0.2s;
-      height: 350px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 1.25rem;
+      transition: transform .2s;
+      height: 320px;
       display: flex;
       flex-direction: column;
     }
-    .chart-tile:hover {
-      transform: translateY(-5px);
-    }
+    .chart-tile:hover { transform: translateY(-5px); }
     .chart-tile h3 {
       text-align: center;
       color: #2d3748;
       margin-bottom: 1rem;
-      font-size: 1.25rem;
+      font-size: 1.1rem;
       font-weight: 600;
       height: 40px;
       display: flex;
@@ -135,349 +125,125 @@
       min-height: 0;
     }
     .chart-container canvas {
-      max-width: 100% !important;
-      max-height: 100% !important;
-      width: auto !important;
-      height: auto !important;
+      max-width: 100%!important;
+      max-height: 100%!important;
     }
     .full-width-chart {
-      grid-column: 1 / -1;
-      height: 400px;
+      grid-column: 1/-1;
+      height: 380px;
     }
-    .full-width-chart .chart-container {
-      height: 300px;
-    }
+    .full-width-chart .chart-container { height: 280px; }
+
     #log {
       background: #1a202c;
       color: #25e876;
       font-family: 'Courier New', monospace;
-      padding: 1.5rem;
-      height: 200px;
+      padding: 1rem;
+      height: 180px;
       overflow-y: auto;
       margin: 1rem;
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      font-size: .85rem;
     }
+
     #attendance-table {
       margin: 1rem;
-      padding: 1.5rem;
-      background: rgb(209, 226, 250);
+      padding: 1.25rem;
+      background: rgb(209,226,250);
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      overflow-x: auto;
     }
     #attendance-table table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 600px;
     }
-    #attendance-table th,
-    #attendance-table td {
-      padding: 1rem;
+    #attendance-table th, #attendance-table td {
+      padding: .75rem;
       text-align: left;
       border-bottom: 1px solid #e2e8f0;
+      font-size: .9rem;
     }
     #attendance-table th {
       background: #2d3748;
       color: #fff;
       cursor: pointer;
-    }
-    #attendance-table th:hover {
-      background: #4a5568;
-    }
-    #attendance-table tr:nth-child(even) {
-      background: #f7fafc;
-    }
-    .sort-arrow {
-      display: inline-block;
-      margin-left: 5px;
-    }
-    .asc::after {
-      content: " Up";
-    }
-    .desc::after {
-      content: " Down";
-    }
-    #filters {
-      display: flex;
-      gap: 1rem;
-      margin: 1rem;
-      padding: 1.5rem;
-      background: rgb(209, 226, 250);
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      align-items: flex-end;
-      flex-wrap: wrap;
-    }
-    #filters label {
-      font-weight: 600;
-      color: #2d3748;
-      white-space: nowrap;
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-    #date-select, #department-select, #name-search {
-      padding: 0.5rem;
-      border-radius: 6px;
-      border: 2px solid #e2e8f0;
-      font-size: 0.9rem;
-      width: 100%;
-      height: 38px;
-    }
-    #date-select:focus, #department-select:focus, #name-search:focus {
-      border-color: #48bb78;
-      outline: none;
-    }
-    #export-btn, #clear-filter-btn {
-      background: #48bb78;
-      color: white;
-      padding: 0.5rem 1.5rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      height: 38px;
-      transition: background-color 0.2s;
       white-space: nowrap;
     }
-    #export-btn:hover, #clear-filter-btn:hover {
-      background: #38a169;
-    }
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 18.75%;
-    }
-    .button-group {
-      display: flex;
-      gap: 0.5rem;
-      align-items: flex-end;
-    }
-    .button-group .filter-group {
-      min-width: auto;
-      width: auto;
-    }
-    #pdf-export {
-      margin: 1rem;
-      padding: 1.5rem;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-    #pdf-export label {
-      font-weight: 600;
-      color: #2d3748;
-      white-space: nowrap;
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-    #department-select-pdf, #start-date, #end-date, #month-select {
-      padding: 0.5rem;
-      border-radius: 6px;
-      border: 2px solid #e2e8f0;
-      font-size: 0.9rem;
-      width: 100%;
-      height: 2.5rem;
-    }
-    #start-date:focus, #end-date:focus, #department-select-pdf:focus, #month-select:focus {
-      border-color: #48bb78;
-      outline: none;
-    }
-    #pdf-export-btn {
-      background: #48bb78;
-      color: white;
-      padding: 0.5rem 1.5rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      height: 2.5rem;
-      transition: background-color 0.2s;
-      white-space: nowrap;
-      align-self: flex-end;
-    }
-    #pdf-export-btn:hover {
-      background: #38a169;
-    }
-    .pdf-filter-group {
-      flex: 1;
-      min-width: 18.75%;
-      display: flex;
-      flex-direction: column;
-    }
+    #attendance-table th:hover { background: #4a5568; }
+    #attendance-table tr:nth-child(even) { background: #f7fafc; }
+    .asc::after { content: " up"; } .desc::after { content: " down"; }
 
-    @media (max-width: 1024px) {
-      #summary-tiles {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        padding: 1rem;
-      }
-      .tile {
-        padding: 0.75rem;
-      }
-      .tile h3 {
-        font-size: 0.9rem;
-      }
-      .tile p {
-        font-size: 1.5rem;
-      }
-      #stats-container {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        padding: 1rem;
-      }
-      .chart-tile {
-        padding: 1rem;
-        height: 300px;
-      }
-      .chart-tile h3 {
-        font-size: 1.1rem;
-        height: 35px;
-      }
-      .full-width-chart {
-        height: 350px;
-      }
-      .full-width-chart .chart-container {
-        height: 250px;
-      }
-      #filters, #pdf-export {
-        flex-direction: column;
-        gap: 0.75rem;
-        padding: 1rem;
-        align-items: stretch;
-      }
-      .filter-group, .pdf-filter-group {
-        min-width: 100%;
-      }
-      .button-group {
-        width: 100%;
-        justify-content: stretch;
-        margin-top: 0.5rem;
-      }
-      .button-group .filter-group {
-        width: 100%;
-      }
-      #export-btn, #clear-filter-btn, #pdf-export-btn {
-        flex: 1;
-        text-align: center;
-        height: 38px;
-      }
+    #filters, #pdf-export {
+      display: flex;
+      gap: 1rem;
+      margin: 1rem;
+      padding: 1.25rem;
+      background: rgb(209,226,250);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      flex-wrap: wrap;
+      align-items: flex-end;
     }
+    #filters label, #pdf-export label {
+      font-weight: 600;
+      color: #2d3748;
+      font-size: .875rem;
+      margin-bottom: .5rem;
+      display: block;
+    }
+    input, select {
+      padding: .5rem;
+      border-radius: 6px;
+      border: 2px solid #e2e8f0;
+      font-size: .875rem;
+      width: 100%;
+      height: 40px;
+    }
+    input:focus, select:focus {
+      border-color: #48bb78;
+      outline: none;
+    }
+    button {
+      background: #48bb78;
+      color: #fff;
+      padding: 0 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .875rem;
+      height: 40px;
+      transition: .2s;
+      min-width: 100px;
+    }
+    button:hover { background: #38a169; }
+    .filter-group, .pdf-filter-group { flex: 1; min-width: 180px; }
+    .button-group { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .button-group .filter-group { min-width: auto; flex: 1; }
 
     @media (max-width: 768px) {
-      header {
-        font-size: 1.5rem;
-        padding: 0.75rem;
-      }
-      header img {
-        height: 1.5rem;
-        margin: 0 0.5rem;
-      }
-      #summary-tiles {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        padding: 0.75rem;
-      }
-      .tile {
-        padding: 0.5rem;
-        min-height: 120px;
-      }
-      .tile h3 {
-        font-size: 0.9rem;
-      }
-      .tile p {
-        font-size: 1.25rem;
-      }
-      #stats-container {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-        padding: 0.75rem;
-      }
-      .chart-tile {
-        padding: 0.75rem;
-        height: 250px;
-      }
-      .chart-tile h3 {
-        font-size: 1rem;
-        height: 30px;
-      }
-      .full-width-chart {
-        height: 300px;
-      }
-      .full-width-chart .chart-container {
-        height: 200px;
-      }
-      #attendance-table th,
-      #attendance-table td {
-        font-size: 0.7rem;
-        padding: 0.25rem;
-      }
-      #log {
-        height: 150px;
-        padding: 0.75rem;
-        margin: 1rem;
-      }
+      header { font-size: 1.4rem; padding: .75rem; }
+      header img { height: 2rem; }
+      #summary-tiles, #avg-times { grid-template-columns: repeat(2,1fr); gap: .75rem; padding: 1rem; }
+      .tile h3 { font-size: .8rem; } .tile p { font-size: 1.25rem; }
+      #stats-container { grid-template-columns: 1fr; gap: 1rem; padding: 1rem; }
+      .chart-tile { height: 280px; padding: 1rem; }
+      .full-width-chart { height: 320px; }
+      .full-width-chart .chart-container { height: 220px; }
+      #filters, #pdf-export { flex-direction: column; padding: 1rem; }
+      .filter-group, .pdf-filter-group { min-width: 100%; }
+      .button-group { width: 100%; }
     }
-
     @media (max-width: 480px) {
-      header {
-        font-size: 1.25rem;
-      }
-      header img {
-        height: 1.5rem;
-        margin: 0 0.5rem;
-        display: inline;
-      }
-      #summary-tiles {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-        padding: 0.5rem;
-      }
-      .tile {
-        padding: 0.25rem;
-        min-height: 80px;
-      }
-      .tile h3 {
-        font-size: 0.8rem;
-      }
-      .tile p {
-        font-size: 1.1rem;
-      }
-      .chart-tile {
-        height: 200px;
-      }
-      .chart-tile h3 {
-        font-size: 0.9rem;
-        height: 25px;
-      }
-      .full-width-chart {
-        height: 250px;
-      }
-      .full-width-chart .chart-container {
-        height: 150px;
-      }
-      #attendance-table th,
-      #attendance-table td {
-        font-size: 0.6rem;
-        padding: 0.2rem;
-      }
-      #filters label, #pdf-export label {
-        font-size: 0.8rem;
-      }
-      #date-select, #department-select, #name-search, #department-select-pdf, #start-date, #end-date, #month-select {
-        font-size: 0.8rem;
-        height: 40px;
-      }
-      #export-btn, #clear-filter-btn, #pdf-export-btn {
-        font-size: 0.8rem;
-        padding: 0.25rem 1rem;
-        height: 40px;
-      }
+      header { font-size: 1.2rem; flex-direction: column; text-align: center; }
+      header img { height: 1.8rem; }
+      .logout-icon { position: static; transform: none; margin-top: .5rem; }
+      #summary-tiles, #avg-times { grid-template-columns: 1fr; gap: .75rem; }
+      .tile h3 { font-size: .85rem; } .tile p { font-size: 1.3rem; }
+      #attendance-table th, #attendance-table td { font-size: .75rem; padding: .5rem; }
+      #log { height: 120px; font-size: .75rem; }
     }
   </style>
 </head>
@@ -486,112 +252,48 @@
     <img src="/assets/favicon.png" alt="logo" />
     Attendance Dashboard
     <img src="/assets/favicon.png" alt="logo" />
-    <span class="logout-icon" id="logoutBtn"></span>
+    <span class="logout-icon" id="logoutBtn">Exit</span>
   </header>
 
+  <!-- SUMMARY TILES -->
   <section id="summary-tiles">
-    <div class="tile">
-      <h3>Total Staff</h3>
-      <p id="totalStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Active Staff</h3>
-      <p id="activeStaff">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Ins</h3>
-      <p id="clockInsToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Outs</h3>
-      <p id="clockOutsToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Absent</h3>
-      <p id="absentToday">--</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-In Rate</h3>
-      <p id="percentClockedIn">--%</p>
-    </div>
-    <div class="tile">
-      <h3>Clock-Out Rate</h3>
-      <p id="percentClockedOut">--%</p>
-    </div>
+    <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
+    <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
+    <div class="tile"><h3>Clock-Ins</h3><p id="clockInsToday">--</p></div>
+    <div class="tile"><h3>Clock-Outs</h3><p id="clockOutsToday">--</p></div>
+    <div class="tile"><h3>Absent</h3><p id="absentToday">--</p></div>
+    <div class="tile"><h3>Clock-In Rate</h3><p id="percentClockedIn">--%</p></div>
+    <div class="tile"><h3>Clock-Out Rate</h3><p id="percentClockedOut">--%</p></div>
   </section>
 
+  <!-- AVERAGE TIMES -->
+  <section id="avg-times">
+    <div class="tile"><h3>Avg Reporting Time</h3><p id="avgReportingTime">--:--</p></div>
+    <div class="tile"><h3>Avg Departure Time</h3><p id="avgDepartureTime">--:--</p></div>
+  </section>
+
+  <!-- CHARTS -->
   <section id="stats-container">
-    <div class="chart-tile">
-      <h3>General Attendance</h3>
-      <div class="chart-container">
-        <canvas id="generalAttendanceChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile">
-      <h3>Reporting</h3>
-      <div class="chart-container">
-        <canvas id="reportingChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile">
-      <h3>Departure</h3>
-      <div class="chart-container">
-        <canvas id="departureChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile full-width-chart" id="department-container">
-      <h3>Department Attendance</h3>
-      <div class="chart-container">
-        <canvas id="departmentChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile full-width-chart">
-      <h3>Location Attendance</h3>
-      <div class="chart-container">
-        <canvas id="locationChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile full-width-chart" id="trend-container">
-      <h3>90 Days Staff Attendance Trend</h3>
-      <div class="chart-container">
-        <canvas id="trendChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-tile full-width-chart" id="weekly-container">
-      <h3>Weekly Attendance Summary</h3>
-      <div class="chart-container">
-        <canvas id="weeklyAttendanceChart"></canvas>
-      </div>
-    </div>
+    <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Departure</h3><div class="chart-container"><canvas id="departureChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>90 Days Clock-In Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
   </section>
 
+  <!-- FILTERS -->
   <section id="filters">
-    <div class="filter-group">
-      <label for="date-select">Select Date:</label>
-      <input type="date" id="date-select">
-    </div>
-    <div class="filter-group">
-      <label for="department-select">Filter Department:</label>
-      <select id="department-select">
-        <option value="">All Departments</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label for="name-search">Search Name:</label>
-      <input type="text" id="name-search" placeholder="Search name...">
-    </div>
+    <div class="filter-group"><label for="date-select">Select Date:</label><input type="date" id="date-select"></div>
+    <div class="filter-group"><label for="department-select">Filter Department:</label><select id="department-select"><option value="">All Departments</option></select></div>
+    <div class="filter-group"><label for="name-search">Search Name:</label><input type="text" id="name-search" placeholder="Search name..."></div>
     <div class="button-group">
-      <div class="filter-group">
-        <label style="visibility: hidden;">Actions</label>
-        <button id="clear-filter-btn">Clear Filter</button>
-      </div>
-      <div class="filter-group">
-        <label style="visibility: hidden;">Export</label>
-        <button id="export-btn">Export to CSV</button>
-      </div>
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="clear-filter-btn">Clear Filter</button></div>
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="export-btn">Export to CSV</button></div>
     </div>
   </section>
 
+  <!-- TABLE -->
   <section id="attendance-table">
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details</h3>
@@ -610,45 +312,19 @@
     </table>
   </section>
 
+  <!-- PDF EXPORT -->
   <section id="pdf-export">
-    <div class="pdf-filter-group">
-      <label for="department-select-pdf">Select Department:</label>
-      <select id="department-select-pdf">
-        <option value="">All Departments</option>
-      </select>
-    </div>
-    <div class="pdf-filter-group">
-      <label for="start-date">Start Date:</label>
-      <input type="date" id="start-date">
-    </div>
-    <div class="pdf-filter-group">
-      <label for="end-date">End Date:</label>
-      <input type="date" id="end-date">
-    </div>
-    <div class="pdf-filter-group">
-      <label for="month-select">Select Month:</label>
+    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
+    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
+    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
+    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
       <select id="month-select">
-        <option value="">All Months</option>
-        <option value="01">January</option>
-        <option value="02">February</option>
-        <option value="03">March</option>
-        <option value="04">April</option>
-        <option value="05">May</option>
-        <option value="06">June</option>
-        <option value="07">July</option>
-        <option value="08">August</option>
-        <option value="09">September</option>
-        <option value="10">October</option>
-        <option value="11">November</option>
-        <option value="12">December</option>
+        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
+        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
       </select>
     </div>
-    <div class="button-group">
-      <div class="pdf-filter-group">
-        <label style="visibility: hidden;">Export</label>
-        <button id="pdf-export-btn">Export to PDF</button>
-      </div>
-    </div>
+    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
   </section>
 
   <div id="log"></div>
@@ -659,25 +335,22 @@
     const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
     const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
     const currentDate = new Date().toISOString().split('T')[0];
-    const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+    const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours
     let timeoutId;
 
     // ============================= SESSION =============================
     const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
     const logout = () => {
       clearTimeout(timeoutId);
-      ['mousemove','keypress','click','scroll'].forEach(e => document.removeEventListener(e, resetTimeout));
-      localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('lastActivity');
+      ['mousemove','keypress','click','scroll'].forEach(e=>document.removeEventListener(e,resetTimeout));
+      localStorage.removeItem('isLoggedIn'); localStorage.removeItem('lastActivity');
       window.location.href = 'index.html';
     };
     const resetTimeout = () => {
       localStorage.setItem('lastActivity', Date.now());
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        log('Session expired (12 hours)');
-        alert('Session expired. Please log in again.');
-        logout();
+        log('Session expired (12 h)'); alert('Session expired. Please log in again.'); logout();
       }, SESSION_TIMEOUT);
     };
     const log = msg => {
@@ -696,6 +369,11 @@
       return JSON.parse(txt);
     };
     const timeToMinutes = t => t && t!=='--' ? t.split(':').reduce((h,m)=>h*60+ +m) : null;
+    const minutesToTime = m => m===null ? '--:--': `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+    const avgTime = arr => {
+      const vals = arr.filter(v=>v!==null);
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    };
     const calculateWorkTime = (inT,outT) => {
       if (!inT||!outT) return 'N/A';
       const diff = timeToMinutes(outT) - timeToMinutes(inT);
@@ -730,12 +408,19 @@
         const pctIn = active? Math.round(inToday/active*100):0;
         const pctOut = inToday? Math.round(outToday/inToday*100):0;
 
-        // ---- SUMMARY ----
+        const inMins = staffAttendanceData.map(e=>timeToMinutes(e.timeIn));
+        const outMins = staffAttendanceData.map(e=>timeToMinutes(e.timeOut));
+        const avgIn = avgTime(inMins);
+        const avgOut = avgTime(outMins);
+
+        // ---- SUMMARY & AVG TIMES ----
         const set = (id,v) => document.getElementById(id).innerText = v;
         set('totalStaff',totalStaff); set('activeStaff',active);
         set('clockInsToday',inToday); set('clockOutsToday',outToday);
         set('absentToday',absent); set('percentClockedIn',pctIn+'%');
         set('percentClockedOut',pctOut+'%');
+        set('avgReportingTime',minutesToTime(avgIn));
+        set('avgDepartureTime',minutesToTime(avgOut));
 
         // ---- CHARTS ----
         initChart('generalAttendanceChart','doughnut',{
@@ -757,7 +442,7 @@
           options:{responsive:true,plugins:{legend:{position:'bottom'}}}
         });
 
-        // Department & Location
+        // Department Chart
         const depts = [...new Set(staff.staff?.map(s=>s.department)||[])];
         const deptTotal = depts.map(d=>staff.staff?.filter(s=>s.department===d).length||0);
         const deptIn = depts.map(d=>staffAttendanceData.filter(e=>e.department===d && e.timeIn).length);
@@ -768,14 +453,47 @@
             {label:'Clock In',data:deptIn,backgroundColor:'#48bb78'},
             {label:'Clock Out',data:deptOut,backgroundColor:'#f56565'}
           ]},
-          options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}
+          options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{position:'bottom'}}}
         });
 
-        const locs = [...new Set(staffAttendanceData.map(e=>e.clockInLocation).filter(Boolean))];
-        const locCounts = locs.map(l=>staffAttendanceData.filter(e=>e.clockInLocation===l).length);
+        // Location Chart — fetch all locations
+        const locationData = await fetchJSON(`${backendURL}/locations`);
+        const allLocations = locationData.locations?.map(l => l.name) || [];
+        const locCounts = allLocations.map(loc => staffAttendanceData.filter(e => e.clockInLocation === loc).length);
         initChart('locationChart','bar',{
-          data:{labels:locs,datasets:[{label:'Attendance Count',data:locCounts,backgroundColor:'#48bb78'}]},
+          data:{labels:allLocations,datasets:[{label:'Clock-Ins',data:locCounts,backgroundColor:'#48bb78'}]},
           options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{display:false}}}
+        });
+
+        // 90-Day Trend: Total Clock-Ins per Day
+        const trendData = await fetchGoogleSheetData(`Attendance Sheet!A2:G`);
+        const dateMap = {};
+        trendData.forEach(row => {
+          const dateRaw = row[0];
+          let date = dateRaw;
+          if (dateRaw) {
+            const d = new Date(dateRaw);
+            if (!isNaN(d.getTime())) date = d.toISOString().split('T')[0];
+            else {
+              const parts = dateRaw.split(/[\/-]/);
+              if (parts.length === 3) date = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+            }
+          }
+          if (date && row[3]) dateMap[date] = (dateMap[date] || 0) + 1;
+        });
+        const today = new Date();
+        const labels = [];
+        const values = [];
+        for (let i = 89; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          const ds = d.toISOString().split('T')[0];
+          labels.push(ds);
+          values.push(dateMap[ds] || 0);
+        }
+        initChart('trendChart','line',{
+          data:{labels,datasets:[{label:'Clock-Ins',data:values,borderColor:'#48bb78',backgroundColor:'rgba(72,187,120,0.1)',tension:0.3,fill:true}]},
+          options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{position:'bottom'}}}
         });
 
         // Table
@@ -786,7 +504,15 @@
       } catch (e) { log('ERROR: '+e.message); }
     };
 
-    // ============================= TABLE & FILTERS =============================
+    async function fetchGoogleSheetData(range) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.values || [];
+    }
+
+    // ============================= TABLE =============================
     let sortConfig = {key:null,dir:'asc'};
     const updateTable = data => {
       const tbody = document.getElementById('attendance-body');
