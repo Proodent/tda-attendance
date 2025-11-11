@@ -14,17 +14,17 @@
     header .logout-icon {position:absolute;right:1rem;top:50%;transform:translateY(-50%);width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;transition:all .2s;}
     header .logout-icon:hover {background:#e53e3e;color:#fff;}
 
-    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
+    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
-    .tile h3 {color:#2d3748;font-size:.9rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .tile p {font-size:1.6rem;font-weight:700;margin:0;color:#48bb78;}
+    .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tile p {font-size:1.5rem;font-weight:700;margin:0;color:#48bb78;}
     .tile.error p {color:#f56565;}
 
-    #avg-times {display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;padding:0 1.5rem 1.5rem;}
+    #avg-times {display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;padding:0 1.5rem 1.5rem;}
     .avg-tile {background:#fff;border-radius:12px;padding:1rem;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-    .avg-tile h3 {font-size:1rem;color:#2d3748;margin-bottom:.5rem;}
-    .avg-tile p {font-size:1.7rem;font-weight:700;color:#48bb78;}
+    .avg-tile h3 {font-size:.9rem;color:#2d3748;margin-bottom:.5rem;}
+    .avg-tile p {font-size:1.6rem;font-weight:700;color:#48bb78;}
 
     #stats-container {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
     .chart-tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1.25rem;transition:transform .2s;height:320px;display:flex;flex-direction:column;}
@@ -35,10 +35,10 @@
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
 
-    /* Circular Legend Keys - 50% larger than before (12px) */
+    /* Legend: Circular, 20% larger than previous (9.6px) */
     .chartjs-legend li span {
-      width: 12px !important;
-      height: 12px !important;
+      width: 9.6px !important;
+      height: 9.6px !important;
       border-radius: 50% !important;
       margin-right: 8px !important;
     }
@@ -69,15 +69,11 @@
     .button-group {display:flex;gap:.5rem;align-items:flex-end;}
     .button-group .filter-group {min-width:auto;flex:none;}
 
-    #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem;}
+    #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}
     #attendance-title {font-size:1.25rem;font-weight:600;color:#48bb78;margin:0;}
     #filtered-date {font-size:.9rem;color:#666;font-style:italic;}
 
-    /* RESPONSIVE */
-    @media (max-width:1200px){
-      #summary-tiles,#stats-container{grid-template-columns:repeat(3,1fr);}
-    }
-    @media (max-width:992px){
+    @media (max-width:1024px){
       #summary-tiles{grid-template-columns:repeat(2,1fr);}
       #stats-container{grid-template-columns:repeat(2,1fr);}
     }
@@ -87,7 +83,7 @@
       #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
       .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
       #avg-times{grid-template-columns:1fr;}
-      .avg-tile h3{font-size:.9rem;}.avg-tile p{font-size:1.4rem;}
+      .avg-tile h3{font-size:.8rem;}.avg-tile p{font-size:1.2rem;}
       #stats-container{grid-template-columns:1fr;gap:1rem;padding:1rem;}
       .chart-tile{height:280px;padding:1rem;}
       .full-width-chart{height:320px;}
@@ -96,15 +92,12 @@
       .filter-group,.button-group .filter-group{min-width:100%;}
       .button-group{width:100%;justify-content:stretch;}
       .button-group button{flex:1;}
-      #attendance-header{flex-direction:column;align-items:flex-start;}
-      #filtered-date{font-size:.85rem;}
     }
     @media (max-width:480px){
       header{font-size:1.2rem;flex-direction:column;text-align:center;}
       header img{height:1.8rem;}
       .logout-icon{position:static;transform:none;margin-top:.5rem;}
       #summary-tiles{grid-template-columns:1fr;}
-      .tile h3{font-size:.85rem;}.tile p{font-size:1.3rem;}
       #attendance-table th,#attendance-table td{font-size:.75rem;padding:.5rem;}
       #log{height:120px;font-size:.75rem;}
       #filters{gap:.5rem;}
@@ -163,7 +156,7 @@
   <!-- TABLE -->
   <section id="attendance-table">
     <div id="attendance-header">
-      <h3 id="attendance-title">Staff Attendance Details</h3>
+      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details</h3>
       <span id="filtered-date"></span>
     </div>
     <p id="attendance-count">Showing 0 of 0 entries</p>
@@ -263,17 +256,6 @@
       const ctx = document.getElementById(id)?.getContext('2d');
       if (!ctx) return;
       if (charts[id]) charts[id].destroy();
-
-      // Fix "undefined" in legend
-      const defaultGenerateLabels = Chart.defaults.plugins.legend.labels.generateLabels;
-      Chart.defaults.plugins.legend.labels.generateLabels = function(chart) {
-        const labels = defaultGenerateLabels(chart);
-        return labels.map(label => ({
-          ...label,
-          text: label.text || 'Unknown'
-        }));
-      };
-
       charts[id] = new Chart(ctx, {
         type,
         data: cfg.data,
@@ -284,11 +266,11 @@
             legend: {
               position: 'bottom',
               labels: {
-                boxWidth: 12,
-                boxHeight: 12,
+                boxWidth: 9.6,
+                boxHeight: 9.6,
                 usePointStyle: true,
                 pointStyle: 'circle',
-                padding: 15
+                padding: 12
               }
             }
           },
@@ -305,14 +287,12 @@
     const loadDashboardData = async () => {
       if (!isLoggedIn()) { logout(); return; }
       try {
-        // Fetch All Staff (for Total Staff)
-        const staffRes = await fetchJSON(`${backendURL}/staff`);
-        allStaff = staffRes.staff || [];
+        const staff = await fetchJSON(`${backendURL}/staff`);
+        allStaff = staff.staff || [];
         const totalStaff = allStaff.length;
-        const activeStaff = allStaff.filter(s => s.active).length;
-        const inactiveStaff = totalStaff - activeStaff;
+        const active = allStaff.filter(s => s.active === 'Yes').length;
+        const inactive = totalStaff - active;
 
-        // Fetch Attendance for selected date
         const stats = await fetchJSON(`${backendURL}/stats?date=${selectedDate}`);
         staffAttendanceData = stats.staffAttendance || [];
 
@@ -326,8 +306,8 @@
           deptSelect.appendChild(opt);
         });
 
-        updateSummary(totalStaff, activeStaff, inactiveStaff);
-        await updateCharts();
+        updateSummary(totalStaff, active, inactive);
+        updateCharts();
         updateTable();
         updateFilteredDate();
 
@@ -362,13 +342,14 @@
       set('avgDepartureTime', minutesToTime(avgOut));
     };
 
-    const updateCharts = async () => {
+    const updateCharts = () => {
       const inToday = staffAttendanceData.filter(e => e.timeIn).length;
       const outToday = staffAttendanceData.filter(e => e.timeOut).length;
       const both = staffAttendanceData.filter(e => e.timeIn && e.timeOut).length;
       const partial = inToday - both;
-      const absent = allStaff.filter(s => s.active).length - inToday;
+      const absent = allStaff.filter(s => s.active === 'Yes').length - inToday;
 
+      // Doughnut Charts (no undefined)
       initChart('generalAttendanceChart', 'doughnut', {
         data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
         options: {}
@@ -392,8 +373,8 @@
         options: {}
       });
 
-      // Department Chart
-      const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean);
+      // Department Chart (A-Z)
+      const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
       const deptTotal = depts.map(d => allStaff.filter(s => s.department === d).length);
       const deptIn = depts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
       const deptOut = depts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
@@ -406,22 +387,19 @@
         options: { scales: { y: { beginAtZero: true } } }
       });
 
-      // Location Chart - Fixed
-      try {
-        const locRes = await fetchJSON(`${backendURL}/locations`);
-        const allLocs = (locRes.locations || []).map(l => l.name).filter(Boolean);
-        const locCounts = allLocs.map(loc => staffAttendanceData.filter(e => e.clockInLocation === loc).length);
-        initChart('locationChart', 'bar', {
-          data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] },
-          options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
-        });
-      } catch (e) {
-        log('Location data error: ' + e.message);
-        initChart('locationChart', 'bar', { data: { labels: [], datasets: [] }, options: {} });
-      }
+      // Location Chart (A-Z)
+      const locs = [...new Set(staffAttendanceData.map(e => e.clockInLocation).filter(Boolean))].sort();
+      const locCounts = locs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
+      initChart('locationChart', 'bar', {
+        data: { labels: locs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] },
+        options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+      });
 
-      // 90-Day Trend
-      initChart('trendChart', 'line', { data: { labels: [], datasets: [] }, options: {} });
+      // 90-Day Trend (simplified)
+      initChart('trendChart', 'line', {
+        data: { labels: [], datasets: [] },
+        options: {}
+      });
     };
 
     // ============================= TABLE =============================
