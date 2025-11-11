@@ -5,305 +5,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance Dashboard</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
+  <!-- Chart.js + data-labels (optional) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <style>
-    :root {
-      --primary: #48bb78;
-      --primary-dark: #38a169;
-      --danger: #f56565;
-      --dark: #1a202c;
-      --light: #f7fafc;
-      --gray: #e2e8f0;
+    :root{
+      --primary:#48bb78;--primary-dark:#38a169;--danger:#f56565;
+      --dark:#1a202c;--light:#f7fafc;--gray:#e2e8f0;
     }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      color: #1a202c;
-    }
-
-    header {
-      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: #fff;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 700;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    header img {
-      height: 2.5rem;
-    }
-    header .logout-icon {
-      position: absolute;
-      right: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      background: transparent;
-      border: none;
-      color: #fff;
-      font-size: 1.4rem;
-      cursor: pointer;
-      padding: 0.5rem;
-      border-radius: 50%;
-      transition: background 0.2s, color 0.2s;
-    }
-    header .logout-icon:hover {
-      background: rgba(255,255,255,0.2);
-      color: #e53e3e;
-    }
-
-    #summary-tiles {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .tile {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      padding: 1rem;
-      text-align: center;
-      transition: transform .2s;
-    }
-    .tile:hover { transform: translateY(-3px); }
-    .tile h3 {
-      color: #2d3748;
-      font-size: 0.8rem;
-      margin-bottom: 0.5rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .tile p {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin: 0;
-      color: var(--primary);
-    }
-    .tile.error p { color: var(--danger); }
-
-    #stats-container {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    @media (min-width: 768px) {
-      #stats-container { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (min-width: 1024px) {
-      #stats-container { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    .chart-tile {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      height: 280px;
-      transition: transform .2s;
-    }
-    .chart-tile:hover { transform: translateY(-3px); }
-    .chart-tile h3 {
-      text-align: center;
-      color: #2d3748;
-      margin: 0 0 0.5rem 0;
-      font-size: 1rem;
-      font-weight: 600;
-      flex-shrink: 0;
-    }
-    .chart-container {
-      flex: 1;
-      position: relative;
-      min-height: 0;
-      width: 100%;
-    }
-    .chart-container canvas {
-      width: 100% !important;
-      height: 100% !important;
-    }
-    .full-width-chart {
-      grid-column: 1 / -1;
-      height: 320px;
-    }
-
-    #attendance-section {
-      margin: 1rem;
-      background: #d1e2fa;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      overflow: hidden;
-    }
-    .table-header {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      padding: 1rem;
-      background: #2d3748;
-      color: #fff;
-    }
-    .table-header h3 {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-    .filters-inline {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      width: 100%;
-    }
-    .filters-inline .filter-group {
-      flex: 1;
-      min-width: 120px;
-    }
-    .filters-inline label {
-      font-size: 0.75rem;
-      color: #fff;
-      margin-bottom: 0.25rem;
-      display: block;
-    }
-    .filters-inline input,
-    .filters-inline select {
-      width: 100%;
-      padding: 0.5rem;
-      font-size: 0.85rem;
-      border-radius: 6px;
-      border: 1px solid #cbd5e0;
-      background: #fff;
-      color: #000;
-    }
-    .filters-inline button {
-      background: var(--primary);
-      color: #fff;
-      padding: 0 0.75rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      height: 38px;
-      white-space: nowrap;
-      transition: background .2s;
-    }
-    .filters-inline button:hover { background: var(--primary-dark); }
-
-    #attendance-table-content {
-      padding: 1rem;
-      overflow-x: auto;
-    }
-    #attendance-table-content table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-    #attendance-table-content th,
-    #attendance-table-content td {
-      padding: 0.5rem;
-      text-align: left;
-      border-bottom: 1px solid var(--gray);
-    }
-    #attendance-table-content th {
-      background: #2d3748;
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    #attendance-table-content th:hover { background: #4a5568; }
-    #attendance-table-content tr:nth-child(even) { background: #f7fafc; }
-
-    #log {
-      background: #1a202c;
-      color: #25e876;
-      font-family: 'Courier New', monospace;
-      padding: 1rem;
-      height: 150px;
-      overflow-y: auto;
-      margin: 1rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      position: relative;
-      font-size: 0.8rem;
-    }
-    #clear-log-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      background: #e53e3e;
-      color: #fff;
-      border: none;
-      padding: 0.25rem 0.5rem;
-      font-size: 0.7rem;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    #clear-log-btn:hover { background: #c53030; }
-
-    #pdf-export {
-      margin: 1rem;
-      padding: 1rem;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,.1);
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-    @media (min-width: 640px) {
-      #pdf-export { grid-template-columns: repeat(4, 1fr) auto; }
-    }
-    #pdf-export label {
-      font-weight: 600;
-      color: #2d3748;
-      font-size: 0.85rem;
-      margin-bottom: 0.25rem;
-    }
-    #department-select-pdf, #start-date, #end-date, #month-select {
-      padding: 0.5rem;
-      border-radius: 6px;
-      border: 2px solid var(--gray);
-      font-size: 0.85rem;
-    }
-    #pdf-export-btn {
-      background: var(--primary);
-      color: #fff;
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      align-self: end;
-      transition: background .2s;
-    }
-    #pdf-export-btn:hover { background: var(--primary-dark); }
-
-    @media (max-width: 480px) {
-      header { font-size: 1.2rem; padding: 0.75rem; }
-      header img { height: 2rem; }
-      .tile h3 { font-size: 0.75rem; }
-      .tile p { font-size: 1.25rem; }
-      .chart-tile { height: 220px; }
-      .full-width-chart { height: 260px; }
-      #attendance-table-content th,
-      #attendance-table-content td { font-size: 0.7rem; padding: 0.3rem; }
-      #log { height: 120px; font-size: 0.7rem; }
+    body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);margin:0;padding:0;min-height:100vh;color:#1a202c}
+    header{background:linear-gradient(90deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff;padding:1rem;text-align:center;font-size:1.5rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;position:relative;flex-wrap:wrap;gap:.5rem}
+    header img{height:2.5rem}
+    header .logout-icon{position:absolute;right:1rem;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:.5rem;border-radius:50%;transition:background .2s,color .2s}
+    header .logout-icon:hover{background:rgba(255,255,255,.2);color:#e53e3e}
+    #summary-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;padding:1rem}
+    .tile{background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1rem;text-align:center;transition:transform .2s}
+    .tile:hover{transform:translateY(-3px)}
+    .tile h3{color:#2d3748;font-size:.8rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tile p{font-size:1.5rem;font-weight:700;margin:0;color:var(--primary)}
+    .tile.error p{color:var(--danger)}
+    #stats-container{display:grid;grid-template-columns:1fr;gap:1rem;padding:1rem}
+    @media(min-width:768px){#stats-container{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:1024px){#stats-container{grid-template-columns:repeat(3,1fr)}}
+    .chart-tile{background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1rem;display:flex;flex-direction:column;height:280px;transition:transform .2s}
+    .chart-tile:hover{transform:translateY(-3px)}
+    .chart-tile h3{text-align:center;color:#2d3748;margin:0 0 .5rem 0;font-size:1rem;font-weight:600;flex-shrink:0}
+    .chart-container{flex:1;position:relative;min-height:0}
+    .chart-container canvas{width:100%!important;height:100%!important}
+    .full-width-chart{grid-column:1/-1;height:320px}
+    #filters,#pdf-export{display:grid;grid-template-columns:1fr;gap:.75rem;padding:1rem;background:#d1e2fa;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);margin:1rem}
+    @media(min-width:640px){#filters,#pdf-export{grid-template-columns:repeat(4,1fr) auto}}
+    #filters label,#pdf-export label{font-weight:600;color:#2d3748;font-size:.85rem;margin-bottom:.25rem}
+    #filters input,#filters select,#pdf-export input,#pdf-export select{padding:.5rem;border-radius:6px;border:2px solid var(--gray);font-size:.85rem;height:38px}
+    #filters button,#pdf-export button{background:var(--primary);color:#fff;padding:0 .75rem;border:none;border-radius:6px;cursor:pointer;font-size:.85rem;height:38px;transition:background .2s}
+    #filters button:hover,#pdf-export button:hover{background:var(--primary-dark)}
+    #attendance-table{margin:1rem;background:#d1e2fa;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);overflow:hidden}
+    .table-header{display:flex;flex-direction:column;gap:.75rem;padding:1rem;background:#2d3748;color:#fff}
+    .table-header h3{margin:0;font-size:1.1rem;font-weight:600}
+    #attendance-table-content{padding:1rem;overflow-x:auto}
+    #attendance-table-content table{width:100%;border-collapse:collapse;font-size:.85rem}
+    #attendance-table-content th,#attendance-table-content td{padding:.5rem;text-align:left;border-bottom:1px solid var(--gray)}
+    #attendance-table-content th{background:#2d3748;color:#fff;cursor:pointer;font-size:.8rem}
+    #attendance-table-content th:hover{background:#4a5568}
+    #attendance-table-content tr:nth-child(even){background:#f7fafc}
+    .sortable{position:relative}
+    .sortable.asc::after,.sortable.desc::after{content:" ▲";margin-left:4px;font-size:.7rem}
+    .sortable.desc::after{content:" ▼"}
+    #log{background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:150px;overflow-y:auto;margin:1rem;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);position:relative;font-size:.8rem}
+    #clear-log-btn{position:absolute;top:.5rem;right:.5rem;background:#e53e3e;color:#fff;border:none;padding:.25rem .5rem;font-size:.7rem;border-radius:6px;cursor:pointer}
+    #clear-log-btn:hover{background:#c53030}
+    @media(max-width:480px){
+      header{font-size:1.2rem;padding:.75rem}
+      header img{height:2rem}
+      .tile h3{font-size:.75rem}
+      .tile p{font-size:1.25rem}
+      .chart-tile{height:220px}
+      .full-width-chart{height:260px}
+      #attendance-table-content th,#attendance-table-content td{font-size:.7rem;padding:.3rem}
+      #log{height:120px;font-size:.7rem}
     }
   </style>
 </head>
@@ -333,23 +97,23 @@
   <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
   <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
   <div class="chart-tile full-width-chart"><h3>90-Day Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
-  <div class="chart-tile full-width-chart"><h3>7-Day Trend</h3><div class="chart-container"><canvas id="weeklyChart"></canvas></div></div>
+  <div class="chart-tile full-width-chart"><h3>7-Day Trend</h3><div class="chart-container"><canvas id="weeklyAttendanceChart"></canvas></div></div>
 </section>
 
-<section id="attendance-section">
+<section id="filters">
+  <div><label for="date-select">Date</label><input type="date" id="date-select" onchange="loadDashboardData()"></div>
+  <div><label for="department-select">Department</label>
+    <select id="department-select" onchange="filterTable()"><option value="">All</option></select>
+  </div>
+  <div><label for="name-search">Name</label><input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search..."></div>
+  <div><button id="clear-filter-btn" onclick="clearFilters()">Clear</button></div>
+  <div><button id="export-btn" onclick="exportToCSV()">Export CSV</button></div>
+</section>
+
+<section id="attendance-table">
   <div class="table-header">
     <h3 id="attendance-title">Staff Attendance Details</h3>
-    <div class="filters-inline">
-      <div class="filter-group"><label for="date-select">Date</label><input type="date" id="date-select" onchange="loadDashboardData()"></div>
-      <div class="filter-group"><label for="department-select">Department</label>
-        <select id="department-select" onchange="filterTable()"><option value="">All</option></select>
-      </div>
-      <div class="filter-group"><label for="name-search">Name</label><input type="text" id="name-search" onkeyup="filterTable()" placeholder="Search..."></div>
-      <div class="filter-group"><button id="clear-filter-btn" onclick="clearFilters()">Clear</button></div>
-      <div class="filter-group"><button id="export-btn" onclick="exportToCSV()">Export CSV</button></div>
-    </div>
   </div>
-
   <div id="attendance-table-content">
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <table>
@@ -369,10 +133,10 @@
 </section>
 
 <section id="pdf-export">
-  <div><label for="department-select-pdf">Department:</label><select id="department-select-pdf"><option value="">All</option></select></div>
-  <div><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
-  <div><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
-  <div><label for="month-select">Month:</label>
+  <div><label for="department-select-pdf">Department</label><select id="department-select-pdf"><option value="">All</option></select></div>
+  <div><label for="start-date">Start Date</label><input type="date" id="start-date"></div>
+  <div><label for="end-date">End Date</label><input type="date" id="end-date"></div>
+  <div><label for="month-select">Month</label>
     <select id="month-select">
       <option value="">All</option>
       <option value="01">January</option><option value="02">February</option>
@@ -394,6 +158,7 @@
   const SESSION_TIMEOUT = 15 * 60 * 1000;
   let timeoutId = null;
 
+  // ---------- SESSION ----------
   const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
   const logout = () => {
     clearTimeout(timeoutId);
@@ -406,13 +171,11 @@
   const resetTimeout = () => {
     localStorage.setItem('lastActivity', Date.now());
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      alert('Session expired');
-      logout();
-    }, SESSION_TIMEOUT);
+    timeoutId = setTimeout(() => { alert('Session expired'); logout(); }, SESSION_TIMEOUT);
   };
 
-  let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyChart;
+  // ---------- CHARTS & DATA ----------
+  let generalAttendanceChart, reportingChart, departureChart, departmentChart, locationChart, trendChart, weeklyAttendanceChart;
   let sortConfig = { key: null, direction: "asc" };
   let departments = [], staffAttendanceData = [];
 
@@ -488,14 +251,7 @@
     if (!ctx) return;
     const chartVar = id.replace('Chart', '') + 'Chart';
     if (window[chartVar]) window[chartVar].destroy();
-    window[chartVar] = new Chart(ctx, {
-      ...cfg,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        ...cfg.options
-      }
-    });
+    window[chartVar] = new Chart(ctx, { ...cfg, options: { responsive:true, maintainAspectRatio:false, ...cfg.options } });
   };
 
   async function loadDashboardData() {
@@ -520,24 +276,24 @@
       document.getElementById("percentClockedIn").innerText = active ? Math.round(inToday/active*100) + '%' : '0%';
       document.getElementById("percentClockedOut").innerText = inToday ? Math.round(outToday/inToday*100) + '%' : '0%';
 
-      updateChart('generalAttendanceChart', { type: 'doughnut', data: { labels: ['Present','Absent'], datasets: [{ data: [inToday,absent], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
-      updateChart('reportingChart', { type: 'doughnut', data: { labels: ['Before 10AM','After 10AM'], datasets: [{ data: [staffAttendanceData.filter(e=>e.timeIn&&e.timeIn<"10:00").length, staffAttendanceData.filter(e=>e.timeIn&&e.timeIn>="10:00").length], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
-      updateChart('departureChart', { type: 'doughnut', data: { labels: ['Before 4PM','After 4PM'], datasets: [{ data: [staffAttendanceData.filter(e=>e.timeOut&&e.timeOut<"16:00").length, staffAttendanceData.filter(e=>e.timeOut&&e.timeOut>="16:00").length], backgroundColor: ['#48bb78','#e2e8f0'] }] } });
+      updateChart('generalAttendanceChart', { type:'doughnut', data:{ labels:['Present','Absent'], datasets:[{ data:[inToday,absent], backgroundColor:['#48bb78','#e2e8f0'] }] } });
+      updateChart('reportingChart', { type:'doughnut', data:{ labels:['Before 10AM','After 10AM'], datasets:[{ data:[staffAttendanceData.filter(e=>e.timeIn&&e.timeIn<"10:00").length, staffAttendanceData.filter(e=>e.timeIn&&e.timeIn>="10:00").length], backgroundColor:['#48bb78','#e2e8f0'] }] } });
+      updateChart('departureChart', { type:'doughnut', data:{ labels:['Before 4PM','After 4PM'], datasets:[{ data:[staffAttendanceData.filter(e=>e.timeOut&&e.timeOut<"16:00").length, staffAttendanceData.filter(e=>e.timeOut&&e.timeOut>="16:00").length], backgroundColor:['#48bb78','#e2e8f0'] }] } });
 
       const deptMap = {}, deptIn = {}, deptOut = {};
-      staff.staff.forEach(s => deptMap[s.department] = (deptMap[s.department] || 0) + 1);
-      staffAttendanceData.forEach(e => { if (e.timeIn) deptIn[e.department] = (deptIn[e.department] || 0) + 1; if (e.timeOut) deptOut[e.department] = (deptOut[e.department] || 0) + 1; });
-      updateChart('departmentChart', { type: 'bar', data: { labels: departments, datasets: [
-        { label: 'Total', data: departments.map(d => deptMap[d] || 0), backgroundColor: 'rgba(45,55,72,0.2)' },
-        { label: 'In', data: departments.map(d => deptIn[d] || 0), backgroundColor: '#48bb78' },
-        { label: 'Out', data: departments.map(d => deptOut[d] || 0), backgroundColor: '#f56565' }
-      ] } });
+      staff.staff.forEach(s => deptMap[s.department] = (deptMap[s.department]||0)+1);
+      staffAttendanceData.forEach(e => { if(e.timeIn) deptIn[e.department]=(deptIn[e.department]||0)+1; if(e.timeOut) deptOut[e.department]=(deptOut[e.department]||0)+1; });
+      updateChart('departmentChart', { type:'bar', data:{ labels:departments, datasets:[
+        {label:'Total',data:departments.map(d=>deptMap[d]||0),backgroundColor:'rgba(45,55,72,0.2)'},
+        {label:'In',data:departments.map(d=>deptIn[d]||0),backgroundColor:'#48bb78'},
+        {label:'Out',data:departments.map(d=>deptOut[d]||0),backgroundColor:'#f56565'}
+      ]}});
 
-      const locMap = {};
-      staffAttendanceData.forEach(e => locMap[e.clockInLocation || 'Unknown'] = (locMap[e.clockInLocation || 'Unknown'] || 0) + 1);
-      const locLabels = locations.locations?.map(l => l.name) || Object.keys(locMap);
-      updateChart('locationChart', { type: 'bar', data: { labels: locLabels, datasets: [{ label: 'Count', data: locLabels.map(l => locMap[l] || 0), backgroundColor: '#48bb78' }] } });
+      const locMap = {}; staffAttendanceData.forEach(e=>locMap[e.clockInLocation||'Unknown']=(locMap[e.clockInLocation||'Unknown']||0)+1);
+      const locLabels = locations.locations?.map(l=>l.name)||Object.keys(locMap);
+      updateChart('locationChart', { type:'bar', data:{ labels:locLabels, datasets:[{ label:'Count', data:locLabels.map(l=>locMap[l]||0), backgroundColor:'#48bb78' }] } });
 
+      // ---- 90-DAY TREND (real today: 11 Nov 2025) ----
       const dateCount = {};
       sheet.forEach(r => {
         let d = r[0];
@@ -545,32 +301,34 @@
           const pd = new Date(d);
           if (!isNaN(pd)) d = pd.toISOString().split('T')[0];
           else if (d.includes('/')) { const [m,dd,y] = d.split('/'); d = `${y}-${m.padStart(2,'0')}-${dd.padStart(2,'0')}`; }
-          if (d && r[3]) dateCount[d] = (dateCount[d] || 0) + 1;
+          if (d && r[3]) dateCount[d] = (dateCount[d]||0)+1;
         }
       });
-      const today = new Date();
+      const today = new Date(); // 11 Nov 2025
       const trendLabels = [], trendValues = [];
       for (let i = 89; i >= 0; i--) {
         const dd = new Date(today); dd.setDate(dd.getDate() - i);
         const ds = dd.toISOString().split('T')[0];
-        trendLabels.push(ds); trendValues.push(dateCount[ds] || 0);
+        trendLabels.push(ds); trendValues.push(dateCount[ds]||0);
       }
-      updateChart('trendChart', { type: 'line', data: { labels: trendLabels, datasets: [{ label: 'Attendance', data: trendValues, borderColor: '#48bb78', fill: true }] } });
+      updateChart('trendChart', { type:'line', data:{ labels:trendLabels, datasets:[{ label:'Attendance', data:trendValues, borderColor:'#48bb78', fill:true }] } });
 
+      // ---- 7-DAY TREND ----
       const weekLabels = [], weekValues = [];
       for (let i = 6; i >= 0; i--) {
         const dd = new Date(today); dd.setDate(dd.getDate() - i);
         const ds = dd.toISOString().split('T')[0];
-        weekLabels.push(dd.toLocaleDateString('en-US', { weekday: 'short' }));
-        weekValues.push(dateCount[ds] || 0);
+        weekLabels.push(dd.toLocaleDateString('en-US', { weekday:'short' }));
+        weekValues.push(dateCount[ds]||0);
       }
-      updateChart('weeklyChart', { type: 'bar', data: { labels: weekLabels, datasets: [{ label: 'Daily', data: weekValues, backgroundColor: '#48bb78' }] } });
+      updateChart('weeklyAttendanceChart', { type:'bar', data:{ labels:weekLabels, datasets:[{ label:'Daily', data:weekValues, backgroundColor:'#48bb78' }] } });
 
       updateTable(staffAttendanceData);
       log("Dashboard loaded");
     } catch (e) { log("Load error: " + e.message); }
   }
 
+  // ---- SORTING ----
   document.querySelectorAll(".sortable").forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.sort;
     sortConfig.direction = sortConfig.key === k && sortConfig.direction === "asc" ? "desc" : "asc";
@@ -582,6 +340,7 @@
 
   document.getElementById('logoutBtn').addEventListener('click', logout);
 
+  // ---- PDF EXPORT ----
   async function exportToPDF() {
     if (!isLoggedIn()) return window.location.href = 'index.html';
     const dept = document.getElementById("department-select-pdf").value;
@@ -617,19 +376,19 @@
       }
     });
 
-    const tbl = document.createElement('table'); tbl.style.width = '100%'; tbl.style.borderCollapse = 'collapse';
-    tbl.innerHTML = `<thead><tr><th>Name</th><th>Dept</th>${dates.map(d => `<th>${new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}<br>In/Out</th>`).join('')}<th>Total</th><th>Present</th><th>Absent</th><th>%</th></tr></thead><tbody>${
-      staff.staff.filter(s => !dept || s.department === dept).map(s => {
-        const att = map[s.name] || {};
-        const pres = dates.filter(d => att[d]?.in).length;
-        const tot = dates.length; const abs = tot - pres; const pct = tot ? Math.round(pres/tot*100) : 0;
-        return `<tr><td>${s.name}</td><td>${s.department}</td>${dates.map(d => `<td>${att[d]?.in || '--'} / ${att[d]?.out || '--'}</td>`).join('')}<td>${tot}</td><td>${pres}</td><td>${abs}</td><td>${pct}%</td></tr>`;
+    const tbl = document.createElement('table'); tbl.style.width='100%'; tbl.style.borderCollapse='collapse';
+    tbl.innerHTML = `<thead><tr><th>Name</th><th>Dept</th>${dates.map(d=>`<th>${new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}<br>In/Out</th>`).join('')}<th>Total</th><th>Present</th><th>Absent</th><th>%</th></tr></thead><tbody>${
+      staff.staff.filter(s=>!dept||s.department===dept).map(s=>{
+        const att = map[s.name]||{};
+        const pres = dates.filter(d=>att[d]?.in).length;
+        const tot = dates.length; const abs = tot-pres; const pct = tot?Math.round(pres/tot*100):0;
+        return `<tr><td>${s.name}</td><td>${s.department}</td>${dates.map(d=>`<td>${att[d]?.in||'--'} / ${att[d]?.out||'--'}</td>`).join('')}<td>${tot}</td><td>${pres}</td><td>${abs}</td><td>${pct}%</td></tr>`;
       }).join('')
     }</tbody>`;
     document.body.appendChild(tbl);
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
     await html2canvas(tbl).then(c => {
       const img = c.toDataURL('image/png');
       const w = doc.internal.pageSize.getWidth() - 20;
