@@ -14,20 +14,20 @@
     header .logout-icon {position:absolute;right:1rem;top:50%;transform:translateY(-50%);width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;transition:all .2s;}
     header .logout-icon:hover {background:#e53e3e;color:#fff;}
 
-    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
+    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
     .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .tile p {font-size:1.5rem;font-weight:700;margin:0;color:#48bb78;}
+    .tile p {font-size:1.6rem;font-weight:700;margin:0;color:#48bb78;}
     .tile.error p {color:#f56565;}
 
-    #avg-times {display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;padding:0 1.5rem 1.5rem;}
+    #avg-times {display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1.5rem;padding:0 1.5rem 1.5rem;}
     .avg-tile {background:#fff;border-radius:12px;padding:1rem;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
     .avg-tile h3 {font-size:.9rem;color:#2d3748;margin-bottom:.5rem;}
-    .avg-tile p {font-size:1.6rem;font-weight:700;color:#48bb78;}
+    .avg-tile p {font-size:1.7rem;font-weight:700;color:#48bb78;}
 
     #stats-container {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
-    .chart-tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1.25rem;transition:transform .2s;height:320px;display:flex;flex-direction:column;}
+    .chart-tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1.25rem;transition:transform .2s;height:340px;display:flex;flex-direction:column;}
     .chart-tile:hover {transform:translateY(-5px);}
     .chart-tile h3 {text-align:center;color:#2d3748;margin-bottom:1rem;font-size:1.1rem;font-weight:600;height:40px;display:flex;align-items:center;justify-content:center;}
     .chart-container {flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;}
@@ -35,10 +35,10 @@
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
 
-    /* Legend: Circular, 20% larger than previous (9.6px) */
+    /* Legend: Circular, 20% larger than previous (8px → 9.6px ≈ 10px) */
     .chartjs-legend li span {
-      width: 9.6px !important;
-      height: 9.6px !important;
+      width: 10px !important;
+      height: 10px !important;
       border-radius: 50% !important;
       margin-right: 8px !important;
     }
@@ -73,17 +73,16 @@
     #attendance-title {font-size:1.25rem;font-weight:600;color:#48bb78;margin:0;}
     #filtered-date {font-size:.9rem;color:#666;font-style:italic;}
 
-    @media (max-width:1024px){
-      #summary-tiles{grid-template-columns:repeat(2,1fr);}
-      #stats-container{grid-template-columns:repeat(2,1fr);}
+    @media (max-width:1200px){
+      #summary-tiles,#stats-container{grid-template-columns:repeat(2,1fr);}
     }
     @media (max-width:768px){
       header{font-size:1.4rem;padding:.75rem;}
       header img{height:2rem;}
       #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
-      .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
+      .tile h3{font-size:.8rem;}.tile p{font-size:1.3rem;}
       #avg-times{grid-template-columns:1fr;}
-      .avg-tile h3{font-size:.8rem;}.avg-tile p{font-size:1.2rem;}
+      .avg-tile h3{font-size:.85rem;}.avg-tile p{font-size:1.4rem;}
       #stats-container{grid-template-columns:1fr;gap:1rem;padding:1rem;}
       .chart-tile{height:280px;padding:1rem;}
       .full-width-chart{height:320px;}
@@ -100,7 +99,6 @@
       #summary-tiles{grid-template-columns:1fr;}
       #attendance-table th,#attendance-table td{font-size:.75rem;padding:.5rem;}
       #log{height:120px;font-size:.75rem;}
-      #filters{gap:.5rem;}
     }
   </style>
 </head>
@@ -112,7 +110,7 @@
     <span class="logout-icon" id="logoutBtn">Exit</span>
   </header>
 
-  <!-- SUMMARY TILES (4 per row on desktop) -->
+  <!-- SUMMARY TILES -->
   <section id="summary-tiles">
     <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
     <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
@@ -156,7 +154,7 @@
   <!-- TABLE -->
   <section id="attendance-table">
     <div id="attendance-header">
-      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details</h3>
+      <h3 id="attendance-title">Staff Attendance Details</h3>
       <span id="filtered-date"></span>
     </div>
     <p id="attendance-count">Showing 0 of 0 entries</p>
@@ -207,7 +205,6 @@
         log('Session expired (12 h)'); alert('Session expired. Please log in again.'); logout();
       }, SESSION_TIMEOUT);
     };
-
     const log = msg => {
       const box = document.getElementById('log');
       const t = new Date().toLocaleTimeString();
@@ -266,11 +263,10 @@
             legend: {
               position: 'bottom',
               labels: {
-                boxWidth: 9.6,
-                boxHeight: 9.6,
+                boxWidth: 10,
+                boxHeight: 10,
                 usePointStyle: true,
-                pointStyle: 'circle',
-                padding: 12
+                pointStyle: 'circle'
               }
             }
           },
@@ -349,7 +345,6 @@
       const partial = inToday - both;
       const absent = allStaff.filter(s => s.active === 'Yes').length - inToday;
 
-      // Doughnut Charts (no undefined)
       initChart('generalAttendanceChart', 'doughnut', {
         data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
         options: {}
@@ -373,7 +368,7 @@
         options: {}
       });
 
-      // Department Chart (A-Z)
+      // Department Chart - A-Z
       const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
       const deptTotal = depts.map(d => allStaff.filter(s => s.department === d).length);
       const deptIn = depts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
@@ -387,7 +382,7 @@
         options: { scales: { y: { beginAtZero: true } } }
       });
 
-      // Location Chart (A-Z)
+      // Location Chart - A-Z
       const locs = [...new Set(staffAttendanceData.map(e => e.clockInLocation).filter(Boolean))].sort();
       const locCounts = locs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
       initChart('locationChart', 'bar', {
@@ -395,11 +390,8 @@
         options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
       });
 
-      // 90-Day Trend (simplified)
-      initChart('trendChart', 'line', {
-        data: { labels: [], datasets: [] },
-        options: {}
-      });
+      // 90-Day Trend
+      initChart('trendChart', 'line', { data: { labels: [], datasets: [] }, options: {} });
     };
 
     // ============================= TABLE =============================
