@@ -9,12 +9,13 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
     header {background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:1rem;text-align:center;font-size:1.8rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;position:relative;flex-wrap:wrap;gap:1rem;}
     header img {height:2.5rem;}
-    header .logout-icon {position:absolute;right:1rem;top:50%;transform:translateY(-50%);width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;transition:all .2s;}
-    header .logout-icon:hover {background:#e53e3e;color:#fff;}
+    header .logout-icon {position:absolute;right:1rem;top:50%;transform:translateY(-50%);width:2.5rem;height:2.5rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;transition:all .2s;color:#fff;}
+    header .logout-icon:hover {background:#e53e3e;}
 
     #summary-tiles {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
@@ -37,24 +38,33 @@
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
 
-    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;margin:1rem;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);font-size:.85rem;}
+    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;margin:1rem;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);font-size:.85rem;position:relative;}
+    #clear-log-btn {position:absolute;top:8px;right:8px;background:#e53e3e;color:#fff;padding:4px 8px;border:none;border-radius:6px;font-size:.75rem;cursor:pointer;}
+    #clear-log-btn:hover {background:#c53030;}
+
     #attendance-table {margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;}
-    #attendance-table table {width:100%;border-collapse:collapse;min-width:600px;}
+    #attendance-table table {width:100%;border-collapse:collapse;min-width:700px;}
     #attendance-table th,#attendance-table td {padding:.75rem;text-align:left;border-bottom:1px solid #e2e8f0;font-size:.9rem;}
-    #attendance-table th {background:#2d3748;color:#fff;cursor:pointer;white-space:nowrap;}
+    #attendance-table th {background:#2d3748;color:#fff;cursor:pointer;white-space:nowrap;position:relative;}
     #attendance-table th:hover {background:#4a5568;}
     #attendance-table tr:nth-child(even){background:#f7fafc;}
-    .asc::after{content:" up";} .desc::after{content:" down";}
+    .sort-icon {margin-left:4px;font-size:.7rem;}
+    .sort-icon.asc::before {content:' up';}
+    .sort-icon.desc::before {content:' down';}
 
-    #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
-    #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
-    input,select {padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
+    #filters {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
+    #filters label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
+    input,select {padding:.5rem .75rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
     input:focus,select:focus {border-color:#48bb78;outline:none;}
-    button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;min-width:100px;}
+    button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;display:flex;align-items:center;gap:6px;min-width:100px;}
     button:hover {background:#38a169;}
-    .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
+    .filter-group {flex:1;min-width:180px;position:relative;}
+    .filter-group i {position:absolute;left:10px;top:34px;color:#666;font-size:.9rem;z-index:1;}
+    .filter-group input,.filter-group select {padding-left:2.2rem;}
     .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
-    .button-group .filter-group,.button-group .pdf-filter-group {min-width:auto;flex:1;}
+    .button-group .filter-group {min-width:auto;flex:1;}
+
+    #date-display {font-weight:600;color:#2d3748;margin-bottom:.5rem;text-align:center;}
 
     @media (max-width:1024px){
       #stats-container{grid-template-columns:repeat(2,1fr);}
@@ -70,9 +80,10 @@
       .chart-tile{height:280px;padding:1rem;}
       .full-width-chart{height:320px;}
       .full-width-chart .chart-container{height:220px;}
-      #filters,#pdf-export{flex-direction:column;padding:1rem;}
-      .filter-group,.pdf-filter-group{min-width:100%;}
-      .button-group{width:100%;}
+      #filters{flex-direction:column;padding:1rem;}
+      .filter-group,.button-group .filter-group{min-width:100%;}
+      .button-group{width:100%;justify-content:stretch;}
+      button{flex:1;justify-content:center;}
     }
     @media (max-width:480px){
       header{font-size:1.2rem;flex-direction:column;text-align:center;}
@@ -83,6 +94,11 @@
       #attendance-table th,#attendance-table td{font-size:.75rem;padding:.5rem;}
       #log{height:120px;font-size:.75rem;}
     }
+
+    /* Reduce legend box size by 60% */
+    .chartjs-legend {font-size: 0.75rem !important;}
+    .chartjs-legend .legend-label-text {font-size: 0.75rem !important;}
+    .chartjs-legend .legend-scale {width: 8px !important; height: 8px !important; border-radius: 2px !important; margin-right: 6px !important;}
   </style>
 </head>
 <body>
@@ -90,7 +106,7 @@
     <img src="/assets/favicon.png" alt="logo" />
     Attendance Dashboard
     <img src="/assets/favicon.png" alt="logo" />
-    <span class="logout-icon" id="logoutBtn">Exit</span>
+    <span class="logout-icon" id="logoutBtn"><i class="fas fa-door-open"></i></span>
   </header>
 
   <!-- SUMMARY TILES -->
@@ -111,7 +127,7 @@
     <div class="avg-tile"><h3>Avg Departure Time</h3><p id="avgDepartureTime">--:--</p></div>
   </section>
 
-  <!-- CHARTS ROW 1: General, Reporting, Clocking (far right), Departure -->
+  <!-- CHARTS ROW 1 -->
   <section id="stats-container">
     <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
     <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
@@ -125,58 +141,61 @@
 
   <!-- FILTERS -->
   <section id="filters">
-    <div class="filter-group"><label for="date-select">Select Date:</label><input type="date" id="date-select"></div>
-    <div class="filter-group"><label for="department-select">Filter Department:</label><select id="department-select"><option value="">All Departments</option></select></div>
-    <div class="filter-group"><label for="name-search">Search Name:</label><input type="text" id="name-search" placeholder="Search name..."></div>
+    <div class="filter-group">
+      <label for="date-select"><i class="fas fa-calendar-alt"></i> Select Date:</label>
+      <input type="date" id="date-select">
+    </div>
+    <div class="filter-group">
+      <label for="department-select"><i class="fas fa-building"></i> Filter Department:</label>
+      <select id="department-select"><option value="">All Departments</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="name-search"><i class="fas fa-search"></i> Search Name:</label>
+      <input type="text" id="name-search" placeholder="Search name...">
+    </div>
     <div class="button-group">
-      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="clear-filter-btn">Clear Filter</button></div>
-      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="export-btn">Export to CSV</button></div>
+      <div class="filter-group">
+        <label style="visibility:hidden;">.</label>
+        <button id="clear-filter-btn"><i class="fas fa-broom"></i> Clear Filter</button>
+      </div>
+      <div class="filter-group">
+        <label style="visibility:hidden;">.</label>
+        <button id="export-btn"><i class="fas fa-file-csv"></i> Export CSV</button>
+      </div>
     </div>
   </section>
 
   <!-- TABLE -->
   <section id="attendance-table">
+    <div id="date-display">Attendance for <span id="selected-date-display">Today</span></div>
     <p id="attendance-count">Showing 0 of 0 entries</p>
     <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Staff Attendance Details</h3>
     <table>
       <thead>
         <tr>
-          <th class="sortable" data-sort="name">Name</th>
-          <th class="sortable" data-sort="department">Department</th>
-          <th class="sortable" data-sort="timeIn">Time In</th>
-          <th class="sortable" data-sort="timeOut">Time Out</th>
-          <th class="sortable" data-sort="workTime">Work Time</th>
-          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
+          <th class="sortable" data-sort="userId">User ID <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="name">Name <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="department">Department <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="timeIn">Time In <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="timeOut">Time Out <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="workTime">Work Time <span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="clockInLocation">Clock In Location <span class="sort-icon"></span></th>
         </tr>
       </thead>
       <tbody id="attendance-body"></tbody>
     </table>
   </section>
 
-  <!-- PDF EXPORT -->
-  <section id="pdf-export">
-    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
-    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
-    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
-    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
-      <select id="month-select">
-        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
-        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
-        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
-      </select>
-    </div>
-    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
-  </section>
-
-  <div id="log"></div>
+  <!-- LOGS -->
+  <div id="log">
+    <button id="clear-log-btn"><i class="fas fa-trash-alt"></i> Clear</button>
+  </div>
 
   <script>
     // ============================= CONFIG =============================
     const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const SHEET_ID = "1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A";
-    const API_KEY = "AIzaSyCTFfZAlX_eKUU3UY6mQknUUQyUWZiRLKw";
     const currentDate = new Date().toISOString().split('T')[0];
-    const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours
+    const SESSION_TIMEOUT = 12 * 60 * 60 * 1000;
     let timeoutId;
 
     // ============================= SESSION =============================
@@ -247,6 +266,8 @@
 
     // ============================= MAIN LOAD =============================
     let staffAttendanceData = [];
+    let allDepartments = [];
+
     const loadDashboardData = async () => {
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
@@ -259,6 +280,11 @@
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
         staffAttendanceData = stats.staffAttendance || [];
 
+        // Populate departments
+        allDepartments = [...new Set(staff.staff?.map(s => s.department) || [])];
+        const deptSelect = document.getElementById('department-select');
+        deptSelect.innerHTML = '<option value="">All Departments</option>' + allDepartments.map(d => `<option value="${d}">${d}</option>`).join('');
+
         const inToday = staffAttendanceData.filter(e => e.timeIn).length;
         const outToday = staffAttendanceData.filter(e => e.timeOut).length;
         const both = staffAttendanceData.filter(e => e.timeIn && e.timeOut).length;
@@ -267,13 +293,12 @@
         const pctIn = active ? Math.round(inToday / active * 100) : 0;
         const pctOut = inToday ? Math.round(outToday / inToday * 100) : 0;
 
-        // CORRECT AVERAGE TIME CALCULATION
         const inMins = staffAttendanceData.map(e => timeToMinutes(e.timeIn));
         const outMins = staffAttendanceData.map(e => timeToMinutes(e.timeOut));
         const avgIn = avgTime(inMins);
         const avgOut = avgTime(outMins);
 
-        // ---- UPDATE SUMMARY ----
+        // Update summary
         const set = (id, v) => document.getElementById(id).innerText = v;
         set('totalStaff', totalStaff);
         set('activeStaff', active);
@@ -286,7 +311,11 @@
         set('avgReportingTime', minutesToTime(avgIn));
         set('avgDepartureTime', minutesToTime(avgOut));
 
-        // ---- CHARTS ----
+        // Update date display
+        const dateObj = new Date(selected);
+        document.getElementById('selected-date-display').textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+        // Charts
         initChart('generalAttendanceChart', 'doughnut', {
           data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] },
           options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
@@ -310,13 +339,12 @@
           options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
         });
 
-        // Department Chart
-        const depts = [...new Set(staff.staff?.map(s => s.department) || [])];
-        const deptTotal = depts.map(d => staff.staff?.filter(s => s.department === d).length || 0);
-        const deptIn = depts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
-        const deptOut = depts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
+        // Department & Location charts
+        const deptTotal = allDepartments.map(d => staff.staff?.filter(s => s.department === d).length || 0);
+        const deptIn = allDepartments.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
+        const deptOut = allDepartments.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
         initChart('departmentChart', 'bar', {
-          data: { labels: depts, datasets: [
+          data: { labels: allDepartments, datasets: [
             { label: 'Total Staff', data: deptTotal, backgroundColor: 'rgba(45,55,72,0.2)' },
             { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
             { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
@@ -324,7 +352,6 @@
           options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
         });
 
-        // Location Chart
         const locData = await fetchJSON(`${backendURL}/locations`);
         const allLocs = locData.locations?.map(l => l.name) || [];
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
@@ -357,8 +384,6 @@
         });
 
         updateTable(staffAttendanceData);
-        document.getElementById('attendance-title').textContent = `Staff Attendance Details (${new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})`;
-
         log('Dashboard refreshed');
       } catch (e) { log('ERROR: ' + e.message); }
     };
@@ -370,13 +395,22 @@
       const dept = document.getElementById('department-select').value;
       const name = document.getElementById('name-search').value.toLowerCase();
       const filtered = data.filter(r => (dept ? r.department === dept : true) && r.name.toLowerCase().includes(name));
-      const sorted = sortConfig.key ? [...filtered].sort((a, b) => (a[sortConfig.key] || '').localeCompare(b[sortConfig.key] || '') * (sortConfig.dir === 'asc' ? 1 : -1)) : filtered;
+      const sorted = sortConfig.key ? [...filtered].sort((a, b) => {
+        const A = a[sortConfig.key] || '';
+        const B = b[sortConfig.key] || '';
+        return A.localeCompare(B) * (sortConfig.dir === 'asc' ? 1 : -1);
+      }) : filtered;
+
       tbody.innerHTML = sorted.map(r => `<tr>
-        <td>${r.name || '--'}</td><td>${r.department || '--'}</td><td>${r.timeIn || '--'}</td>
-        <td>${r.timeOut || '--'}</td><td>${calculateWorkTime(r.timeIn, r.timeOut)}</td>
+        <td>${r.userId || '--'}</td>
+        <td>${r.name || '--'}</td>
+        <td>${r.department || '--'}</td>
+        <td>${r.timeIn || '--'}</td>
+        <td>${r.timeOut || '--'}</td>
+        <td>${calculateWorkTime(r.timeIn, r.timeOut)}</td>
         <td>${r.clockInLocation || 'Unknown'}</td>
       </tr>`).join('');
-      document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
+      document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${staffAttendanceData.length} entries`;
     };
 
     // ============================= INIT =============================
@@ -385,6 +419,7 @@
 
       document.getElementById('date-select').value = currentDate;
 
+      // Event Listeners
       document.getElementById('logoutBtn').addEventListener('click', () => { log('Logout'); logout(); });
       document.getElementById('clear-filter-btn').addEventListener('click', () => {
         document.getElementById('date-select').value = currentDate;
@@ -393,20 +428,25 @@
         loadDashboardData();
       });
       document.getElementById('export-btn').addEventListener('click', () => {
-        const csv = "data:text/csv;charset=utf-8,Name,Department,Time In,Time Out,Work Time,Location\n" +
-          staffAttendanceData.map(r => `${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
+        const csv = "data:text/csv;charset=utf-8,UserID,Name,Department,Time In,Time Out,Work Time,Location\n" +
+          staffAttendanceData.map(r => `${r.userId || ''},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
       });
       document.getElementById('date-select').addEventListener('change', loadDashboardData);
       document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
       document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
+      document.getElementById('clear-log-btn').addEventListener('click', () => {
+        document.getElementById('log').innerHTML = '<button id="clear-log-btn"><i class="fas fa-trash-alt"></i> Clear</button>';
+        document.getElementById('clear-log-btn').addEventListener('click', arguments.callee);
+      });
 
       document.querySelectorAll('.sortable').forEach(th => th.addEventListener('click', () => {
         const key = th.dataset.sort;
         sortConfig.dir = sortConfig.key === key && sortConfig.dir === 'asc' ? 'desc' : 'asc';
         sortConfig.key = key;
-        document.querySelectorAll('.sortable').forEach(t => t.classList.remove('asc', 'desc'));
-        th.classList.add(sortConfig.dir);
+        document.querySelectorAll('.sortable .sort-icon').forEach(icon => icon.className = 'sort-icon');
+        const icon = th.querySelector('.sort-icon');
+        icon.className = `sort-icon ${sortConfig.dir}`;
         updateTable(staffAttendanceData);
       }));
 
