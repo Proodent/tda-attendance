@@ -13,7 +13,7 @@
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
     
-    /* HEADER - Mobile: All in one row, smaller */
+    /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
       color:#fff;
@@ -65,7 +65,7 @@
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
     #clear-logs:hover {background:#c53030;}
-    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    ##log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
 
     /* Table */
     #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
@@ -76,9 +76,9 @@
     #attendance-table th {background:#2d3748;color:#fff;cursor:pointer;white-space:nowrap;position:relative;}
     #attendance-table th:hover {background:#4a5568;}
     #attendance-table tr:nth-child(even){background:#f7fafc;}
-    .asc::after, .desc::after {position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);font-size:0.8rem;}
-    .asc::after {content:"up arrow";}
-    .desc::after {content:"down arrow";}
+    .asc::after, .desc::after {position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:bold;}
+    .asc::after {content:"asc";}
+    .desc::after {content:"des";}
 
     #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
     #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
@@ -141,7 +141,7 @@
     <img src="/assets/favicon.png" alt="logo" />
     <div class="title">Attendance Dashboard</div>
     <img src="/assets/favicon.png" alt="logo" />
-    <span class="logout-icon" id="logoutBtn">Logout</span>
+    <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
   </header>
 
   <!-- SUMMARY TILES -->
@@ -338,12 +338,14 @@
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
       try {
+        // Fetch staff first
         const staffRes = await fetchJSON(`${backendURL}/staff`);
         allStaff = staffRes.staff || [];
         const totalStaff = staffRes.totalStaff ?? allStaff.length;
         const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
         const inactive = totalStaff - active;
 
+        // Fetch attendance
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
         staffAttendanceData = stats.staffAttendance || [];
 
@@ -398,7 +400,7 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
-        // 90-Day Clock-In Trend (Only available dates)
+        // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trendMap = {};
         trendRaw.forEach(day => {
@@ -441,6 +443,7 @@
         log('Dashboard refreshed');
       } catch (e) {
         log('ERROR: ' + e.message);
+        console.error(e);
       }
     };
 
@@ -487,13 +490,19 @@
     const analyzeStaff = async () => {
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const months = parseInt(document.getElementById('period-select').value);
-      if (!search || !allStaff.length) return;
+      if (!search || !allStaff.length) {
+        alert('Enter staff name or ID');
+        return;
+      }
 
       const targetStaff = allStaff.find(s =>
         s.name.toLowerCase().includes(search) ||
         (s.userId && s.userId.toLowerCase().includes(search))
       );
-      if (!targetStaff) { alert('Staff not found'); return; }
+      if (!targetStaff) {
+        alert('Staff not found');
+        return;
+      }
 
       const endDate = new Date();
       const startDate = new Date();
