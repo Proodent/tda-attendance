@@ -7,8 +7,6 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
@@ -100,10 +98,8 @@
     .stat-box h4 {font-size:0.9rem;color:#4a5568;margin-bottom:0.5rem;}
     .stat-box p {font-size:1.4rem;font-weight:700;color:#48bb78;}
 
-    /* Mobile Responsive */
-    @media (max-width:1024px){
-      #stats-container{grid-template-columns:repeat(2,1fr);}
-    }
+    /* Mobile */
+    @media (max-width:1024px){ #stats-container{grid-template-columns:repeat(2,1fr);} }
     @media (max-width:768px){
       header{font-size:1.1rem;padding:0.5rem;}
       header img{height:1.6rem;}
@@ -119,7 +115,6 @@
       .full-width-chart .chart-container{height:220px;}
       #filters,#pdf-export{flex-direction:column;padding:1rem;}
       .filter-group,.pdf-filter-group{min-width:100%;}
-      .button-group{width:100%;}
       #attendance-table {padding:0.75rem;}
       #attendance-table th,#attendance-table td {font-size:.75rem;padding:.5rem;}
       #staff-filters{flex-direction:column;}
@@ -131,8 +126,6 @@
       header .title{font-size:0.9rem;}
       header .logout-icon{width:1.6rem;height:1.6rem;font-size:0.9rem;}
       #log{height:120px;font-size:.75rem;}
-      #attendance-header {flex-direction:column;align-items:flex-start;gap:0.5rem;}
-      #attendance-count {text-align:right;width:100%;}
     }
   </style>
 </head>
@@ -211,11 +204,13 @@
     <h3>Staff Attendance Analysis</h3>
     <div id="staff-filters">
       <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
-      <div class="filter-group"><label for="period-select">Period:</label>
-        <select id="period-select">
-          <option value="1">1 Month</option>
-          <option value="3">3 Months</option>
-          <option value="6">6 Months</option>
+      <div class="filter-group"><label for="month-select-staff">Select Month:</label>
+        <select id="month-select-staff">
+          <option value="">Current Month</option>
+          <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+          <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
         </select>
       </div>
       <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
@@ -307,13 +302,8 @@
       const ctx = document.getElementById(id)?.getContext('2d');
       if (!ctx) return;
       if (charts[id]) charts[id].destroy();
-      const defaultOptions = {
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } }
-      };
-      charts[id] = new Chart(ctx, {
-        type, ...cfg,
-        options: { responsive: true, maintainAspectRatio: false, ...cfg.options, plugins: { ...cfg.options?.plugins, ...defaultOptions.plugins } }
-      });
+      const defaultOptions = { plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } } };
+      charts[id] = new Chart(ctx, { type, ...cfg, options: { responsive: true, maintainAspectRatio: false, ...cfg.options, plugins: { ...cfg.options?.plugins, ...defaultOptions.plugins } } });
     };
 
     // MAIN LOAD
@@ -330,7 +320,7 @@
         const inactive = totalStaff - active;
 
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
-        staffAttendanceData = stats.staffAttendance || [];
+        staffAttendanceData = Array.isArray(stats.staffAttendance) ? stats.staffAttendance : [];
 
         // Populate departments
         const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
@@ -361,7 +351,7 @@
         set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
         set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
 
-        // Charts
+        // Charts (Mon-Fri only)
         initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeOut) < 960).length, staffAttendanceData.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
@@ -382,10 +372,10 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
-        // 90-Day Trend
+        // 90-Day Trend (Mon-Fri only)
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trendMap = {};
-        trendRaw.forEach(day => {
+        (Array.isArray(trendRaw) ? trendRaw : []).forEach(day => {
           const date = day.date;
           const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
           trendMap[date] = count;
@@ -397,16 +387,18 @@
         for (let i = 89; i >= 0; i--) {
           const d = new Date(today);
           d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          labels.push(dateStr);
-          clockInData.push(trendMap[dateStr] || 0);
+          if (d.getDay() >= 1 && d.getDay() <= 5) {
+            const dateStr = d.toISOString().split('T')[0];
+            labels.push(dateStr);
+            clockInData.push(trendMap[dateStr] || 0);
+          }
         }
 
         initChart('trendChart', 'line', {
           data: {
             labels,
             datasets: [{
-              label: 'Total Clock-Ins',
+              label: 'Total Clock-Ins (Mon-Fri)',
               data: clockInData,
               borderColor: '#48bb78',
               backgroundColor: 'rgba(72,187,120,0.1)',
@@ -417,7 +409,6 @@
           options: { scales: { y: { beginAtZero: true } } }
         });
 
-        // Update table & title
         updateTable();
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
@@ -471,7 +462,7 @@
     let staffAnalysisChart = null;
     const analyzeStaff = async () => {
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
-      const months = parseInt(document.getElementById('period-select').value);
+      const monthVal = document.getElementById('month-select-staff').value;
       if (!search || !allStaff.length) { alert('Enter staff name or ID'); return; }
 
       const targetStaff = allStaff.find(s =>
@@ -480,9 +471,11 @@
       );
       if (!targetStaff) { alert('Staff not found'); return; }
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - months);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = monthVal ? parseInt(monthVal) : now.getMonth() + 1;
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0);
 
       let rawData = [];
       try {
@@ -533,7 +526,7 @@
       const inData = workingDays.map(d => dateMap[d]?.in ?? null);
       const outData = workingDays.map(d => dateMap[d]?.out ?? null);
 
-      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - Clock Times`;
+      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - ${new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
       document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
       document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
       document.getElementById('daysPresent').textContent = `${daysPresent} / ${totalWorkingDays}`;
@@ -599,7 +592,6 @@
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
       });
 
-      // Rebind filters
       document.getElementById('date-select').addEventListener('change', loadDashboardData);
       document.getElementById('department-select').addEventListener('change', updateTable);
       document.getElementById('name-search').addEventListener('input', updateTable);
