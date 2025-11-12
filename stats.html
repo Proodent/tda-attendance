@@ -13,7 +13,7 @@
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
     
-    /* HEADER - All in one row, icon for logout */
+    /* HEADER */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
       color:#fff;
@@ -65,7 +65,7 @@
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
     #clear-logs:hover {background:#c53030;}
-    ##log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
 
     /* Table */
     #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
@@ -206,21 +206,6 @@
     </table>
   </section>
 
-  <!-- PDF EXPORT -->
-  <section id="pdf-export">
-    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
-    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
-    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
-    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
-      <select id="month-select">
-        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
-        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
-        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
-      </select>
-    </div>
-    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
-  </section>
-
   <!-- STAFF ANALYSIS -->
   <section id="staff-analysis">
     <h3>Staff Attendance Analysis</h3>
@@ -338,14 +323,12 @@
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
       try {
-        // Fetch staff first
         const staffRes = await fetchJSON(`${backendURL}/staff`);
         allStaff = staffRes.staff || [];
         const totalStaff = staffRes.totalStaff ?? allStaff.length;
         const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
         const inactive = totalStaff - active;
 
-        // Fetch attendance
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
         staffAttendanceData = stats.staffAttendance || [];
 
@@ -384,7 +367,6 @@
         initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeOut) < 960).length, staffAttendanceData.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('clockingChart', 'doughnut', { data: { labels: ['Full Clocks', 'Half Clocks'], datasets: [{ data: [both, partial], backgroundColor: ['#48bb78', '#ff9800'] }] } });
 
-        // Department & Location Charts
         const sortedDepts = depts.sort();
         const deptTotal = sortedDepts.map(d => allStaff.filter(s => s.department === d).length);
         const deptIn = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
@@ -400,7 +382,7 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
-        // 90-Day Clock-In Trend
+        // 90-Day Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trendMap = {};
         trendRaw.forEach(day => {
@@ -436,7 +418,7 @@
         });
 
         // Update table & title
-        updateTable(staffAttendanceData);
+        updateTable();
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
 
@@ -449,12 +431,12 @@
 
     // TABLE & FILTERS
     let sortConfig = { key: null, dir: 'asc' };
-    const updateTable = data => {
+    const updateTable = () => {
       const tbody = document.getElementById('attendance-body');
       const dept = document.getElementById('department-select').value;
       const search = document.getElementById('name-search').value.toLowerCase();
 
-      const enrichedData = data.map(entry => {
+      const enrichedData = staffAttendanceData.map(entry => {
         const staff = allStaff.find(s => s.name === entry.name) || {};
         return { ...entry, userId: staff.userId || 'N/A' };
       });
@@ -482,7 +464,7 @@
         <td>${r.clockInLocation || 'Unknown'}</td>
       </tr>`).join('');
 
-      document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
+      document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${staffAttendanceData.length} entries`;
     };
 
     // STAFF ANALYSIS
@@ -490,19 +472,13 @@
     const analyzeStaff = async () => {
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const months = parseInt(document.getElementById('period-select').value);
-      if (!search || !allStaff.length) {
-        alert('Enter staff name or ID');
-        return;
-      }
+      if (!search || !allStaff.length) { alert('Enter staff name or ID'); return; }
 
       const targetStaff = allStaff.find(s =>
         s.name.toLowerCase().includes(search) ||
         (s.userId && s.userId.toLowerCase().includes(search))
       );
-      if (!targetStaff) {
-        alert('Staff not found');
-        return;
-      }
+      if (!targetStaff) { alert('Staff not found'); return; }
 
       const endDate = new Date();
       const startDate = new Date();
@@ -510,7 +486,8 @@
 
       let rawData = [];
       try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        const res = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        rawData = Array.isArray(res) ? res : [res];
       } catch (e) {
         log('Analysis fetch error: ' + e.message);
         return;
@@ -527,7 +504,6 @@
       const avgIn = avgTime(inTimes);
       const avgOut = avgTime(outTimes);
 
-      // Working days (Mon–Fri)
       const workingDays = [];
       const presentDays = new Set();
       const current = new Date(startDate);
@@ -547,7 +523,6 @@
       const totalWorkingDays = workingDays.length;
       const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
 
-      // Chart data
       const dateMap = {};
       staffEntries.forEach(e => {
         if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
@@ -624,9 +599,10 @@
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
       });
 
+      // Rebind filters
       document.getElementById('date-select').addEventListener('change', loadDashboardData);
-      document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
-      document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
+      document.getElementById('department-select').addEventListener('change', updateTable);
+      document.getElementById('name-search').addEventListener('input', updateTable);
       document.getElementById('analyze-staff').addEventListener('click', analyzeStaff);
 
       document.querySelectorAll('.sortable').forEach(th => th.addEventListener('click', () => {
@@ -635,7 +611,7 @@
         sortConfig.key = key;
         document.querySelectorAll('.sortable').forEach(t => t.classList.remove('asc', 'desc'));
         th.classList.add(sortConfig.dir);
-        updateTable(staffAttendanceData);
+        updateTable();
       }));
 
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
