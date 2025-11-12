@@ -13,7 +13,7 @@
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
     
-    /* HEADER */
+    /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
       color:#fff;
@@ -60,7 +60,7 @@
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
 
-    /* Logs */
+    /* Logs - Fixed #log */
     #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
@@ -226,9 +226,9 @@
     <h3>Staff Attendance Analysis</h3>
     <div id="staff-filters">
       <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
-      <div class="filter-group"><label for="month-select-analysis">Select Month:</label>
-        <select id="month-select-analysis">
-          <option value="">Current Month</option>
+      <div class="filter-group"><label for="analysis-month">Month:</label>
+        <select id="analysis-month">
+          <option value="">Select Month</option>
           <option value="01">January</option><option value="02">February</option><option value="03">March</option>
           <option value="04">April</option><option value="05">May</option><option value="06">June</option>
           <option value="07">July</option><option value="08">August</option><option value="09">September</option>
@@ -397,6 +397,7 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
+        // 90-Day Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trendMap = {};
         trendRaw.forEach(day => {
@@ -481,13 +482,13 @@
       document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
     };
 
-    // STAFF ANALYSIS
+    // STAFF ANALYSIS - Fixed with month dropdown & weekends excluded
     let staffAnalysisChart = null;
     const analyzeStaff = async () => {
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
-      const monthVal = document.getElementById('month-select-analysis').value;
-      if (!search || !allStaff.length) {
-        alert('Enter staff name or ID');
+      const month = document.getElementById('analysis-month').value;
+      if (!search || !month || !allStaff.length) {
+        alert('Enter staff and select month');
         return;
       }
 
@@ -500,9 +501,7 @@
         return;
       }
 
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = monthVal ? parseInt(monthVal) : today.getMonth() + 1;
+      const year = new Date().getFullYear();
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0); // Last day of month
 
@@ -555,7 +554,7 @@
       const inData = workingDays.map(d => dateMap[d]?.in ?? null);
       const outData = workingDays.map(d => dateMap[d]?.out ?? null);
 
-      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - ${new Date(year, month-1).toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - ${new Date(year, month - 1).toLocaleString('default', { month: 'long' })}`;
       document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
       document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
       document.getElementById('daysPresent').textContent = `${daysPresent} / ${totalWorkingDays}`;
@@ -621,7 +620,6 @@
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
       });
 
-      // Auto-refresh table on filter change
       document.getElementById('date-select').addEventListener('change', loadDashboardData);
       document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
       document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
