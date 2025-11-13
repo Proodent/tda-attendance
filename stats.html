@@ -13,7 +13,7 @@
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
     
-    /* HEADER */
+    /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
       color:#fff;
@@ -60,12 +60,12 @@
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
 
-    /* Logs - Fixed ID */
+    /* Logs */
     #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
     #clear-logs:hover {background:#c53030;}
-    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    ##log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
 
     /* Table */
     #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
@@ -187,7 +187,7 @@
   <!-- TABLE -->
   <section id="attendance-table">
     <div id="attendance-header">
-      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Attendance Details - Today</h3>
+      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Attendance Details</h3>
       <p id="attendance-count">Showing 0 of 0 entries</p>
     </div>
     <table>
@@ -206,6 +206,21 @@
     </table>
   </section>
 
+  <!-- PDF EXPORT -->
+  <section id="pdf-export">
+    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
+    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
+    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
+    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
+      <select id="month-select">
+        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
+        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
+  </section>
+
   <!-- STAFF ANALYSIS -->
   <section id="staff-analysis">
     <h3>Staff Attendance Analysis</h3>
@@ -213,11 +228,9 @@
       <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
       <div class="filter-group"><label for="period-select">Period:</label>
         <select id="period-select">
-          <option value="7">1 Week</option>
-          <option value="30" selected>1 Month</option>
-          <option value="90">3 Months</option>
-          <option value="180">6 Months</option>
-          <option value="365">1 Year</option>
+          <option value="1">1 Month</option>
+          <option value="3">3 Months</option>
+          <option value="6">6 Months</option>
         </select>
       </div>
       <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
@@ -280,16 +293,27 @@
       log(`Fetched ${url.split('?')[0]} (${txt.length} chars)`);
       return JSON.parse(txt);
     };
-    const timeToMinutes = t => !t || t === '--' ? null : t.split(':').reduce((h,m)=>h*60+ +m, 0);
-    const minutesToTime = mins => mins === null ? '--:--' : `${Math.floor(mins/60).toString().padStart(2,'0')}:${(mins%60).toString().padStart(2,'0')}`;
+    const timeToMinutes = t => {
+      if (!t || t === '--') return null;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const minutesToTime = mins => {
+      if (mins === null || isNaN(mins)) return '--:--';
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    };
     const avgTime = times => {
       const valid = times.filter(t => t !== null);
-      return valid.length ? Math.round(valid.reduce((a,b)=>a+b,0)/valid.length) : null;
+      if (valid.length === 0) return null;
+      const sum = valid.reduce((a, b) => a + b, 0);
+      return Math.round(sum / valid.length);
     };
     const calculateWorkTime = (inT, outT) => {
       if (!inT || !outT) return 'N/A';
       const diff = timeToMinutes(outT) - timeToMinutes(inT);
-      return diff > 0 ? `${Math.floor(diff/60)}h ${diff%60}m` : 'N/A';
+      return `${Math.floor(diff/60)}h ${diff%60}m`;
     };
 
     // CHARTS
@@ -298,28 +322,36 @@
       const ctx = document.getElementById(id)?.getContext('2d');
       if (!ctx) return;
       if (charts[id]) charts[id].destroy();
-      charts[id] = new Chart(ctx, { type, ...cfg, options: { responsive: true, maintainAspectRatio: false, ...cfg.options } });
+      const defaultOptions = {
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } }
+      };
+      charts[id] = new Chart(ctx, {
+        type, ...cfg,
+        options: { responsive: true, maintainAspectRatio: false, ...cfg.options, plugins: { ...cfg.options?.plugins, ...defaultOptions.plugins } }
+      });
     };
 
-    // MAIN DATA
+    // MAIN LOAD
     let staffAttendanceData = [];
     let allStaff = [];
     const loadDashboardData = async () => {
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
       try {
+        // Fetch staff first
         const staffRes = await fetchJSON(`${backendURL}/staff`);
         allStaff = staffRes.staff || [];
         const totalStaff = staffRes.totalStaff ?? allStaff.length;
         const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
         const inactive = totalStaff - active;
 
+        // Fetch attendance
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
         staffAttendanceData = stats.staffAttendance || [];
 
-        // Update departments
+        // Populate departments
         const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
-        ['department-select'].forEach(id => {
+        ['department-select', 'department-select-pdf'].forEach(id => {
           const sel = document.getElementById(id);
           sel.innerHTML = '<option value="">All Departments</option>';
           depts.forEach(d => sel.appendChild(new Option(d, d)));
@@ -334,8 +366,10 @@
         const pctIn = active ? Math.round(inToday / active * 100) : 0;
         const pctOut = inToday ? Math.round(outToday / inToday * 100) : 0;
 
-        const avgIn = avgTime(staffAttendanceData.map(e => timeToMinutes(e.timeIn)));
-        const avgOut = avgTime(staffAttendanceData.map(e => timeToMinutes(e.timeOut)));
+        const inMins = staffAttendanceData.map(e => timeToMinutes(e.timeIn));
+        const outMins = staffAttendanceData.map(e => timeToMinutes(e.timeOut));
+        const avgIn = avgTime(inMins);
+        const avgOut = avgTime(outMins);
 
         const set = (id, v) => document.getElementById(id).innerText = v;
         set('totalStaff', totalStaff); set('activeStaff', active);
@@ -344,13 +378,10 @@
         set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
         set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
 
-        // CHARTS - Fixed Departure Chart (Before/After 4 PM = 16:00 = 960 mins)
-        const before4PM = staffAttendanceData.filter(e => e.timeOut && timeToMinutes(e.timeOut) < 960).length;
-        const after4PM = staffAttendanceData.filter(e => e.timeOut && timeToMinutes(e.timeOut) >= 960).length;
-
+        // Charts
         initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [before4PM, after4PM], backgroundColor: ['#48bb78', '#f56565'] }] } });
+        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeOut) < 960).length, staffAttendanceData.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('clockingChart', 'doughnut', { data: { labels: ['Full Clocks', 'Half Clocks'], datasets: [{ data: [both, partial], backgroundColor: ['#48bb78', '#ff9800'] }] } });
 
         // Department & Location Charts
@@ -369,33 +400,47 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
 
-        // 90-Day Trend
+        // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trendMap = {};
         trendRaw.forEach(day => {
+          const date = day.date;
           const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
-          trendMap[day.date] = count;
+          trendMap[date] = count;
         });
+
         const today = new Date();
         const labels = [];
         const clockInData = [];
         for (let i = 89; i >= 0; i--) {
-          const d = new Date(today); d.setDate(d.getDate() - i);
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
           const dateStr = d.toISOString().split('T')[0];
           labels.push(dateStr);
           clockInData.push(trendMap[dateStr] || 0);
         }
+
         initChart('trendChart', 'line', {
-          data: { labels, datasets: [{ label: 'Total Clock-Ins', data: clockInData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: true }] },
+          data: {
+            labels,
+            datasets: [{
+              label: 'Total Clock-Ins',
+              data: clockInData,
+              borderColor: '#48bb78',
+              backgroundColor: 'rgba(72,187,120,0.1)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
           options: { scales: { y: { beginAtZero: true } } }
         });
 
-        // Update Table & Title
+        // Update table & title
         updateTable(staffAttendanceData);
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
 
-        log('Dashboard loaded for ' + selected);
+        log('Dashboard refreshed');
       } catch (e) {
         log('ERROR: ' + e.message);
         console.error(e);
@@ -412,10 +457,10 @@
       const enrichedData = data.map(entry => {
         const staff = allStaff.find(s => s.name === entry.name) || {};
         return { ...entry, userId: staff.userId || 'N/A' };
-      }).filter(r => r.name); // Ensure valid entries
+      });
 
       const filtered = enrichedData.filter(r =>
-        (!dept || r.department instruction === dept) &&
+        (!dept || r.department === dept) &&
         (r.name.toLowerCase().includes(search) || r.userId.toLowerCase().includes(search))
       );
 
@@ -444,51 +489,79 @@
     let staffAnalysisChart = null;
     const analyzeStaff = async () => {
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
-      const days = parseInt(document.getElementById('period-select').value);
-      if (!search) return alert('Enter staff name or ID');
+      const months = parseInt(document.getElementById('period-select').value);
+      if (!search || !allStaff.length) {
+        alert('Enter staff name or ID');
+        return;
+      }
 
-      const target = allStaff.find(s =>
+      const targetStaff = allStaff.find(s =>
         s.name.toLowerCase().includes(search) ||
         (s.userId && s.userId.toLowerCase().includes(search))
       );
-      if (!target) return alert('Staff not found');
-
-      const endDate = new Date();
-      const startDate = new Date(); startDate.setDate(endDate.getDate() - days);
-
-      let raw = [];
-      try { raw = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`); }
-      catch (e) { log('Analysis fetch error: ' + e.message); return; }
-
-      const entries = raw.flatMap(d => (d.staffAttendance || []).filter(e => e.name === target.name && (e.timeIn || e.timeOut)).map(e => ({...e, date: d.date})));
-
-      const inTimes = entries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
-      const outTimes = entries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
-      const avgIn = avgTime(inTimes), avgOut = avgTime(outTimes);
-
-      const workingDays = [], present = new Set();
-      const curr = new Date(startDate);
-      while (curr <= endDate) {
-        if (curr.getDay() >= 1 && curr.getDay() <= 5) {
-          const ds = curr.toISOString().split('T')[0];
-          workingDays.push(ds);
-          if (entries.some(e => e.date === ds && e.timeIn)) present.add(ds);
-        }
-        curr.setDate(curr.getDate() + 1);
+      if (!targetStaff) {
+        alert('Staff not found');
+        return;
       }
 
-      const daysPresent = present.size;
-      const attendancePct = workingDays.length ? Math.round((daysPresent / workingDays.length) * 100) : 0;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
 
+      let rawData = [];
+      try {
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+      } catch (e) {
+        log('Analysis fetch error: ' + e.message);
+        return;
+      }
+
+      const staffEntries = rawData.flatMap(day =>
+        (day.staffAttendance || []).filter(e =>
+          e.name === targetStaff.name && (e.timeIn || e.timeOut)
+        ).map(e => ({ ...e, date: day.date }))
+      );
+
+      const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
+      const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
+      const avgIn = avgTime(inTimes);
+      const avgOut = avgTime(outTimes);
+
+      // Working days (Mon–Fri)
+      const workingDays = [];
+      const presentDays = new Set();
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day >= 1 && day <= 5) {
+          const dateStr = current.toISOString().split('T')[0];
+          workingDays.push(dateStr);
+          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) {
+            presentDays.add(dateStr);
+          }
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      const daysPresent = presentDays.size;
+      const totalWorkingDays = workingDays.length;
+      const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
+
+      // Chart data
       const dateMap = {};
-      entries.forEach(e => { if (!dateMap[e.date]) dateMap[e.date] = {in:null,out:null}; if (e.timeIn) dateMap[e.date].in = timeToMinutes(e.timeIn); if (e.timeOut) dateMap[e.date].out = timeToMinutes(e.timeOut); });
+      staffEntries.forEach(e => {
+        if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
+        if (e.timeIn) dateMap[e.date].in = timeToMinutes(e.timeIn);
+        if (e.timeOut) dateMap[e.date].out = timeToMinutes(e.timeOut);
+      });
+
       const inData = workingDays.map(d => dateMap[d]?.in ?? null);
       const outData = workingDays.map(d => dateMap[d]?.out ?? null);
 
-      document.getElementById('staff-chart-title').textContent = `${target.name} - Clock Times`;
+      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - Clock Times`;
       document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
       document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
-      document.getElementById('daysPresent').textContent = `${daysPresent} / ${workingDays.length}`;
+      document.getElementById('daysPresent').textContent = `${daysPresent} / ${totalWorkingDays}`;
       document.getElementById('attendancePercent').textContent = `${attendancePct}%`;
 
       document.getElementById('staff-chart-tile').style.display = 'block';
@@ -500,12 +573,25 @@
         data: {
           labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
           datasets: [
-            { label: 'Clock In', data: inData, borderColor: '#48bb78', fill: false },
-            { label: 'Clock Out', data: outData, borderColor: '#f56565', fill: false }
+            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false },
+            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false }
           ]
         },
         options: {
-          scales: { y: { beginAtZero: true, ticks: { callback: v => `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}` } } }
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => {
+                  const h = Math.floor(value / 60);
+                  const m = value % 60;
+                  return `${h}:${String(m).padStart(2,'0')}`;
+                }
+              }
+            }
+          }
         }
       });
     };
