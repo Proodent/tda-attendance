@@ -253,7 +253,6 @@
     const currentDate = new Date().toISOString().split('T')[0];
     const SESSION_TIMEOUT = 12 * 60 * 60 * 1000;
     let timeoutId;
-    let allStaff = null; // Cache allStaff
     // SESSION
     const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
     const logout = () => {
@@ -321,18 +320,17 @@
     };
     // MAIN LOAD
     let staffAttendanceData = [];
+    let allStaff = [];
     const loadDashboardData = async (showLoader = false) => {
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
       if (showLoader) document.getElementById('table-loader').classList.add('active');
       try {
-        // Fetch staff first if not cached
-        if (!allStaff) {
-          const staffRes = await fetchJSON(`${backendURL}/staff`);
-          allStaff = staffRes.staff || [];
-        }
-        const totalStaff = allStaff.length;
-        const active = allStaff.filter(s => s.active).length;
+        // Fetch staff first
+        const staffRes = await fetchJSON(`${backendURL}/staff`);
+        allStaff = staffRes.staff || [];
+        const totalStaff = staffRes.totalStaff ?? allStaff.length;
+        const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
         const inactive = totalStaff - active;
         // Fetch attendance
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
