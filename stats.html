@@ -594,61 +594,69 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      const url = `${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`;
+      let rawData = [];
       try {
-        const rawData = await fetchJSON(url);
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('landscape');
-        doc.setFontSize(12);
-        doc.text('Attendance Report', 10, 10);
-        let y = 20;
-        // Calculate working days
-        const workingDays = [];
-        const current = new Date(startDate);
+        let current = new Date(startDate);
         while (current <= endDate) {
-          const day = current.getDay();
-          if (day >= 1 && day <= 5) {
-            workingDays.push(current.toISOString().split('T')[0]);
-          }
+          const dateStr = current.toISOString().split('T')[0];
+          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
+          dayData.date = dateStr; // Add date if not present
+          rawData.push(dayData);
           current.setDate(current.getDate() + 1);
         }
-        const totalWorkingDays = workingDays.length;
-        // Group by staff
-        const staffMap = {};
-        rawData.forEach(day => {
-          day.staffAttendance.forEach(entry => {
-            if (!dept || entry.department === dept) {
-              const name = entry.name;
-              if (!staffMap[name]) staffMap[name] = { userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0 };
-              staffMap[name].days[day.date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
-              if (entry.timeIn) staffMap[name].present++;
-            }
-          });
-        });
-        // Add absent
-        for (const name in staffMap) {
-          staffMap[name].absent = totalWorkingDays - staffMap[name].present;
-        }
-        // Generate table
-        for (const [name, info] of Object.entries(staffMap)) {
-          doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
-          y += 10;
-          doc.autoTable({
-            startY: y,
-            head: [['Date', 'TI', 'TO']],
-            body: Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]),
-            margin: { left: 10 }
-          });
-          y = doc.lastAutoTable.finalY + 10;
-          if (y > 190) {
-            doc.addPage();
-            y = 10;
-          }
-        }
-        doc.save('attendance_report.pdf');
       } catch (e) {
-        log('PDF export error: ' + e.message);
+        log('PDF fetch error: ' + e.message);
+        return;
       }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape');
+      doc.setFontSize(12);
+      doc.text('Attendance Report', 10, 10);
+      let y = 20;
+      // Calculate working days
+      const workingDays = [];
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day >= 1 && day <= 5) {
+          workingDays.push(current.toISOString().split('T')[0]);
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      const totalWorkingDays = workingDays.length;
+      // Group by staff
+      const staffMap = {};
+      rawData.forEach(day => {
+        (day.staffAttendance || []).forEach(entry => {
+          if (!dept || entry.department === dept) {
+            const name = entry.name;
+            if (!staffMap[name]) staffMap[name] = { userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0 };
+            staffMap[name].days[day.date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
+            if (entry.timeIn) staffMap[name].present++;
+          }
+        });
+      });
+      // Add absent
+      for (const name in staffMap) {
+        staffMap[name].absent = totalWorkingDays - staffMap[name].present;
+      }
+      // Generate table
+      for (const [name, info] of Object.entries(staffMap)) {
+        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
+        y += 10;
+        doc.autoTable({
+          startY: y,
+          head: [['Date', 'TI', 'TO']],
+          body: Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]),
+          margin: { left: 10 }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+        if (y > 190) {
+          doc.addPage();
+          y = 10;
+        }
+      }
+      doc.save('attendance_report.pdf');
     };
     // INIT
     document.addEventListener('DOMContentLoaded', () => {
