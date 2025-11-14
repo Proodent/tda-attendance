@@ -524,7 +524,7 @@
         rawData = Array.isArray(rawData) ? rawData : [rawData];
         log(`Fetched multi-day stats: ${rawData.length} days of data`);
       } catch (e) {
-        log('Multi-day stats fetch failed: ' + e.message + '. Falling back to per-day fetch');
+        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
         rawData = await fetchPerDay(startDate, endDate);
       }
       const staffEntries = rawData.flatMap(day =>
@@ -598,6 +598,19 @@
                 }
               }
             }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: context => {
+                  const mins = context.parsed.y;
+                  if (mins === null) return 'No data';
+                  const h = Math.floor(mins / 60);
+                  const m = mins % 60;
+                  return `${context.dataset.label}: ${h}:${String(m).padStart(2,'0')}`;
+                }
+              }
+            }
           }
         }
       });
@@ -608,7 +621,7 @@
     const fetchPerDay = async (startDate, endDate) => {
       log('Starting per-day fetch fallback');
       const rawData = [];
-      let current = new Date(startDate);
+      let current = new fixaDate(startDate);
       while (current <= endDate) {
         const dateStr = current.toISOString().split('T')[0];
         log(`Fetching data for single day: ${dateStr}`);
@@ -660,11 +673,19 @@
         log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
         rawData = await fetchPerDay(startDate, endDate);
       }
+      if (rawData.length === 0) {
+        log('PDF export failed: No data retrieved');
+        alert('No attendance data found for the selected period');
+        return;
+      }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
-      doc.setFontSize(12);
-      doc.text('Attendance Report', 10, 10);
-      let y = 20;
+      doc.setFontSize(14);
+      doc.text('Attendance Report', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, 14, 22);
+      if (dept) doc.text(`Department: ${dept}`, 14, 29);
+      let y = 35;
       // Calculate working days
       const workingDays = [];
       const current = new Date(startDate);
@@ -696,19 +717,30 @@
       log(`Processed data for ${Object.keys(staffMap).length} staff members`);
       // Generate table
       for (const [name, info] of Object.entries(staffMap)) {
-        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
-        y += 10;
+        if (y > 180) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(11);
+        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 14, y);
+        y += 7;
+        const tableData = Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]);
+        if (tableData.length === 0) {
+          doc.setFontSize(9);
+          doc.text('No attendance records', 14, y);
+          y += 10;
+          continue;
+        }
         doc.autoTable({
           startY: y,
-          head: [['Date', 'TI', 'TO']],
-          body: Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]),
-          margin: { left: 10 }
+          head: [['Date', 'Time In', 'Time Out']],
+          body: tableData,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [72, 187, 120] },
+          margin: { left: 14, right: 14 }
         });
         y = doc.lastAutoTable.finalY + 10;
-        if (y > 190) {
-          doc.addPage();
-          y = 10;
-        }
       }
       doc.save('attendance_report.pdf');
       log('PDF export completed and downloaded');
