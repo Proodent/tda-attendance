@@ -375,22 +375,16 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
-        let trendRaw = [];
-        try {
-          const raw = await fetchJSON(`${backendURL}/stats?days=90`);
-          // Normalize: if single object, wrap in array
-          trendRaw = Array.isArray(raw) ? raw : [raw];
-        } catch (err) {
-          log('Failed to fetch 90-day trend: ' + err.message);
-          // Fallback: use last 90 days from daily calls? Or skip.
-          trendRaw = [];
-        }
+        const raw = await fetchJSON(`${backendURL}/stats?days=90`);
+        const trendData = raw.trend || [];
+        const currentYear = new Date().getFullYear();
         const trendMap = {};
-        trendRaw.forEach(day => {
-          if (!day || !day.date) return;
-          const date = day.date;
-          const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
-          trendMap[date] = count;
+        trendData.forEach(item => {
+          const parsedDate = new Date(`${item.date} ${currentYear}`);
+          if (!isNaN(parsedDate)) {
+            const fullDateStr = parsedDate.toISOString().split('T')[0];
+            trendMap[fullDateStr] = item.present;
+          }
         });
         const today = new Date();
         const labels = [];
