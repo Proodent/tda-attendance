@@ -276,10 +276,14 @@
     };
     // HELPERS
     const fetchJSON = async url => {
+      log(`Attempting to fetch data from URL: ${url}`);
       const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        log(`Fetch failed for URL: ${url} with status: ${r.status} - ${r.statusText}`);
+        throw new Error(`HTTP ${r.status} - ${r.statusText}`);
+      }
       const txt = await r.text();
-      log(`Fetched ${url.split('?')[0]} (${txt.length} chars)`);
+      log(`Successfully fetched data from URL: ${url} (length: ${txt.length} chars)`);
       return JSON.parse(txt);
     };
     const timeToMinutes = t => {
@@ -324,6 +328,7 @@
     const loadDashboardData = async (showLoader = false) => {
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
+      log(`Starting dashboard load for date: ${selected}`);
       if (showLoader) document.getElementById('table-loader').classList.add('active');
       try {
         // Fetch staff first
@@ -332,11 +337,14 @@
         const totalStaff = staffRes.totalStaff ?? allStaff.length;
         const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
         const inactive = totalStaff - active;
+        log(`Fetched staff data: total ${totalStaff}, active ${active}, inactive ${inactive}`);
         // Fetch attendance
         const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
         staffAttendanceData = stats.staffAttendance || [];
+        log(`Fetched attendance data for ${selected}: ${staffAttendanceData.length} entries`);
         // Populate departments
         const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
+        log(`Populated departments: ${depts.length} departments`);
         ['department-select', 'department-select-pdf'].forEach(id => {
           const sel = document.getElementById(id);
           sel.innerHTML = '<option value="">All Departments</option>';
@@ -360,6 +368,7 @@
         set('absentToday', absent); set('inactiveStaff', inactive);
         set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
         set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
+        log(`Calculated summary stats: Clock-Ins ${inToday}, Clock-Outs ${outToday}, Absent ${absent}`);
         // Charts
         initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
@@ -381,6 +390,7 @@
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+        log(`Initialized department and location charts`);
         // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trend = trendRaw.trend || [];
@@ -419,13 +429,14 @@
           },
           options: { scales: { y: { beginAtZero: true } } }
         });
+        log(`Initialized 90-day clock-in trend chart`);
         // Update table & title
         updateTable(staffAttendanceData);
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
-        log('Dashboard refreshed');
+        log('Dashboard refreshed successfully');
       } catch (e) {
-        log('ERROR: ' + e.message);
+        log('Dashboard load error: ' + e.message);
         console.error(e);
       } finally {
         if (showLoader) document.getElementById('table-loader').classList.remove('active');
@@ -434,6 +445,7 @@
     // TABLE & FILTERS
     let sortConfig = { key: null, dir: 'asc' };
     const updateTable = data => {
+      log(`Updating attendance table with ${data.length} entries`);
       const tbody = document.getElementById('attendance-body');
       const dept = document.getElementById('department-select').value;
       const search = document.getElementById('name-search').value.toLowerCase();
@@ -468,6 +480,7 @@
         <td>${r.clockInLocation || 'Unknown'}</td>
       </tr>`).join('');
       document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
+      log(`Table updated: showing ${sorted.length} filtered entries`);
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
@@ -477,9 +490,11 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
+      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
       if (!search || !allStaff.length) {
+        log('Staff analysis aborted: No search term or staff data available');
         alert('Enter staff name or ID');
         button.disabled = false;
         button.innerHTML = 'Analyze';
@@ -490,29 +505,34 @@
         (s.userId && s.userId.toLowerCase().includes(search))
       );
       if (!targetStaff) {
+        log('Staff analysis aborted: No matching staff found for search term');
         alert('Staff not found');
         button.disabled = false;
         button.innerHTML = 'Analyze';
         return;
       }
+      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       let rawData = [];
       try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
         rawData = Array.isArray(rawData) ? rawData : [rawData];
+        log(`Fetched multi-day stats: ${rawData.length} days of data`);
       } catch (e) {
-        log('Analysis fetch error: ' + e.message);
-        button.disabled = false;
-        button.innerHTML = 'Analyze';
-        return;
+        log('Multi-day stats fetch failed: ' + e.message + '. Falling back to per-day fetch');
+        rawData = await fetchPerDay(startDate, endDate);
       }
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
         ).map(e => ({ ...e, date: day.date }))
       );
+      log(`Filtered ${staffEntries.length} attendance entries for staff`);
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
@@ -535,6 +555,7 @@
       const daysPresent = presentDays.size;
       const totalWorkingDays = workingDays.length;
       const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
+      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
       // Chart data
       const dateMap = {};
       staffEntries.forEach(e => {
@@ -566,6 +587,8 @@
           maintainAspectRatio: false,
           scales: {
             y: {
+              min: 0,
+              max: 1440,
               beginAtZero: true,
               ticks: {
                 callback: value => {
@@ -578,16 +601,39 @@
           }
         }
       });
+      log(`Staff analysis completed successfully for ${targetStaff.name}`);
       button.disabled = false;
       button.innerHTML = 'Analyze';
     };
+    const fetchPerDay = async (startDate, endDate) => {
+      log('Starting per-day fetch fallback');
+      const rawData = [];
+      let current = new Date(startDate);
+      while (current <= endDate) {
+        const dateStr = current.toISOString().split('T')[0];
+        log(`Fetching data for single day: ${dateStr}`);
+        try {
+          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
+          dayData.date = dateStr;
+          rawData.push(dayData);
+          log(`Successfully fetched data for ${dateStr}`);
+        } catch (e) {
+          log(`Fetch failed for ${dateStr}: ${e.message}`);
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      log(`Per-day fetch completed: ${rawData.length} days retrieved`);
+      return rawData;
+    };
     // PDF EXPORT
     const exportToPDF = async () => {
+      log('Starting PDF export process');
       const dept = document.getElementById('department-select-pdf').value;
       const start = document.getElementById('start-date').value;
       const end = document.getElementById('end-date').value;
       const month = document.getElementById('month-select').value;
       if ((!start || !end) && !month) {
+        log('PDF export aborted: No date range or month selected');
         alert('Select a date range or month');
         return;
       }
@@ -596,17 +642,23 @@
         const year = new Date().getFullYear();
         startDate = new Date(year, parseInt(month) - 1, 1);
         endDate = new Date(year, parseInt(month), 0);
+        log(`PDF export for month: ${month}/${year}`);
       } else {
         startDate = new Date(start);
         endDate = new Date(end);
+        log(`PDF export for date range: ${start} to ${end}`);
       }
       let rawData = [];
       try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        log(`Attempting multi-day fetch from ${startStr} to ${endStr}`);
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
         rawData = Array.isArray(rawData) ? rawData : [rawData];
+        log(`Multi-day fetch successful: ${rawData.length} days`);
       } catch (e) {
-        log('PDF fetch error: ' + e.message);
-        return;
+        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
+        rawData = await fetchPerDay(startDate, endDate);
       }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
@@ -624,6 +676,7 @@
         current.setDate(current.getDate() + 1);
       }
       const totalWorkingDays = workingDays.length;
+      log(`Calculated ${totalWorkingDays} working days in range`);
       // Group by staff
       const staffMap = {};
       rawData.forEach(day => {
@@ -640,6 +693,7 @@
       for (const name in staffMap) {
         staffMap[name].absent = totalWorkingDays - staffMap[name].present;
       }
+      log(`Processed data for ${Object.keys(staffMap).length} staff members`);
       // Generate table
       for (const [name, info] of Object.entries(staffMap)) {
         doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
@@ -657,6 +711,7 @@
         }
       }
       doc.save('attendance_report.pdf');
+      log('PDF export completed and downloaded');
     };
     // INIT
     document.addEventListener('DOMContentLoaded', () => {
@@ -674,6 +729,7 @@
         loadDashboardData(true);
       });
       document.getElementById('export-btn').addEventListener('click', () => {
+        log('Starting CSV export');
         const enriched = staffAttendanceData.map(r => {
           const staff = allStaff.find(s => s.name === r.name) || {};
           return { ...r, userId: r.userId || staff.userId || 'N/A' };
@@ -681,6 +737,7 @@
         const csv = "data:text/csv;charset=utf-8,User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
           enriched.map(r => `${r.userId},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
+        log('CSV export completed');
       });
       document.getElementById('date-select').addEventListener('change', () => loadDashboardData(true));
       document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
@@ -698,7 +755,7 @@
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
       resetTimeout();
       loadDashboardData();
-      setInterval(() => loadDashboardData(), 30000);
+      setInterval(loadDashboardData, 30000);
     });
   </script>
 </body>
