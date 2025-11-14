@@ -375,9 +375,19 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
-        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
+        let trendRaw = [];
+        try {
+          const raw = await fetchJSON(`${backendURL}/stats?days=90`);
+          // Normalize: if single object, wrap in array
+          trendRaw = Array.isArray(raw) ? raw : [raw];
+        } catch (err) {
+          log('Failed to fetch 90-day trend: ' + err.message);
+          // Fallback: use last 90 days from daily calls? Or skip.
+          trendRaw = [];
+        }
         const trendMap = {};
         trendRaw.forEach(day => {
+          if (!day || !day.date) return;
           const date = day.date;
           const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
           trendMap[date] = count;
