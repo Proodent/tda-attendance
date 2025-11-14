@@ -272,10 +272,14 @@
     };
     // HELPERS
     const fetchJSON = async url => {
+      log(`Fetching ${url}`);
       const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        log(`Fetch error for ${url}: HTTP ${r.status}`);
+        throw new Error(`HTTP ${r.status}`);
+      }
       const txt = await r.text();
-      log(`Fetched ${url.split('?')[0]} (${txt.length} chars)`);
+      log(`Fetched ${url} (${txt.length} chars)`);
       return JSON.parse(txt);
     };
     const timeToMinutes = t => {
@@ -375,16 +379,20 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
-        const raw = await fetchJSON(`${backendURL}/stats?days=90`);
-        const trendData = raw.trend || [];
-        const currentYear = new Date().getFullYear();
+        let trendRaw = [];
+        try {
+          const raw = await fetchJSON(`${backendURL}/stats?days=90`);
+          trendRaw = Array.isArray(raw) ? raw : [raw];
+        } catch (err) {
+          log('Failed to fetch 90-day trend: ' + err.message);
+          trendRaw = [];
+        }
         const trendMap = {};
-        trendData.forEach(item => {
-          const parsedDate = new Date(`${item.date} ${currentYear}`);
-          if (!isNaN(parsedDate)) {
-            const fullDateStr = parsedDate.toISOString().split('T')[0];
-            trendMap[fullDateStr] = item.present;
-          }
+        trendRaw.forEach(day => {
+          if (!day || !day.date) return;
+          const date = day.date;
+          const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
+          trendMap[date] = count;
         });
         const today = new Date();
         const labels = [];
@@ -458,6 +466,7 @@
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
       if (!search || !allStaff.length) {
+        log('Staff analysis failed: No search term or staff data');
         alert('Enter staff name or ID');
         return;
       }
@@ -466,15 +475,18 @@
         (s.userId && s.userId.toLowerCase().includes(search))
       );
       if (!targetStaff) {
+        log('Staff analysis failed: Staff not found');
         alert('Staff not found');
         return;
       }
+      log(`Starting analysis for staff: ${targetStaff.name}`);
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       let rawData = [];
       try {
         rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
       } catch (e) {
         log('Analysis fetch error: ' + e.message);
         return;
@@ -549,6 +561,54 @@
           }
         }
       });
+      log(`Analysis completed for staff: ${targetStaff.name}`);
+    };
+    // PDF EXPORT
+    const exportToPDF = async () => {
+      log('Starting PDF export');
+      const dept = document.getElementById('department-select-pdf').value;
+      const start = document.getElementById('start-date').value;
+      const end = document.getElementById('end-date').value;
+      const month = document.getElementById('month-select').value;
+      let url = `${backendURL}/stats`;
+      let params = '';
+      if (start && end) {
+        params = `?start=${start}&end=${end}`;
+      } else if (month) {
+        const year = new Date().getFullYear();
+        const monthNum = parseInt(month);
+        const lastDay = new Date(year, monthNum, 0).getDate();
+        params = `?start=${year}-${month}-01&end=${year}-${month}-${lastDay}`;
+      } else {
+        log('PDF export failed: No date range or month selected');
+        alert('Select a date range or month');
+        return;
+      }
+      url += params;
+      try {
+        const data = await fetchJSON(url);
+        const multiDayData = Array.isArray(data) ? data : [data];
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 10;
+        doc.text('Attendance Report', 10, y);
+        y += 10;
+        multiDayData.forEach(day => {
+          doc.text(`Date: ${day.date || 'Unknown'}`, 10, y);
+          y += 10;
+          (day.staffAttendance || []).forEach(entry => {
+            if (!dept || entry.department === dept) {
+              doc.text(`${entry.name || '--'}: In ${entry.timeIn || '--'}, Out ${entry.timeOut || '--'}, Location: ${entry.clockInLocation || 'Unknown'}`, 10, y);
+              y += 5;
+            }
+          });
+          y += 10;
+        });
+        doc.save('attendance_report.pdf');
+        log('PDF export completed');
+      } catch (e) {
+        log('PDF export error: ' + e.message);
+      }
     };
     // INIT
     document.addEventListener('DOMContentLoaded', () => {
@@ -566,6 +626,7 @@
         loadDashboardData();
       });
       document.getElementById('export-btn').addEventListener('click', () => {
+        log('Starting CSV export');
         const enriched = staffAttendanceData.map(r => {
           const staff = allStaff.find(s => s.name === r.name) || {};
           return { ...r, userId: staff.userId || 'N/A' };
@@ -573,7 +634,9 @@
         const csv = "data:text/csv;charset=utf-8,User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
           enriched.map(r => `${r.userId},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
+        log('CSV export completed');
       });
+      document.getElementById('pdf-export-btn').addEventListener('click', exportToPDF);
       document.getElementById('date-select').addEventListener('change', loadDashboardData);
       document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
       document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
