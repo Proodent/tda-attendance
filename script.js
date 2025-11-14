@@ -93,7 +93,7 @@ const startLocationWatch = () => {
 
     if (staff.active.toLowerCase() !== 'yes') {
       userIdStatus.className = 'inactive';
-      userIdStatus.textContent = `User ${userId}: ${staff.name} is Inactive`;
+      userIdStatus.textContent = `User ${userId}: ${staff.name} - ⛔Inactive`;
       clockInBtn.disabled = clockOutBtn.disabled = true;
       return;
     }
@@ -405,4 +405,5 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
 
