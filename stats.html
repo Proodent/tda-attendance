@@ -228,7 +228,6 @@
       </div>
       <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
     </div>
-    <div class="loader" id="analysis-loader"><div class="spinner"></div></div>
     <div class="chart-tile full-width-chart" id="staff-chart-tile" style="display:none;">
       <h3 id="staff-chart-title">Attendance Trend</h3>
       <div class="chart-container"><canvas id="staffTrendChart"></canvas></div>
@@ -473,14 +472,17 @@
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
     const analyzeStaff = async () => {
+      const button = document.getElementById('analyze-staff');
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
-      document.getElementById('analysis-loader').classList.add('active');
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
       if (!search || !allStaff.length) {
         alert('Enter staff name or ID');
-        document.getElementById('analysis-loader').classList.remove('active');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
         return;
       }
       const targetStaff = allStaff.find(s =>
@@ -489,7 +491,8 @@
       );
       if (!targetStaff) {
         alert('Staff not found');
-        document.getElementById('analysis-loader').classList.remove('active');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
         return;
       }
       const endDate = new Date();
@@ -498,9 +501,11 @@
       let rawData = [];
       try {
         rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
       } catch (e) {
         log('Analysis fetch error: ' + e.message);
-        document.getElementById('analysis-loader').classList.remove('active');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
         return;
       }
       const staffEntries = rawData.flatMap(day =>
@@ -573,7 +578,8 @@
           }
         }
       });
-      document.getElementById('analysis-loader').classList.remove('active');
+      button.disabled = false;
+      button.innerHTML = 'Analyze';
     };
     // PDF EXPORT
     const exportToPDF = async () => {
@@ -596,14 +602,8 @@
       }
       let rawData = [];
       try {
-        let current = new Date(startDate);
-        while (current <= endDate) {
-          const dateStr = current.toISOString().split('T')[0];
-          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
-          dayData.date = dateStr; // Add date if not present
-          rawData.push(dayData);
-          current.setDate(current.getDate() + 1);
-        }
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
       } catch (e) {
         log('PDF fetch error: ' + e.message);
         return;
