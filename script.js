@@ -100,7 +100,7 @@ const startLocationWatch = () => {
 
     const approved = current_office && staff.allowedLocations.includes(current_office.toLowerCase());
     userIdStatus.className = approved ? 'valid' : 'invalid';
-    userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved' : 'Not Approved'}`;
+    userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? '✅Approved' : '❌Denied'}`;
     clockInBtn.disabled = clockOutBtn.disabled = !approved;
   };
 
@@ -405,3 +405,4 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
