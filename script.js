@@ -143,7 +143,7 @@ const startLocationWatch = () => {
         for (const loc of locations) {
           const dist = getDistanceKm(latitude, longitude, loc.lat, loc.long);
           if (dist <= loc.radiusMeters / 1000) {
-            current_office = `loc.name 222`;
+            current_office = loc.name `222`;
             break;
           }
         }
@@ -405,6 +405,7 @@ window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
   stopVideo();
 };
+
 
 
 
