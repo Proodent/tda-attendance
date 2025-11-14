@@ -322,10 +322,10 @@
     // MAIN LOAD
     let staffAttendanceData = [];
     let allStaff = [];
-    const loadDashboardData = async () => {
+    const loadDashboardData = async (showLoader = false) => {
       if (!isLoggedIn()) { logout(); return; }
       const selected = document.getElementById('date-select').value || currentDate;
-      document.getElementById('table-loader').classList.add('active');
+      if (showLoader) document.getElementById('table-loader').classList.add('active');
       try {
         // Fetch staff first
         const staffRes = await fetchJSON(`${backendURL}/staff`);
@@ -384,11 +384,17 @@
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
+        const trend = trendRaw.trend || [];
+        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
         const trendMap = {};
-        trendRaw.forEach(day => {
-          const date = day.date;
-          const count = (day.staffAttendance || []).filter(e => e.timeIn).length;
-          trendMap[date] = count;
+        trend.forEach(item => {
+          const [dayStr, monthStr] = item.date.split(' ');
+          const day = parseInt(dayStr);
+          const month = monthMap[monthStr];
+          if (month && day) {
+            const fullDate = new Date(2025, month - 1, day).toISOString().split('T')[0];
+            trendMap[fullDate] = item.present;
+          }
         });
         const today = new Date();
         const labels = [];
@@ -423,7 +429,7 @@
         log('ERROR: ' + e.message);
         console.error(e);
       } finally {
-        document.getElementById('table-loader').classList.remove('active');
+        if (showLoader) document.getElementById('table-loader').classList.remove('active');
       }
     };
     // TABLE & FILTERS
@@ -434,7 +440,7 @@
       const search = document.getElementById('name-search').value.toLowerCase();
       const enrichedData = data.map(entry => {
         const staff = allStaff.find(s => s.name === entry.name) || {};
-        return { ...entry, userId: staff.userId || 'N/A' };
+        return { ...entry, userId: entry.userId || staff.userId || 'N/A' };
       });
       const filtered = enrichedData.filter(r =>
         (!dept || r.department === dept) &&
@@ -442,9 +448,15 @@
       );
       const sorted = sortConfig.key
         ? [...filtered].sort((a, b) => {
-            const aVal = a[sortConfig.key] || '';
-            const bVal = b[sortConfig.key] || '';
-            return (aVal.localeCompare ? aVal.localeCompare(bVal) : 0) * (sortConfig.dir === 'asc' ? 1 : -1);
+            let aVal = a[sortConfig.key] || '';
+            let bVal = b[sortConfig.key] || '';
+            if (sortConfig.key === 'timeIn' || sortConfig.key === 'timeOut') {
+              aVal = timeToMinutes(aVal) || 0;
+              bVal = timeToMinutes(bVal) || 0;
+            }
+            if (aVal < bVal) return sortConfig.dir === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.dir === 'asc' ? 1 : -1;
+            return 0;
           })
         : filtered;
       tbody.innerHTML = sorted.map(r => `<tr>
@@ -464,6 +476,8 @@
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
       document.getElementById('analysis-loader').classList.add('active');
+      document.getElementById('staff-chart-tile').style.display = 'none';
+      document.getElementById('staff-stats').style.display = 'none';
       if (!search || !allStaff.length) {
         alert('Enter staff name or ID');
         document.getElementById('analysis-loader').classList.remove('active');
@@ -571,14 +585,16 @@
         alert('Select a date range or month');
         return;
       }
-      let url = `${backendURL}/stats`;
+      let startDate, endDate;
       if (month) {
         const year = new Date().getFullYear();
-        const lastDay = new Date(year, parseInt(month), 0).getDate();
-        url += `?start=${year}-${month.padStart(2, '0')}-01&end=${year}-${month.padStart(2, '0')}-${lastDay}`;
+        startDate = new Date(year, parseInt(month) - 1, 1);
+        endDate = new Date(year, parseInt(month), 0);
       } else {
-        url += `?start=${start}&end=${end}`;
+        startDate = new Date(start);
+        endDate = new Date(end);
       }
+      const url = `${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`;
       try {
         const rawData = await fetchJSON(url);
         const { jsPDF } = window.jspdf;
@@ -586,19 +602,33 @@
         doc.setFontSize(12);
         doc.text('Attendance Report', 10, 10);
         let y = 20;
+        // Calculate working days
+        const workingDays = [];
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const day = current.getDay();
+          if (day >= 1 && day <= 5) {
+            workingDays.push(current.toISOString().split('T')[0]);
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        const totalWorkingDays = workingDays.length;
         // Group by staff
         const staffMap = {};
         rawData.forEach(day => {
           day.staffAttendance.forEach(entry => {
             if (!dept || entry.department === dept) {
               const name = entry.name;
-              if (!staffMap[name]) staffMap[name] = { userId: allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0, absent: 0 };
+              if (!staffMap[name]) staffMap[name] = { userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0 };
               staffMap[name].days[day.date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
               if (entry.timeIn) staffMap[name].present++;
-              else staffMap[name].absent++;
             }
           });
         });
+        // Add absent
+        for (const name in staffMap) {
+          staffMap[name].absent = totalWorkingDays - staffMap[name].present;
+        }
         // Generate table
         for (const [name, info] of Object.entries(staffMap)) {
           doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
@@ -633,18 +663,18 @@
         document.getElementById('date-select').value = currentDate;
         document.getElementById('department-select').value = '';
         document.getElementById('name-search').value = '';
-        loadDashboardData();
+        loadDashboardData(true);
       });
       document.getElementById('export-btn').addEventListener('click', () => {
         const enriched = staffAttendanceData.map(r => {
           const staff = allStaff.find(s => s.name === r.name) || {};
-          return { ...r, userId: staff.userId || 'N/A' };
+          return { ...r, userId: r.userId || staff.userId || 'N/A' };
         });
         const csv = "data:text/csv;charset=utf-8,User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
           enriched.map(r => `${r.userId},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
         const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
       });
-      document.getElementById('date-select').addEventListener('change', loadDashboardData);
+      document.getElementById('date-select').addEventListener('change', () => loadDashboardData(true));
       document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
       document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
       document.getElementById('analyze-staff').addEventListener('click', analyzeStaff);
@@ -660,7 +690,7 @@
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
       resetTimeout();
       loadDashboardData();
-      setInterval(loadDashboardData, 30000);
+      setInterval(() => loadDashboardData(), 30000);
     });
   </script>
 </body>
