@@ -9,17 +9,35 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- ADD THIS LINE FOR PDF TABLES -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* [ALL YOUR EXISTING STYLES - UNCHANGED] */
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-    header {background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:0.75rem 1rem;font-size:1.4rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:0.5rem;}
+   
+    /* HEADER - All in one row, icon for logout */
+    header {
+      background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
+      color:#fff;
+      padding:0.75rem 1rem;
+      font-size:1.4rem;
+      font-weight:700;
+      box-shadow:0 4px 6px rgba(0,0,0,0.1);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:nowrap;
+      gap:0.5rem;
+    }
     header img {height:2rem;}
     header .title {flex:1;text-align:center;font-size:1.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    header .logout-icon {width:2rem;height:2rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;}
+    header .logout-icon {
+      width:2rem;height:2rem;
+      background:rgba(255,255,255,0.2);
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;cursor:pointer;transition:all .2s;
+    }
     header .logout-icon:hover {background:#e53e3e;color:#fff;}
+    /* Summary Tiles */
     #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
@@ -38,11 +56,13 @@
     .chart-container canvas {max-width:100%!important;max-height:100%!important;}
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
+    /* Logs */
     #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
     #clear-logs:hover {background:#c53030;}
     #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    /* Table */
     #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
     #attendance-count {font-size:0.9rem;color:#4a5568;}
     #attendance-table {margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;position:relative;}
@@ -63,6 +83,7 @@
     .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
     .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
     .button-group .filter-group,.button-group .pdf-filter-group {min-width:auto;flex:1;}
+    /* Staff Analysis */
     #staff-analysis {margin:1.5rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative;}
     #staff-analysis h3 {font-size:1.25rem;font-weight:600;color:#2d3748;margin-bottom:1rem;}
     #staff-filters {display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem;}
@@ -71,23 +92,55 @@
     .stat-box {background:#f8fafc;padding:1rem;border-radius:8px;text-align:center;}
     .stat-box h4 {font-size:0.9rem;color:#4a5568;margin-bottom:0.5rem;}
     .stat-box p {font-size:1.4rem;font-weight:700;color:#48bb78;}
+    /* Loader */
     .loader {display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:10;justify-content:center;align-items:center;}
     .loader.active {display:flex;}
     .spinner {border:4px solid #f3f3f3;border-top:4px solid #48bb78;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
     @keyframes spin {0% {transform:rotate(0deg);} 100% {transform:rotate(360deg);}}
-    @media (max-width:1024px){#stats-container{grid-template-columns:repeat(2,1fr);}}
-    @media (max-width:768px){header{font-size:1.1rem;padding:0.5rem;}header img{height:1.6rem;}.title{font-size:1rem;}.logout-icon{width:1.8rem;height:1.8rem;font-size:1rem;}#summary-tiles{grid-template-columns:repeat(2,1fr);}#stats-container{grid-template-columns:1fr;}#filters,#pdf-export{flex-direction:column;}.filter-group,.pdf-filter-group{min-width:100%;}#staff-filters{flex-direction:column;}#staff-stats{grid-template-columns:1fr;}}
-    @media (max-width:480px){header{font-size:0.95rem;padding:0.5rem;}header img{height:1.4rem;}.title{font-size:0.9rem;}.logout-icon{width:1.6rem;height:1.6rem;font-size:0.9rem;}#log{height:120px;font-size:.75rem;}}
+    /* Mobile Responsive */
+    @media (max-width:1024px){
+      #stats-container{grid-template-columns:repeat(2,1fr);}
+    }
+    @media (max-width:768px){
+      header{font-size:1.1rem;padding:0.5rem;}
+      header img{height:1.6rem;}
+      header .title{font-size:1rem;}
+      header .logout-icon{width:1.8rem;height:1.8rem;font-size:1rem;}
+      #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
+      .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
+      #avg-times{grid-template-columns:repeat(2,1fr);}
+      .avg-tile h3{font-size:.8rem;}.avg-tile p{font-size:1.2rem;}
+      #stats-container{grid-template-columns:1fr;gap:1rem;padding:1rem;}
+      .chart-tile{height:280px;padding:1rem;}
+      .full-width-chart{height:320px;}
+      .full-width-chart .chart-container{height:220px;}
+      #filters,#pdf-export{flex-direction:column;padding:1rem;}
+      .filter-group,.pdf-filter-group{min-width:100%;}
+      .button-group{width:100%;}
+      #attendance-table {padding:0.75rem;}
+      #attendance-table th,#attendance-table td {font-size:.75rem;padding:.5rem;}
+      #staff-filters{flex-direction:column;}
+      #staff-stats{grid-template-columns:1fr;}
+    }
+    @media (max-width:480px){
+      header{font-size:0.95rem;padding:0.5rem;}
+      header img{height:1.4rem;}
+      header .title{font-size:0.9rem;}
+      header .logout-icon{width:1.6rem;height:1.6rem;font-size:0.9rem;}
+      #log{height:120px;font-size:.75rem;}
+      #attendance-header {flex-direction:column;align-items:flex-start;gap:0.5rem;}
+      #attendance-count {text-align:right;width:100%;}
+    }
   </style>
 </head>
 <body>
-  <!-- [ALL HTML UNCHANGED - SAME AS BEFORE] -->
   <header>
     <img src="/assets/favicon.png" alt="logo" />
     <div class="title">Attendance Dashboard</div>
     <img src="/assets/favicon.png" alt="logo" />
     <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
   </header>
+  <!-- SUMMARY TILES -->
   <section id="summary-tiles">
     <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
     <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
@@ -98,10 +151,12 @@
     <div class="tile"><h3>Clock-In Rate</h3><p id="percentClockedIn">--%</p></div>
     <div class="tile"><h3>Clock-Out Rate</h3><p id="percentClockedOut">--%</p></div>
   </section>
+  <!-- AVERAGE TIMES -->
   <section id="avg-times">
     <div class="avg-tile"><h3>Avg Reporting Time</h3><p id="avgReportingTime">--:--</p></div>
     <div class="avg-tile"><h3>Avg Departure Time</h3><p id="avgDepartureTime">--:--</p></div>
   </section>
+  <!-- CHARTS -->
   <section id="stats-container">
     <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
     <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
@@ -111,6 +166,7 @@
     <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>90 Days Clock-In Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
   </section>
+  <!-- FILTERS -->
   <section id="filters">
     <div class="filter-group"><label for="date-select">Select Date:</label><input type="date" id="date-select"></div>
     <div class="filter-group"><label for="department-select">Filter Department:</label><select id="department-select"><option value="">All Departments</option></select></div>
@@ -120,6 +176,7 @@
       <div class="filter-group"><label style="visibility:hidden;">.</label><button id="export-btn">Export to CSV</button></div>
     </div>
   </section>
+  <!-- TABLE -->
   <section id="attendance-table">
     <div id="attendance-header">
       <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Attendance Details</h3>
@@ -141,6 +198,7 @@
       <tbody id="attendance-body"></tbody>
     </table>
   </section>
+  <!-- PDF EXPORT -->
   <section id="pdf-export">
     <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
     <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
@@ -154,6 +212,7 @@
     </div>
     <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
   </section>
+  <!-- STAFF ANALYSIS -->
   <section id="staff-analysis">
     <h3>Staff Attendance Analysis</h3>
     <div id="staff-filters">
@@ -180,6 +239,7 @@
       <div class="stat-box"><h4>Attendance %</h4><p id="attendancePercent">0%</p></div>
     </div>
   </section>
+  <!-- LOGS -->
   <div id="log-container">
     <div id="log-header">
       <span>System Logs</span>
@@ -187,13 +247,13 @@
     </div>
     <div id="log"></div>
   </div>
-
   <script>
-    // [ALL CONFIG & HELPERS UNCHANGED]
+    // CONFIG
     const backendURL = "https://tolon-attendance.proodentit.com/api";
     const currentDate = new Date().toISOString().split('T')[0];
     const SESSION_TIMEOUT = 12 * 60 * 60 * 1000;
     let timeoutId;
+    // SESSION
     const isLoggedIn = () => localStorage.getItem('isLoggedIn') === 'true';
     const logout = () => {
       clearTimeout(timeoutId);
@@ -211,32 +271,214 @@
     const log = msg => {
       const box = document.getElementById('log');
       const t = new Date().toLocaleTimeString();
-      const color = msg.startsWith('ERROR') ? 'red' : '#25e876';
-      box.innerHTML += `<span style="color: ${color};">[${t}] ${msg}</span><br>`;
+      box.innerHTML += `[${t}] ${msg}<br>`;
       box.scrollTop = box.scrollHeight;
     };
+    // HELPERS
     const fetchJSON = async url => {
-      log(`Fetching: ${url}`);
+      log(`Attempting to fetch data from URL: ${url}`);
       const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        log(`Fetch failed for URL: ${url} with status: ${r.status} - ${r.statusText}`);
+        throw new Error(`HTTP ${r.status} - ${r.statusText}`);
+      }
       const txt = await r.text();
+      log(`Successfully fetched data from URL: ${url} (length: ${txt.length} chars)`);
       return JSON.parse(txt);
     };
-    const timeToMinutes = t => !t || t === '--' ? null : t.split(':').map(Number).reduce((h,m) => h*60 + m);
-    const minutesToTime = mins => mins === null || isNaN(mins) ? '--:--' : `${Math.floor(mins/60)}`.padStart(2,'0') + ':' + `${mins%60}`.padStart(2,'0');
+    const timeToMinutes = t => {
+      if (!t || t === '--') return null;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const minutesToTime = mins => {
+      if (mins === null || isNaN(mins)) return '--:--';
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    };
     const avgTime = times => {
-      const v = times.filter(t => t !== null);
-      return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null;
+      const valid = times.filter(t => t !== null);
+      if (valid.length === 0) return null;
+      const sum = valid.reduce((a, b) => a + b, 0);
+      return Math.round(sum / valid.length);
     };
     const calculateWorkTime = (inT, outT) => {
       if (!inT || !outT) return 'N/A';
       const diff = timeToMinutes(outT) - timeToMinutes(inT);
       return `${Math.floor(diff/60)}h ${diff%60}m`;
     };
-
-    // [CHARTS & MAIN LOAD - UNCHANGED]
-
-    // === FIXED: STAFF ANALYSIS ===
+    // CHARTS
+    let charts = {};
+    const initChart = (id, type, cfg) => {
+      const ctx = document.getElementById(id)?.getContext('2d');
+      if (!ctx) return;
+      if (charts[id]) charts[id].destroy();
+      const defaultOptions = {
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } }
+      };
+      charts[id] = new Chart(ctx, {
+        type, ...cfg,
+        options: { responsive: true, maintainAspectRatio: false, ...cfg.options, plugins: { ...cfg.options?.plugins, ...defaultOptions.plugins } }
+      });
+    };
+    // MAIN LOAD
+    let staffAttendanceData = [];
+    let allStaff = [];
+    const loadDashboardData = async (showLoader = false) => {
+      if (!isLoggedIn()) { logout(); return; }
+      const selected = document.getElementById('date-select').value || currentDate;
+      log(`Starting dashboard load for date: ${selected}`);
+      if (showLoader) document.getElementById('table-loader').classList.add('active');
+      try {
+        // Fetch staff first
+        const staffRes = await fetchJSON(`${backendURL}/staff`);
+        allStaff = staffRes.staff || [];
+        const totalStaff = staffRes.totalStaff ?? allStaff.length;
+        const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
+        const inactive = totalStaff - active;
+        log(`Fetched staff data: total ${totalStaff}, active ${active}, inactive ${inactive}`);
+        // Fetch attendance
+        const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
+        staffAttendanceData = stats.staffAttendance || [];
+        log(`Fetched attendance data for ${selected}: ${staffAttendanceData.length} entries`);
+        // Populate departments
+        const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
+        log(`Populated departments: ${depts.length} departments`);
+        ['department-select', 'department-select-pdf'].forEach(id => {
+          const sel = document.getElementById(id);
+          sel.innerHTML = '<option value="">All Departments</option>';
+          depts.forEach(d => sel.appendChild(new Option(d, d)));
+        });
+        // Summary stats
+        const inToday = staffAttendanceData.filter(e => e.timeIn).length;
+        const outToday = staffAttendanceData.filter(e => e.timeOut).length;
+        const both = staffAttendanceData.filter(e => e.timeIn && e.timeOut).length;
+        const partial = inToday - both;
+        const absent = active - inToday;
+        const pctIn = active ? Math.round(inToday / active * 100) : 0;
+        const pctOut = inToday ? Math.round(outToday / inToday * 100) : 0;
+        const inMins = staffAttendanceData.map(e => timeToMinutes(e.timeIn));
+        const outMins = staffAttendanceData.map(e => timeToMinutes(e.timeOut));
+        const avgIn = avgTime(inMins);
+        const avgOut = avgTime(outMins);
+        const set = (id, v) => document.getElementById(id).innerText = v;
+        set('totalStaff', totalStaff); set('activeStaff', active);
+        set('clockInsToday', inToday); set('clockOutsToday', outToday);
+        set('absentToday', absent); set('inactiveStaff', inactive);
+        set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
+        set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
+        log(`Calculated summary stats: Clock-Ins ${inToday}, Clock-Outs ${outToday}, Absent ${absent}`);
+        // Charts
+        initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
+        initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
+        // Fixed Departure Chart: only count those with timeOut
+        const clockedOut = staffAttendanceData.filter(e => e.timeOut);
+        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [clockedOut.filter(e => timeToMinutes(e.timeOut) < 960).length, clockedOut.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
+        initChart('clockingChart', 'doughnut', { data: { labels: ['Full Clocks', 'Half Clocks'], datasets: [{ data: [both, partial], backgroundColor: ['#48bb78', '#ff9800'] }] } });
+        // Department & Location Charts
+        const sortedDepts = depts.sort();
+        const deptTotal = sortedDepts.map(d => allStaff.filter(s => s.department === d).length);
+        const deptIn = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
+        const deptOut = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
+        initChart('departmentChart', 'bar', { data: { labels: sortedDepts, datasets: [
+          { label: 'Total Staff', data: deptTotal, backgroundColor: 'rgba(45,55,72,0.2)' },
+          { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
+          { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
+        ]}, options: { scales: { y: { beginAtZero: true } } } });
+        const locData = await fetchJSON(`${backendURL}/locations`);
+        const allLocs = (locData.locations || []).map(l => l.name).sort();
+        const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
+        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+        // 90-Day Clock-In Trend
+        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
+        const trend = trendRaw.trend || [];
+        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+        const trendMap = {};
+        trend.forEach(item => {
+          const [dayStr, monthStr] = item.date.split(' ');
+          const day = parseInt(dayStr);
+          const month = monthMap[monthStr];
+          if (month && day) {
+            const fullDate = new Date(2025, month - 1, day).toISOString().split('T')[0];
+            trendMap[fullDate] = item.present;
+          }
+        });
+        const today = new Date();
+        const labels = [];
+        const clockInData = [];
+        for (let i = 89; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          labels.push(dateStr);
+          clockInData.push(trendMap[dateStr] || 0);
+        }
+        initChart('trendChart', 'line', {
+          data: {
+            labels,
+            datasets: [{
+              label: 'Total Clock-Ins',
+              data: clockInData,
+              borderColor: '#48bb78',
+              backgroundColor: 'rgba(72,187,120,0.1)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
+        });
+        // Update table & title
+        updateTable(staffAttendanceData);
+        const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
+        log('Dashboard refreshed');
+      } catch (e) {
+        log('ERROR: ' + e.message);
+        console.error(e);
+      } finally {
+        if (showLoader) document.getElementById('table-loader').classList.remove('active');
+      }
+    };
+    // TABLE & FILTERS
+    let sortConfig = { key: null, dir: 'asc' };
+    const updateTable = data => {
+      const tbody = document.getElementById('attendance-body');
+      const dept = document.getElementById('department-select').value;
+      const search = document.getElementById('name-search').value.toLowerCase();
+      const enrichedData = data.map(entry => {
+        const staff = allStaff.find(s => s.name === entry.name) || {};
+        return { ...entry, userId: entry.userId || staff.userId || 'N/A' };
+      });
+      const filtered = enrichedData.filter(r =>
+        (!dept || r.department === dept) &&
+        (r.name.toLowerCase().includes(search) || r.userId.toLowerCase().includes(search))
+      );
+      const sorted = sortConfig.key
+        ? [...filtered].sort((a, b) => {
+            let aVal = a[sortConfig.key] || '';
+            let bVal = b[sortConfig.key] || '';
+            if (sortConfig.key === 'timeIn' || sortConfig.key === 'timeOut') {
+              aVal = timeToMinutes(aVal) || 0;
+              bVal = timeToMinutes(bVal) || 0;
+            }
+            if (aVal < bVal) return sortConfig.dir === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.dir === 'asc' ? 1 : -1;
+            return 0;
+          })
+        : filtered;
+      tbody.innerHTML = sorted.map(r => `<tr>
+        <td>${r.userId}</td>
+        <td>${r.name || '--'}</td>
+        <td>${r.department || '--'}</td>
+        <td>${r.timeIn || '--'}</td>
+        <td>${r.timeOut || '--'}</td>
+        <td>${calculateWorkTime(r.timeIn, r.timeOut)}</td>
+        <td>${r.clockInLocation || 'Unknown'}</td>
+      </tr>`).join('');
+      document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
+    };
+    // STAFF ANALYSIS
     let staffAnalysisChart = null;
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
@@ -244,46 +486,54 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
+      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
-      if (!search || !allStaff.length) { alert('Enter staff name or ID'); button.disabled = false; button.innerHTML = 'Analyze'; return; }
-
-      const targetStaff = allStaff.find(s => s.name.toLowerCase().includes(search) || (s.userId && s.userId.toLowerCase().includes(search)));
-      if (!targetStaff) { alert('Staff not found'); button.disabled = false; button.innerHTML = 'Analyze'; return; }
-
+      if (!search || !allStaff.length) {
+        log('Staff analysis aborted: No search term or staff data available');
+        alert('Enter staff name or ID');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
+        return;
+      }
+      const targetStaff = allStaff.find(s =>
+        s.name.toLowerCase().includes(search) ||
+        (s.userId && s.userId.toLowerCase().includes(search))
+      );
+      if (!targetStaff) {
+        log('Staff analysis aborted: No matching staff found for search term');
+        alert('Staff not found');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
+        return;
+      }
+      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
       const endDate = new Date();
-      const startDate = new Date(); startDate.setDate(endDate.getDate() - days);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
       let rawData = [];
       try {
         const startStr = startDate.toISOString().split('T')[0];
         const endStr = endDate.toISOString().split('T')[0];
+        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
         rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        // === FIXED DATE PARSING ===
-        if (Array.isArray(rawData)) {
-          // Already array
-        } else if (rawData.days) {
-          rawData = Object.entries(rawData.days).map(([date, info]) => ({
-            date,
-            staffAttendance: info.staffAttendance || []
-          }));
-        } else {
-          rawData = [rawData];
-        }
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
+        log(`Fetched multi-day stats: ${rawData.length} days of data`);
       } catch (e) {
-        log(`Multi-day fetch failed: ${e.message}`);
-        button.disabled = false; button.innerHTML = 'Analyze'; return;
+        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
+        rawData = await fetchPerDay(startDate, endDate);
       }
-
       const staffEntries = rawData.flatMap(day =>
-        (day.staffAttendance || []).filter(e => e.name === targetStaff.name && (e.timeIn || e.timeOut))
-          .map(e => ({ ...e, date: day.date }))
+        (day.staffAttendance || []).filter(e =>
+          e.name === targetStaff.name && (e.timeIn || e.timeOut)
+        ).map(e => ({ ...e, date: day.date }))
       );
-
+      log(`Filtered ${staffEntries.length} attendance entries for staff`);
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
       const avgOut = avgTime(outTimes);
-
+      // Working days (Mon–Fri)
       const workingDays = [];
       const presentDays = new Set();
       const current = new Date(startDate);
@@ -292,22 +542,25 @@
         if (day >= 1 && day <= 5) {
           const dateStr = current.toISOString().split('T')[0];
           workingDays.push(dateStr);
-          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) presentDays.add(dateStr);
+          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) {
+            presentDays.add(dateStr);
+          }
         }
         current.setDate(current.getDate() + 1);
       }
-
       const daysPresent = presentDays.size;
       const totalWorkingDays = workingDays.length;
       const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
-
+      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
+      // Chart data
       const dateMap = {};
       staffEntries.forEach(e => {
         if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
         if (e.timeIn) dateMap[e.date].in = timeToMinutes(e.timeIn);
         if (e.timeOut) dateMap[e.date].out = timeToMinutes(e.timeOut);
       });
-
+      const inData = workingDays.map(d => dateMap[d]?.in ?? null);
+      const outData = workingDays.map(d => dateMap[d]?.out ?? null);
       document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - Clock Times`;
       document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
       document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
@@ -315,110 +568,122 @@
       document.getElementById('attendancePercent').textContent = `${attendancePct}%`;
       document.getElementById('staff-chart-tile').style.display = 'block';
       document.getElementById('staff-stats').style.display = 'grid';
-
       if (staffAnalysisChart) staffAnalysisChart.destroy();
       staffAnalysisChart = new Chart(document.getElementById('staffTrendChart'), {
         type: 'line',
         data: {
           labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
           datasets: [
-            { label: 'Clock In', data: workingDays.map(d => dateMap[d]?.in ?? null), borderColor: '#48bb78', tension: 0.3, fill: false },
-            { label: 'Clock Out', data: workingDays.map(d => dateMap[d]?.out ?? null), borderColor: '#f56565', tension: 0.3, fill: false }
+            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false },
+            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false }
           ]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
-          scales: { y: { beginAtZero: true, ticks: { callback: v => { const h=Math.floor(v/60), m=v%60; return `${h}:${String(m).padStart(2,'0')}`; } } } }
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => {
+                  const h = Math.floor(value / 60);
+                  const m = value % 60;
+                  return `${h}:${String(m).padStart(2,'0')}`;
+                }
+              }
+            }
+          }
         }
       });
-
       button.disabled = false;
       button.innerHTML = 'Analyze';
     };
-
-    // === FIXED: PDF EXPORT ===
+    // PDF EXPORT
     const exportToPDF = async () => {
       const dept = document.getElementById('department-select-pdf').value;
       const start = document.getElementById('start-date').value;
       const end = document.getElementById('end-date').value;
       const month = document.getElementById('month-select').value;
-      if ((!start || !end) && !month) { alert('Select a date range or month'); return; }
-
+      if ((!start || !end) && !month) {
+        alert('Select a date range or month');
+        return;
+      }
       let startDate, endDate;
       if (month) {
         const year = new Date().getFullYear();
         startDate = new Date(year, parseInt(month) - 1, 1);
         endDate = new Date(year, parseInt(month), 0);
       } else {
-        startDate = new Date(start); endDate = new Date(end);
+        startDate = new Date(start);
+        endDate = new Date(end);
       }
-
-      let rawData;
+      let rawData = [];
       try {
         rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
-      } catch (e) { log('PDF fetch error: ' + e.message); return; }
-
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
+      } catch (e) {
+        log('PDF fetch error: ' + e.message);
+        return;
+      }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
-      doc.setFontSize(14); doc.text('Attendance Report', 14, 15);
-
-      // === FIXED: Use rawData.days object ===
-      const daysObj = rawData.days || {};
-      const workingDays = Object.keys(daysObj).filter(date => {
-        const d = new Date(date); return d.getDay() >= 1 && d.getDay() <= 5;
-      });
+      doc.setFontSize(12);
+      doc.text('Attendance Report', 10, 10);
+      let y = 20;
+      // Calculate working days
+      const workingDays = [];
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day >= 1 && day <= 5) {
+          workingDays.push(current.toISOString().split('T')[0]);
+        }
+        current.setDate(current.getDate() + 1);
+      }
       const totalWorkingDays = workingDays.length;
-
+      // Group by staff
       const staffMap = {};
-      for (const [date, info] of Object.entries(daysObj)) {
-        (info.staffAttendance || []).forEach(entry => {
+      rawData.forEach(day => {
+        (day.staffAttendance || []).forEach(entry => {
           if (!dept || entry.department === dept) {
             const name = entry.name;
-            if (!staffMap[name]) {
-              staffMap[name] = {
-                userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A',
-                days: {}, present: 0
-              };
-            }
-            staffMap[name].days[date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
+            if (!staffMap[name]) staffMap[name] = { userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0 };
+            staffMap[name].days[day.date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
             if (entry.timeIn) staffMap[name].present++;
           }
         });
-      }
-
+      });
+      // Add absent
       for (const name in staffMap) {
         staffMap[name].absent = totalWorkingDays - staffMap[name].present;
       }
-
-      let y = 25;
+      // Generate table
       for (const [name, info] of Object.entries(staffMap)) {
-        if (y > 180) { doc.addPage(); y = 20; }
-        doc.setFontSize(11);
-        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 14, y);
-        y += 8;
-
-        const tableData = Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]);
+        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
+        y += 10;
         doc.autoTable({
-          head: [['Date', 'TI', 'TO']],
-          body: tableData,
           startY: y,
-          theme: 'grid',
-          styles: { fontSize: 9, cellPadding: 2 },
-          headStyles: { fillColor: [72, 187, 120] },
-          margin: { left: 14, right: 14 }
+          head: [['Date', 'TI', 'TO']],
+          body: Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]),
+          margin: { left: 10 }
         });
         y = doc.lastAutoTable.finalY + 10;
+        if (y > 190) {
+          doc.addPage();
+          y = 10;
+        }
       }
-
       doc.save('attendance_report.pdf');
     };
-
-    // [INIT & EVENT LISTENERS - UNCHANGED]
+    // INIT
     document.addEventListener('DOMContentLoaded', () => {
       if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
       document.getElementById('date-select').value = currentDate;
       document.getElementById('logoutBtn').addEventListener('click', () => { log('Logout'); logout(); });
-      document.getElementById('clear-logs').addEventListener('click', () => { document.getElementById('log').innerHTML = ''; log('Logs cleared'); });
+      document.getElementById('clear-logs').addEventListener('click', () => {
+        document.getElementById('log').innerHTML = '';
+        log('Logs cleared');
+      });
       document.getElementById('clear-filter-btn').addEventListener('click', () => {
         document.getElementById('date-select').value = currentDate;
         document.getElementById('department-select').value = '';
@@ -443,7 +708,7 @@
         const key = th.dataset.sort;
         sortConfig.dir = sortConfig.key === key && sortConfig.dir === 'asc' ? 'desc' : 'asc';
         sortConfig.key = key;
-        document.querySelectorAll('.:.sortable').forEach(t => t.classList.remove('asc', 'desc'));
+        document.querySelectorAll('.sortable').forEach(t => t.classList.remove('asc', 'desc'));
         th.classList.add(sortConfig.dir);
         updateTable(staffAttendanceData);
       }));
