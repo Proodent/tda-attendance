@@ -715,7 +715,7 @@
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
       resetTimeout();
       loadDashboardData();
-      setInterval(loadDashboardData, 30000);
+      setInterval(() => loadDashboardData(), 30000);
     });
   </script>
 </body>
