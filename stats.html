@@ -271,7 +271,8 @@
     const log = msg => {
       const box = document.getElementById('log');
       const t = new Date().toLocaleTimeString();
-      box.innerHTML += `[${t}] ${msg}<br>`;
+      const color = msg.startsWith('ERROR') ? 'red' : '#25e876';
+      box.innerHTML += `<span style="color: ${color};">[${t}] ${msg}</span><br>`;
       box.scrollTop = box.scrollHeight;
     };
     // HELPERS
@@ -715,7 +716,7 @@
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
       resetTimeout();
       loadDashboardData();
-      setInterval(loadDashboardData, 30000);
+      setInterval(() => loadDashboardData(), 30000);
     });
   </script>
 </body>
