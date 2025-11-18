@@ -7,13 +7,13 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Your existing styles remain unchanged */
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-    header {background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:0.75rem 1rem;font-size:1.4rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:0.5rem;}
+    header {background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:0.75rem 1rem;font-size:1.4rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;gap:0.5rem;}
     header img {height:2rem;}
     header .title {flex:1;text-align:center;font-size:1.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     header .logout-icon {width:2rem;height:2rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;}
@@ -21,195 +21,298 @@
     #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
-    .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;}
     .tile p {font-size:1.5rem;font-weight:700;margin:0;color:#48bb78;}
+    #avg-times {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;padding:0 1.5rem 1.5rem;}
+    .avg-tile {background:#fff;border-radius:12px;padding:1rem;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+    .avg-tile h3 {font-size:.9rem;color:#2d3748;margin-bottom:.5rem;}
+    .avg-tile p {font-size:1.6rem;font-weight:700;color:#48bb78;}
+    #stats-container {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
+    .chart-tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1.25rem;height:320px;display:flex;flex-direction:column;}
+    .chart-tile h3 {text-align:center;color:#2d3748;margin-bottom:1rem;font-size:1.1rem;font-weight:600;}
+    .chart-container {flex:1;display:flex;align-items:center;justify-content:center;}
+    .full-width-chart {grid-column:1/-1;height:380px;}
+    #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
+    #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
+    #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
+    #log {background:#1a202c;color:#25e876;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;font-family:'Courier New',monospace;}
+    #attendance-table {margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;}
+    #attendance-table table {width:100%;border-collapse:collapse;}
+    #attendance-table th,#attendance-table td {padding:.75rem;text-align:left;border-bottom:1px solid #e2e8f0;font-size:.9rem;}
+    #attendance-table th {background:#2d3748;color:#fff;cursor:pointer;}
     #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
-    #pdf-export h2 {width:100%;font-size:1.5rem;color:#1a202c;margin:0 0 1rem 0;font-weight:700;}
-    /* Rest of your styles... */
+    #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
+    input,select {padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
+    input:focus,select:focus {border-color:#48bb78;outline:none;}
+    button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;}
+    button:hover {background:#38a169;}
+    .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
+    .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
+    .loader {display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:10;justify-content:center;align-items:center;}
+    .loader.active {display:flex;}
+    .spinner {border:4px solid #f3f3f3;border-top:4px solid #48bb78;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
+    @keyframes spin {0% {transform:rotate(0deg);} 100% {transform:rotate(360deg);}}
   </style>
 </head>
 <body>
+  <header>
+    <img src="/assets/favicon.png" alt="logo" />
+    <div class="title">Attendance Dashboard</div>
+    <img src="/assets/favicon.png" alt="logo" />
+    <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
+  </header>
 
-  <!-- Your existing HTML up to PDF section -->
+  <!-- Summary & Charts (omitted for brevity - keep your existing ones) -->
+  <section id="summary-tiles"><!-- your tiles --></section>
+  <section id="avg-times"><!-- your avg tiles --></section>
+  <section id="stats-container"><!-- your charts --></section>
 
-  <!-- PDF EXPORT SECTION WITH HEADING -->
+  <!-- Daily Attendance Table (keep your existing one) -->
+  <section id="attendance-table">
+    <div id="attendance-header">
+      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Attendance Details</h3>
+      <p id="attendance-count">Showing 0 of 0 entries</p>
+    </div>
+    <div class="loader" id="table-loader"><div class="spinner"></div></div>
+    <table>
+      <thead>
+        <tr>
+          <th>User ID</th><th>Name</th><th>Department</th><th>Time In</th><th>Time Out</th><th>Work Time</th><th>Location</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-body"></tbody>
+    </table>
+  </section>
+
+  <!-- PDF EXPORT SECTION -->
   <section id="pdf-export">
-    <h2 class="text-2xl font-bold text-green-700 mb-4">Export PDF</h2>
-    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
+    <h3 class="text-xl font-bold text-green-700 mb-4">Export PDF</h3>
+    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label>
+      <select id="department-select-pdf"><option value="">All Departments</option></select>
+    </div>
     <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
     <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
     <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
       <select id="month-select">
-        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
-        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
-        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        <option value="">All Months</option>
+        <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+        <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
       </select>
     </div>
     <div class="button-group">
-      <div class="pdf-filter-group"><label style="visibility:hidden;">.</label>
-        <button id="pdf-export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded">
-          Generate PDF Report
-        </button>
-      </div>
+      <button id="pdf-export-btn" class="font-semibold">Export to PDF</button>
     </div>
   </section>
 
-  <!-- Rest of your HTML -->
+  <div id="log-container">
+    <div id="log-header"><span>System Logs</span><button id="clear-logs">Clear Logs</button></div>
+    <div id="log"></div>
+  </div>
 
   <script>
-    // Your existing code...
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
+    const currentDate = new Date().toISOString().split('T')[0];
+    let allStaff = [];
 
-    // === NEW & IMPROVED PDF EXPORT FUNCTION ===
+    const log = msg => {
+      const box = document.getElementById('log');
+      const t = new Date().toLocaleTimeString();
+      box.innerHTML += `[${t}] ${msg}<br>`;
+      box.scrollTop = box.scrollHeight;
+    };
+
+    const fetchJSON = async url => {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    };
+
+    const timeToMinutes = t => {
+      if (!t || t === '--') return null;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const minutesToTime = mins => {
+      if (mins === null || isNaN(mins)) return '--:--';
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    };
+
+    const avgTime = times => {
+      const valid = times.filter(t => t !== null);
+      if (valid.length === 0) return null;
+      return Math.round(valid.reduce((a,b) => a + b, 0) / valid.length);
+    };
+
+    const getBase64Image = asyncImage => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = '/assets/favicon.png' + '?t=' + Date.now();
+      });
+    };
+
+    // MAIN PDF EXPORT FUNCTION
     const exportToPDF = async () => {
       const deptFilter = document.getElementById('department-select-pdf').value;
       const startInput = document.getElementById('start-date').value;
       const endInput = document.getElementById('end-date').value;
-      const monthInput = document.getElementById('month-select').value;
+      const monthVal = document.getElementById('month-select').value;
 
-      if ((!startInput || !endInput) && !monthInput) {
-        alert("Please select a date range or month");
+      if ((!startInput || !endInput) && !monthVal) {
+        alert('Please select a date range or a month');
         return;
       }
 
       let startDate, endDate;
-      if (monthInput) {
+      if (monthVal) {
         const year = new Date().getFullYear();
-        startDate = new Date(year, parseInt(monthInput) - 1, 1);
-        endDate = new Date(year, parseInt(monthInput), 0);
+        startDate = new Date(year, monthVal - 1, 1);
+        endDate = new Date(year, monthVal, 0);
       } else {
         startDate = new Date(startInput);
         endDate = new Date(endInput);
       }
 
-      const startStr = startDate.toISOString().split('T')[0];
-      const endStr = endDate.toISOString().split('T')[0];
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape');
 
-      let rawData;
+      // Header with Logo & Titles
+      let logoData;
       try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
+        logoData = await getBase64Image();
+        doc.addImage(logoData, 'PNG', 15, 10, 25, 25);
+      } catch (e) { console.log("Logo failed to load"); }
+
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text("Geofence Attendance Management System", logoData ? 50 : 15, 20);
+
+      doc.setFontSize(14);
+      doc.text("Tolon District Assembly", logoData ? 50 : 15, 30);
+
+      doc.setFontSize(10);
+      const printDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      doc.text(`Date Printed: ${printDate}`, 220, 15);
+
+      doc.setFontSize(12);
+      const period = monthVal
+        ? `${document.getElementById('month-select').options[document.getElementById('month-select').selectedIndex].text} ${new Date().getFullYear()}`
+        : `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+      doc.text(`Attendance Report - ${period}`, 15, 45);
+      if (deptFilter) doc.text(`Department: ${deptFilter}`, 15, 52);
+
+      // Fetch data
+      let allDaysData = [];
+      try {
+        const res = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        allDaysData = Array.isArray(res) ? res : [res];
       } catch (e) {
-        alert("Failed to fetch data: " + e.message);
+        alert('Failed to fetch data');
         return;
       }
 
-      // Normalize data
-      let daysData = {};
-      if (rawData.days) {
-        daysData = rawData.days;
-      } else if (Array.isArray(rawData)) {
-        rawData.forEach(d => { if (d.date) daysData[d.date] = d; });
-      } else if (rawData.date) {
-        daysData[rawData.date] = rawData;
-      }
-
-      const allDates = Object.keys(daysData).sort();
-      const workingDates = allDates.filter(date => {
-        const d = new Date(date);
-        return d.getDay() >= 1 && d.getDay() <= 5; // Mon-Fri
-      });
-
-      // Build staff attendance map
+      // Build staff records
       const staffMap = {};
-      workingDates.forEach(date => {
-        const day = daysData[date];
-        (day.staffAttendance || []).forEach(entry => {
-          if (deptFilter && entry.department !== deptFilter) return;
-          const name = entry.name;
-          if (!staffMap[name]) {
-            staffMap[name] = {
-              userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A',
-              department: entry.department || 'N/A',
+      allDaysData.forEach(day => {
+        const date = day.date;
+        (day.staffAttendance || []).forEach(e => {
+          if (deptFilter && e.department !== deptFilter) return;
+          const key = `${e.userId || ''}|${e.name}`;
+          if (!staffMap[key]) {
+            staffMap[key] = {
+              userId: e.userId || 'N/A',
+              name: e.name,
+              dept: e.department || 'N/A',
               records: {},
               ciTimes: [],
               coTimes: [],
               present: 0
             };
           }
-          staffMap[name].records[date] = { ci: entry.timeIn || '--', co: entry.timeOut || '--' };
-          if (entry.timeIn && entry.timeIn !== '--') {
-            staffMap[name].ciTimes.push(timeToMinutes(entry.timeIn));
-            staffMap[name].present++;
+          staffMap[key].records[date] = { ci: e.timeIn || '--', co: e.timeOut || '--' };
+          if (e.timeIn && e.timeIn !== '--') {
+            staffMap[key].present++;
+            const mins = timeToMinutes(e.timeIn);
+            if (mins !== null) staffMap[key].ciTimes.push(mins);
           }
-          if (entry.timeOut && entry.timeOut !== '--') {
-            staffMap[name].coTimes.push(timeToMinutes(entry.timeOut));
+          if (e.timeOut && e.timeOut !== '--') {
+            const mins = timeToMinutes(e.timeOut);
+            if (mins !== null) staffMap[key].coTimes.push(mins);
           }
         });
       });
 
-      // Calculate averages
-      Object.values(staffMap).forEach(s => {
-        s.avgCI = s.ciTimes.length > 0 ? minutesToTime(avgTime(s.ciTimes)) : '--:--';
-        s.avgCO = s.coTimes.length > 0 ? minutesToTime(avgTime(s.coTimes)) : '--:--';
-        s.percent = workingDates.length > 0 ? Math.round((s.present / workingDates.length) * 100) : 0;
-      });
-
-      // Generate PDF
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape');
-
-      // Header
-      const logoUrl = "/assets/favicon.png";
-      doc.addImage(logoUrl, 'PNG', 15, 10, 25, 25);
-      doc.setFontSize(18);
-      doc.setFont(undefined, 'bold');
-      doc.text("Geofence Attendance Management System", 50, 20);
-      doc.setFontSize(14);
-      doc.text("Tolon District Assembly", 50, 30);
-      doc.setFontSize(10);
-      doc.text(`Date Printed: ${new Date().toLocaleString()}`, 200, 15);
-      doc.text(`Period: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`, 200, 22);
+      const allDates = [...new Set(allDaysData.map(d => d.date))].sort();
 
       // Table headers
-      const head = [
-        ["User ID", "Name", "Dep't", 
-         ...workingDates.flatMap(d => [d.slice(5), ""]), 
-         "Avg. CI", "Avg. CO", "Days Present", "% Present"]
-      ];
+      const head1 = ['User ID', 'Name', "Dep't", ...allDates.flatMap(d => [d, '']), 'Avg.', '', 'Days Present', '% Present'];
+      const head2 = ['', '', '', ...allDates.flatMap(() => ['CI', 'CO']), 'CI', 'CO', '', ''];
 
-      const body = Object.values(staffMap).map(staff => {
-        const row = [
-          staff.userId,
-          staff.name,
-          staff.department
-        ];
-        workingDates.forEach(date => {
-          const rec = staff.records[date] || { ci: '--', co: '--' };
+      const body = Object.values(staffMap).map(s => {
+        const row = [s.userId, s.name, s.dept];
+        allDates.forEach(d => {
+          const rec = s.records[d] || {ci:'--', co:'--'};
           row.push(rec.ci);
           row.push(rec.co);
         });
-        row.push(staff.avgCI);
-        row.push(staff.avgCO);
-        row.push(`${staff.present}/${workingDates.length}`);
-        row.push(`${staff.percent}%`);
+        const avgCI = avgTime(s.ciTimes);
+        const avgCO = avgTime(s.coTimes);
+        row.push(avgCI !== null ? minutesToTime(avgCI) : '--:--');
+        row.push(avgCO !== null ? minutesToTime(avgCO) : '--:--');
+
+        const workingDays = allDates.filter(d => new Date(d).getDay() >= 1 && new Date(d).getDay() <= 5).length;
+        const percent = workingDays > 0 ? Math.round((s.present / workingDays) * 100) : 0;
+        row.push(`${s.present}/${workingDays}`);
+        row.push(`${percent}%`);
         return row;
       });
 
       doc.autoTable({
-        head: head,
+        head: [head1, head2],
         body: body,
-        startY: 45,
+        startY: 60,
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [72, 187, 120], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [240, 248, 255] },
-        columnStyles: {
-          0: { cellWidth: 18 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 15 }
-        },
-        margin: { top: 45, left: 10, right: 10 }
+        headStyles: { fillColor: [72, 187, 120], textColor: [255,255,255], fontStyle: 'bold' },
+        columnStyles: { 0: {cellWidth: 15}, 1: {cellWidth: 30}, 2: {cellWidth: 15} },
+        didDrawCell: data => {
+          if (data.section === 'head' && data.row.index === 1 && data.column.index >= 3 && (data.column.index - 3) % 2 === 1) {
+            data.cell.styles.fillColor = [200, 230, 201];
+          }
+        }
       });
 
-      const periodStr = monthInput 
-        ? new Date(new Date().getFullYear(), parseInt(monthInput)-1, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
-        : `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`;
-      doc.save(`Attendance_Report_${periodStr}.pdf`);
+      const fileName = `Tolon_Attendance_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
     };
 
-    // Attach event
-    document.getElementById('pdf-export-btn').addEventListener('click', exportToPDF);
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('pdf-export-btn').addEventListener('click', exportToPDF);
 
-    // Rest of your existing script...
+      // Load departments
+      fetchJSON(`${backendURL}/staff`).then(data => {
+        allStaff = data.staff || [];
+        const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
+        ['department-select-pdf'].forEach(id => {
+          const sel = document.getElementById(id);
+          depts.forEach(d => sel.appendChild(new Option(d, d)));
+        });
+      });
+    });
   </script>
 </body>
 </html>
