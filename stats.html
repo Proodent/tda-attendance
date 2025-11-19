@@ -318,6 +318,21 @@
         reader.readAsDataURL(blob);
       });
     };
+    const fetchPerDay = async (start, end) => {
+      const data = [];
+      let current = new Date(start);
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        try {
+          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
+          data.push({ ...dayData, date: dateStr });
+        } catch (e) {
+          log(`Failed to fetch ${dateStr}: ${e.message}`);
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      return data;
+    };
     // CHARTS
     let charts = {};
     const initChart = (id, type, cfg) => {
@@ -629,11 +644,13 @@
       }
       let rawData = [];
       try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
         rawData = Array.isArray(rawData) ? rawData : [rawData];
       } catch (e) {
-        log('PDF fetch error: ' + e.message);
-        return;
+        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
+        rawData = await fetchPerDay(startDate, endDate);
       }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
