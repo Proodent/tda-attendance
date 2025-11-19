@@ -480,6 +480,22 @@
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
+    const fetchPerDay = async (start, end) => {
+      const data = [];
+      const current = new Date(start);
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        try {
+          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
+          data.push(dayData);
+        } catch (e) {
+          log(`Failed to fetch for ${dateStr}: ${e.message}`);
+          data.push({ date: dateStr, staffAttendance: [] });
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      return data;
+    };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
       button.disabled = true;
