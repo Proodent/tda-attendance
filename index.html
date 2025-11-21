@@ -6,322 +6,885 @@
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    /* ... [your existing beautiful CSS remains unchanged] ... */
-    #status { font-size: 1.4em !important; font-weight: 700; color: #006837; }
-    .office-pin::before { content: "📍 "; font-size: 1.1em; }
-    /* Success/Failure tones */
-    audio { display: none; }
+    /* === BODY – LIGHT GREEN BACKGROUND === */
+    body {
+      font-family: Arial, sans-serif;
+      background: #e8f5e8; /* Light green */
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    /* === Container === */
+    .container {
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.92);
+    }
+    /* === LOGO – 1.8px BORDER === */
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 8px;
+      border-radius: 50%;
+      object-fit: contain;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 1.8px solid #009245;
+      z-index: 2;
+    }
+    /* === Heading === */
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+    h1 span { font-size: 1em; }
+    h1 .subtitle { color: #242424; font-size: .65em; }
+    /* === INPUT GROUP === */
+    .input-group {
+      margin: 20px 0 8px;
+      text-align: center;
+      width: 100%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    .input-group input::placeholder { color: #aaa; font-weight: 500; }
+    .input-group input:focus {
+      outline: none;
+      border-color: #009245;
+      box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
+    }
+    .input-group input:disabled {
+      background: #f0f0f0;
+      color: #999;
+      cursor: not-allowed;
+    }
+    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS ON EMPTY === */
+    #userIdStatus {
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      min-height: 40px;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.4;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
+    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
+    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.placeholder { color: #666; background: #f8f9fa; border: 1.5px dashed #ccc; }
+    /* === Status & GPS === */
+    .status-box {
+      margin: 18px 0 8px;
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      background: #d4edda;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      margin: 0;
+    }
+    /* === Clock === */
+    .time-box {
+      margin: 20px 0 12px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #d4edda;
+      padding: 6px 8px;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 150px;
+    }
+    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
+    .colon { color: #006837; font-weight: 600; }
+    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+    /* === Buttons === */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    button {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .3s, transform .2s;
+      font-weight: 600;
+    }
+    #clockIn { background: #4CAF50; }
+    #clockOut { background: #F44336; }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    #clockIn:hover:not(:disabled) { background: #45a049; }
+    #clockOut:hover:not(:disabled) { background: #d32f2f; }
+    button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+    /* === ADMIN BUTTON – SMALL === */
+    #adminDashboard {
+      background: #009245;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background .3s;
+    }
+    #adminDashboard:hover { background: #007a3d; }
+    /* === FACE MODAL === */
+    #faceModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.6);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+    }
+    #faceModal.show { display: flex; }
+    #faceModal .popup-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    #faceModal .popup-header {
+      background: #009245;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    #faceModal .video-container {
+      position: relative;
+      margin: 15px auto;
+      width: 280px;
+      height: 210px;
+      border: 3px solid #009245;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #faceModal video {
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+    }
+    #faceModal .face-guide {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px; height: 180px;
+      border: 2px dashed #fff;
+      border-radius: 50%;
+      opacity: 0.7;
+    }
+    #faceModal .capture-status {
+      margin: 15px 0;
+      font-weight: 600;
+      color: #009245;
+    }
+    /* === Loader === */
+    #loaderOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,.95);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      backdrop-filter: blur(3px);
+    }
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #009245;
+      border-radius: 50%;
+      width: 55px; height: 55px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    /* === Popup === */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .popup.show { display: flex; }
+    .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+    }
+    .popup-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
+    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
+    /* === ADMIN POPUP === */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.5);
+      z-index: 2500;
+      justify-content: center;
+      align-items: center;
+    }
+    #adminPopup.show { display: flex; }
+    #adminPopup .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 8px 25px rgba(0,0,0,.2);
+      position: relative;
+    }
+    #adminPopup h2 {
+      margin: 0 0 15px;
+      color: #009245;
+      font-size: 1.3em;
+    }
+    #adminPopup input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    #adminLoginBtn {
+      width: 100%;
+      padding: 12px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      position: relative;
+      transition: background .3s;
+    }
+    #adminLoginBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #adminLoginBtn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #adminLoginBtn.loading .spinner {
+      display: block;
+    }
+    #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
+    .popup-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      color: #999;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .2s;
+    }
+    .popup-close:hover {
+      color: #d32f2f;
+    }
+    /* === Footer === */
+    .footer {
+      margin-top: auto;
+      font-size: .9em;
+      color: #666;
+      padding: 10px 0;
+      border-top: 1px solid #eee;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    .footer a { color: #009245; text-decoration: none; }
+    /* === REMOVED BOTTOM LOCATION ELEMENT === */
   </style>
 </head>
 <body>
-  <!-- Your full HTML remains the same until <script> -->
   <div class="container">
+    <!-- LOGO -->
     <img src="/assets/client-logo.jpg" alt="Logo" class="logo" />
-    <h1><span>Tolon District Assembly</span><br><span class="subtitle">Staff Attendance Portal</span></h1>
-
+    <h1>
+      <span>Tolon District Assembly</span><br>
+      <span class="subtitle">Staff Attendance Portal</span>
+    </h1>
+    <!-- GPS + Status (TOP ONE ONLY) -->
     <div class="status-box">
       <div id="gpsCoords">GPS: Waiting for signal...</div>
       <p id="status">Checking location...</p>
     </div>
-
+    <!-- Clock -->
     <div class="time-box">
       <div id="liveClock">00 : 00 : 00</div>
-      <div id="liveDate">Friday 21 November 2025</div>
+      <div id="liveDate">Monday, 03 November 2025</div>
     </div>
-
+    <!-- USERID + ALWAYS VISIBLE VALIDATION -->
     <div class="input-group">
-      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" inputmode="numeric" />
+      <input type="text" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
       <div id="userIdStatus" class="placeholder">Enter User ID to validate</div>
     </div>
-
+    <!-- Buttons -->
     <div class="button-group">
       <button id="clockIn" disabled>Clock In</button>
       <button id="clockOut" disabled>Clock Out</button>
     </div>
   </div>
-
-  <!-- Hidden Audio for Sound Effects -->
-  <audio id="successSound" src="https://assets.mixkit.co/sfx/preview/mixkit-confirmation-tone-2350.mp3" preload="auto"></audio>
-  <audio id="errorSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3" preload="auto"></audio>
-
-  <!-- Rest of your modals (faceModal, loader, popup, adminPopup) remain unchanged -->
-  <!-- ... keep all your existing modals ... -->
-
+  <!-- FACE MODAL -->
+  <div id="faceModal">
+    <div class="popup-content">
+      <div class="popup-header">Face Verification</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
+      <div class="video-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="face-guide"></div>
+      </div>
+      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
+    </div>
+  </div>
+  <!-- LOADER -->
+  <div id="loaderOverlay">
+    <div class="loader"></div>
+    <p>Verifying face...</p>
+  </div>
+  <!-- POPUP -->
+  <div id="popup" class="popup">
+    <div class="popup-content">
+      <div class="popup-header" id="popupHeader">Title</div>
+      <div id="popupMessage">Message</div>
+      <button id="popupCloseBtn">Close</button>
+    </div>
+  </div>
+  <!-- ADMIN POPUP -->
+  <div id="adminPopup">
+    <div class="popup-content">
+      <button class="popup-close" id="adminCloseBtn">X</button>
+      <h2>Admin Login</h2>
+      <p style="font-size:0.8em;color:#666;margin-bottom:15px;">(Check with server)</p>
+      <input type="email" id="adminEmail" placeholder="Email" />
+      <input type="password" id="adminPassword" placeholder="Password" />
+      <button id="adminLoginBtn">Login <span class="spinner"></span></button>
+      <p id="adminError" class="error"></p>
+    </div>
+  </div>
+  <!-- NO MORE HIDDEN <pre> LOCATION -->
+  <div class="footer">
+    <div><button id="adminDashboard">Admin</button></div>
+    <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
+  </div>
   <script>
-    // LIVE CLOCK (GMT - No AM/PM)
+    // Clock
     function updateClock() {
       const now = new Date();
       const h = now.getHours().toString().padStart(2,'0');
       const m = now.getMinutes().toString().padStart(2,'0');
       const s = now.getSeconds().toString().padStart(2,'0');
       const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-      document.getElementById('liveClock').innerHTML = 
+      document.getElementById('liveClock').innerHTML =
         `<span>${h}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span>`;
       document.getElementById('liveDate').textContent = dateStr;
     }
     updateClock();
     setInterval(updateClock, 500);
-
-    // Sound Effects
-    const successSound = document.getElementById('successSound');
-    const errorSound = document.getElementById('errorSound');
-    const playSound = (type) => {
-      const sound = type === 'success' ? successSound : errorSound;
-      sound.currentTime = 0;
-      sound.play().catch(() => {}); // Ignore if blocked by autoplay policy
+    // GPS Display – Now uses #status and #gpsCoords only
+    const gpsEl = document.getElementById('gpsCoords');
+    const statusEl = document.getElementById('status');
+    const updateGPSDisplay = () => {
+      const lat = statusEl.dataset.lat;
+      const lng = statusEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
     };
-
-    // Fixed: Office name with pin + proper User ID handling
-    let watchId = null;
-    let current_office = null;
-    let staff_cache = new Map();
-    let videoEl, faceModal, captureStatus;
-    let countdown = 0;
-    let countdownInterval = null;
-    let locations = [];
-
-    const toRad = v => v * Math.PI / 180;
-    const getDistanceKm = (lat1, lon1, lat2, lon2) => {
-      const R = 6371;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2 ")) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    const getStaffByUserId = async (userId) => {
-      userId = userId.trim();
-      if (staff_cache.has(userId)) return staff_cache.get(userId);
-
-      try {
-        const res = await fetch('/api/staff-by-id', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId })
-        });
-        const data = await res.json();
-        if (data.success) {
-          const allowed = (data.staff.allowedLocations || []).map(l => l.toLowerCase());
-          const staff = { ...data.staff, allowedLocations: allowed };
-          staff_cache.set(userId, staff);
-          return staff;
-        }
-      } catch (err) {
-        console.error('Staff fetch error:', err);
-      }
-      return null;
-    };
-
-    const fetchLocations = async () => {
-      try {
-        const res = await fetch('/api/locations');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.success) throw new Error('Invalid response');
-        return data.locations.map(l => ({
-          name: l.name,
-          lat: Number(l.lat),
-          long: Number(l.long),
-          radiusMeters: Number(l.radiusMeters)
-        }));
-      } catch (err) {
-        showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
-        return [];
-      }
-    };
-
-    const startLocationWatch = () => {
-      const statusEl = document.getElementById('status');
-      const gpsEl = document.getElementById('gpsCoords');
-      const userIdInput = document.getElementById('userId');
-      const userIdStatus = document.getElementById('userIdStatus');
-      const clockInBtn = document.getElementById('clockIn');
-      const clockOutBtn = document.getElementById('clockOut');
-
-      userIdInput.disabled = true;
+    updateGPSDisplay();
+    new MutationObserver(updateGPSDisplay).observe(statusEl, {attributes: true, attributeFilter: ['data-lat', 'data-long']});
+  </script>
+  <script>
+let watchId = null;
+let current_office = null;
+let staff_cache = new Map();
+let videoEl, faceModal, captureStatus;
+let countdown = 0;
+let countdownInterval = null;
+let locations = [];
+const toRad = v => v * Math.PI / 180;
+const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+const getStaffByUserId = async (userId) => {
+  if (staff_cache.has(userId)) return staff_cache.get(userId);
+  try {
+    const res = await fetch('/api/staff-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const allowed = (data.staff.allowedLocations || []).map(l => l.toLowerCase());
+      const staff = { ...data.staff, allowedLocations: allowed };
+      staff_cache.set(userId, staff);
+      return staff;
+    }
+  } catch (err) {
+    console.error('Staff fetch error:', err);
+  }
+  return null;
+};
+const fetchLocations = async () => {
+  try {
+    const res = await fetch('/api/locations');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success) throw new Error('Invalid response');
+    return data.locations.map(l => ({
+      name: l.name,
+      lat: Number(l.lat),
+      long: Number(l.long),
+      radiusMeters: Number(l.radiusMeters)
+    }));
+  } catch (err) {
+    showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
+    return [];
+  }
+};
+const startLocationWatch = () => {
+  const statusEl = document.getElementById('status');
+  const gpsEl = document.getElementById('gpsCoords');
+  const userIdInput = document.getElementById('userId');
+  const userIdStatus = document.getElementById('userIdStatus');
+  const clockInBtn = document.getElementById('clockIn');
+  const clockOutBtn = document.getElementById('clockOut');
+  // Initial state
+  userIdStatus.className = 'placeholder';
+  userIdStatus.textContent = 'Enter User ID to validate';
+  userIdInput.value = '';
+  userIdInput.disabled = true;
+  clockInBtn.disabled = clockOutBtn.disabled = true;
+  let lastValidatedId = '';
+  const validateUser = async () => {
+    const userId = userIdInput.value.trim();
+    if (!userId) return; // Handled in input listener
+    if (userId === lastValidatedId) return;
+    lastValidatedId = userId;
+    userIdStatus.className = 'loading';
+    userIdStatus.textContent = 'Validating...';
+    const staff = await getStaffByUserId(userId);
+    // Check if input has changed since validation started (fix race condition)
+    if (userIdInput.value.trim() !== userId) return;
+    if (!staff) {
+      userIdStatus.className = 'invalid';
+      userIdStatus.textContent = `User ${userId} not found`;
       clockInBtn.disabled = clockOutBtn.disabled = true;
-
-      let lastValidatedId = '';
-
-      const validateUser = async () => {
-        let userId = userIdInput.value.trim();
-        if (!userId) return;
-
-        if (userId === lastValidatedId) return;
-        lastValidatedId = userId;
-
-        userIdStatus.className = 'loading';
-        userIdStatus.textContent = 'Validating...';
-
-        const staff = await getStaffByUserId(userId);
-        if (!staff) {
-          userIdStatus.className = 'invalid';
-          userIdStatus.textContent = `User ${userId} not found`;
-          clockInBtn.disabled = clockOutBtn.disabled = true;
-          return;
-        }
-        if (staff.active.toLowerCase() !== 'yes') {
-          userIdStatus.className = 'inactive';
-          userIdStatus.textContent = `User ${userId}: ${staff.name} - Inactive`;
-          clockInBtn.disabled = clockOutBtn.disabled = true;
-          return;
-        }
-
-        const approved = current_office && staff.allowedLocations.includes(current_office.toLowerCase());
-        userIdStatus.className = approved ? 'valid' : 'invalid';
-        userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved' : 'Denied'}`;
-        clockInBtn.disabled = clockOutBtn.disabled = !approved;
-      };
-
-      // FIXED: Instant clear + proper debounce
-      userIdInput.addEventListener('input', () => {
-        clearTimeout(window.validateTimeout);
-        const val = userIdInput.value.trim();
-
-        if (!val) {
-          userIdStatus.className = 'placeholder';
-          userIdStatus.textContent = 'Enter User ID to validate';
-          lastValidatedId = '';
-          clockInBtn.disabled = clockOutBtn.disabled = true;
-          return;
-        }
-
-        userIdStatus.className = 'loading';
-        userIdStatus.textContent = 'Validating...';
-        window.validateTimeout = setTimeout(validateUser, 400);
-      });
-
-      fetchLocations().then(fetched => {
-        locations = fetched;
-        if (!locations.length) {
-          statusEl.textContent = 'No locations configured.';
-          return;
-        }
-
-        if (!navigator.geolocation) {
-          showPopup('GPS Error', 'Geolocation not supported.', false);
-          return;
-        }
-
-        watchId = navigator.geolocation.watchPosition(
-          pos => {
-            const { latitude, longitude } = pos.coords;
-            statusEl.dataset.lat = latitude;
-            statusEl.dataset.long = longitude;
-            gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-
-            current_office = null;
-            for (const loc of locations) {
-              const dist = getDistanceKm(latitude, longitude, loc.lat, loc.long);
-              if (dist <= loc.radiusMeters / 1000) {
-                current_office = loc.name;
-                break;
-              }
-            }
-
-            // Office name with pin
-            statusEl.innerHTML = current_office 
-              ? `<span class="office-pin">${current_office}</span>` 
-              : 'Outside approved area';
-
-            userIdInput.disabled = !current_office;
-
-            if (!current_office) {
-              userIdInput.value = '';
-              userIdStatus.className = 'placeholder';
-              userIdStatus.textContent = 'Enter User ID to validate';
-              clockInBtn.disabled = clockOutBtn.disabled = true;
-            } else if (userIdInput.value.trim()) {
-              validateUser();
-            }
-          },
-          err => {
-            statusEl.textContent = 'GPS signal required';
-            gpsEl.textContent = 'GPS: No signal';
-            showPopup('Location Required', 'Please enable GPS and stay within office.', false);
-          },
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
-        );
-      });
-
-      clockInBtn.onclick = () => handleClock('clock in');
-      clockOutBtn.onclick = () => handleClock('clock out');
-    };
-
-    // FASTER + MORE RELIABLE FACE VERIFICATION (reduced threshold + 1.5s countdown)
-    const validateFaceWithSubject = async (base64, subjectName) => {
-      try {
-        const res = await fetch('/api/proxy/face-recognition', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: base64, subject: subjectName })
-        });
-        if (!res.ok) return { ok: false, error: 'Face service unavailable' };
-        const data = await res.json();
-        if (data?.result?.[0]?.subjects?.length) {
-          const match = data.result[0].subjects.find(s => s.subject === subjectName);
-          if (match && match.similarity >= 0.60) { // Reduced from 0.7 → 0.60 for speed
-            return { ok: true, similarity: match.similarity };
+      return;
+    }
+    if (staff.active.toLowerCase() !== 'yes') {
+      userIdStatus.className = 'inactive';
+      userIdStatus.textContent = `User ${userId}: ${staff.name} - ⛔Inactive`;
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
+    const approved = current_office && staff.allowedLocations.includes(current_office.toLowerCase());
+    userIdStatus.className = approved ? 'valid' : 'invalid';
+    userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? '✅Approved' : '❌Denied'}`;
+    clockInBtn.disabled = clockOutBtn.disabled = !approved;
+  };
+  // INSTANT CLEAR + DEBOUNCE
+  userIdInput.addEventListener('input', () => {
+    clearTimeout(window.validateTimeout);
+    const userId = userIdInput.value.trim();
+    if (!userId) {
+      userIdStatus.className = 'placeholder';
+      userIdStatus.textContent = 'Enter User ID to validate';
+      lastValidatedId = '';
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      return;
+    }
+    // Immediately set to loading on change if not empty
+    userIdStatus.className = 'loading';
+    userIdStatus.textContent = 'Validating...';
+    lastValidatedId = ''; // Force re-validation
+    window.validateTimeout = setTimeout(validateUser, 300);
+  });
+  fetchLocations().then(fetched => {
+    locations = fetched;
+    if (!locations.length) {
+      statusEl.textContent = 'No locations configured.';
+      return;
+    }
+    if (!navigator.geolocation) {
+      showPopup('GPS Error', 'Geolocation not supported.', false);
+      return;
+    }
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        statusEl.dataset.lat = latitude;
+        statusEl.dataset.long = longitude;
+        gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        current_office = null;
+        for (const loc of locations) {
+          const dist = getDistanceKm(latitude, longitude, loc.lat, loc.long);
+          if (dist <= loc.radiusMeters / 1000) {
+            current_office = loc.name;
+            break;
           }
         }
-        return { ok: false, error: 'Face not recognized' };
-      } catch (err) {
-        return { ok: false, error: 'Face service error' };
-      }
-    };
-
-    const showFaceModal = async (staff, action) => {
-      faceModal = document.getElementById('faceModal');
-      videoEl = document.getElementById('video');
-      captureStatus = document.getElementById('captureStatus');
-      faceModal.classList.add('show');
-
-      if (!await startVideo()) {
-        hideFaceModal();
-        return;
-      }
-
-      countdown = 2; // Reduced from 3 → 2 seconds
-      captureStatus.textContent = `Capturing in ${countdown}...`;
-      countdownInterval = setInterval(async () => {
-        countdown--;
-        if (countdown > 0) {
-          captureStatus.textContent = `Capturing in ${countdown}...`;
-        } else {
-          clearInterval(countdownInterval);
-          captureStatus.textContent = 'Verifying...';
-          await captureAndVerify(staff, action);
+        statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside approved area';
+        userIdInput.disabled = !current_office;
+        if (!current_office) {
+          userIdInput.value = '';
+          userIdStatus.className = 'placeholder';
+          userIdStatus.textContent = 'Enter User ID to validate';
+          clockInBtn.disabled = clockOutBtn.disabled = true;
+        } else if (userIdInput.value.trim()) {
+          validateUser();
         }
-      }, 1000);
-    };
-
-    // Rest of your functions (hideFaceModal, startVideo, stopVideo, captureAndVerify, submitAttendance, showPopup, etc.)
-    // → Keep exactly as before, just add sound to showPopup:
-
-    const showPopup = (title, message, success = null) => {
-      const popup = document.getElementById('popup');
-      const header = document.getElementById('popupHeader');
-      const msg = document.getElementById('popupMessage');
-      header.textContent = title;
-      header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
-      msg.innerHTML = message;
-      popup.classList.add('show');
-
-      // Play sound
-      playSound(success === true ? 'success' : 'error');
-
-      setTimeout(() => popup.classList.remove('show'), 6000);
-      document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
-    };
-
-    // Keep all other functions unchanged (handleClock, admin login, etc.)
-
-    document.addEventListener('DOMContentLoaded', startLocationWatch);
-    window.onunload = () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      stopVideo();
-    };
+      },
+      err => {
+        console.error('GPS Error:', err);
+        statusEl.textContent = `GPS error: ${err.message}`;
+        gpsEl.textContent = 'GPS: Failed';
+        setTimeout(() => {
+          if (!statusEl.dataset.lat) {
+            statusEl.dataset.lat = 9.4;
+            statusEl.dataset.long = -0.85;
+            gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
+            current_office = 'Test Office';
+            statusEl.textContent = 'Test Office 📍';
+            userIdInput.disabled = false;
+            if (userIdInput.value.trim()) validateUser();
+          }
+        }, 3000);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+    );
+  });
+  clockInBtn.onclick = () => handleClock('clock in');
+  clockOutBtn.onclick = () => handleClock('clock out');
+};
+// === ADMIN POPUP ===
+const adminPopup = document.getElementById('adminPopup');
+const adminCloseBtn = document.getElementById('adminCloseBtn');
+document.getElementById('adminDashboard')?.addEventListener('click', () => {
+  adminPopup.classList.add('show');
+});
+adminCloseBtn?.addEventListener('click', () => {
+  adminPopup.classList.remove('show');
+});
+adminPopup?.addEventListener('click', (e) => {
+  if (e.target === adminPopup) adminPopup.classList.remove('show');
+});
+// === FACE VERIFICATION ===
+const validateFaceWithSubject = async (base64, subjectName) => {
+  try {
+    const res = await fetch('/api/proxy/face-recognition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: base64, subject: subjectName })
+    });
+    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
+    const data = await res.json();
+    if (data?.result?.[0]?.subjects?.length) {
+      const match = data.result[0].subjects.find(s => s.subject === subjectName);
+      if (match && match.similarity >= 0.6) return { ok: true, similarity: match.similarity };
+    }
+    return { ok: false, error: 'Face not recognized' };
+  } catch (err) {
+    return { ok: false, error: 'Face service error' };
+  }
+};
+const showFaceModal = async (staff, action) => {
+  faceModal = document.getElementById('faceModal');
+  videoEl = document.getElementById('video');
+  captureStatus = document.getElementById('captureStatus');
+  faceModal.classList.add('show');
+  if (!await startVideo()) {
+    hideFaceModal();
+    return;
+  }
+  countdown = 2; // Reduced for faster process
+  captureStatus.textContent = `Capturing in ${countdown}...`;
+  countdownInterval = setInterval(async () => {
+    countdown--;
+    if (countdown > 0) {
+      captureStatus.textContent = `Capturing in ${countdown}...`;
+    } else {
+      clearInterval(countdownInterval);
+      captureStatus.textContent = 'Verifying...';
+      await captureAndVerify(staff, action);
+    }
+  }, 1000);
+};
+const hideFaceModal = () => {
+  if (faceModal) faceModal.classList.remove('show');
+  if (countdownInterval) clearInterval(countdownInterval);
+  stopVideo();
+};
+const startVideo = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    videoEl.srcObject = stream;
+    await videoEl.play();
+    return true;
+  } catch (err) {
+    showPopup('Camera Error', `Access denied: ${err.message}`, false);
+    return false;
+  }
+};
+const stopVideo = () => {
+  if (videoEl?.srcObject) {
+    videoEl.srcObject.getTracks().forEach(t => t.stop());
+    videoEl.srcObject = null;
+  }
+};
+const captureAndVerify = async (staff, action) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = videoEl.videoWidth;
+  canvas.height = videoEl.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+  hideFaceModal();
+  showLoader(`Verifying face for ${staff.name}...`);
+  const result = await validateFaceWithSubject(base64, staff.name);
+  hideLoader();
+  if (!result.ok) {
+    showPopup('Face Verification Failed', result.error, false);
+    return;
+  }
+  // Immediately show preliminary success message
+  showPopup('Success', `Face verified! Recording ${action}...`, true);
+  await submitAttendance(action, staff);
+};
+const submitAttendance = async (action, staff) => {
+  const statusEl = document.getElementById('status');
+  const lat = Number(statusEl.dataset.lat);
+  const long = Number(statusEl.dataset.long);
+  try {
+    const res = await fetch('/api/attendance/web', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        subjectName: staff.name,
+        userId: document.getElementById('userId').value.trim(),
+        latitude: lat,
+        longitude: long,
+        timestamp: new Date().toISOString()
+      })
+    });
+    const data = await res.json();
+    // Override preliminary message with final one immediately
+    showPopup(
+      data.success ? 'Success' : 'Error',
+      data.success
+        ? `Dear ${staff.name}, ${action} recorded at ${current_office}.`
+        : data.message || 'Attendance failed.',
+      data.success
+    );
+  } catch (err) {
+    showPopup('Server Error', `Connection failed: ${err.message}`, false);
+  }
+};
+const successSound = new Audio('https://www.soundjay.com/buttons/sounds/button-09a.mp3'); // Success chime (replace if needed)
+const errorSound = new Audio('https://www.soundjay.com/buttons/sounds/button-10.mp3'); // Error buzz (replace if needed)
+const showPopup = (title, message, success = null) => {
+  const popup = document.getElementById('popup');
+  const header = document.getElementById('popupHeader');
+  const msg = document.getElementById('popupMessage');
+  header.textContent = title;
+  header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
+  msg.innerHTML = message;
+  popup.classList.add('show');
+  if (success === true) {
+    successSound.play();
+  } else if (success === false) {
+    errorSound.play();
+  }
+  setTimeout(() => popup.classList.remove('show'), 5000);
+  document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
+};
+const showLoader = (text) => {
+  const loader = document.getElementById('loaderOverlay');
+  loader.querySelector('p').textContent = text;
+  loader.style.display = 'flex';
+};
+const hideLoader = () => {
+  document.getElementById('loaderOverlay').style.display = 'none';
+};
+const handleClock = async (action) => {
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId) return showPopup('Error', 'Enter User ID.', false);
+  const staff = await getStaffByUserId(userId);
+  if (!staff || staff.active.toLowerCase() !== 'yes') {
+    return showPopup('Error', 'User not active.', false);
+  }
+  const statusEl = document.getElementById('status');
+  if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+  if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+  if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
+    return showPopup('Error', `Not allowed at ${current_office}.`, false);
+  }
+  showFaceModal(staff, action);
+};
+// === ADMIN LOGIN ===
+document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+  const email = document.getElementById('adminEmail')?.value.trim();
+  const password = document.getElementById('adminPassword')?.value.trim();
+  const error = document.getElementById('adminError');
+  const btn = document.getElementById('adminLoginBtn');
+  if (!email || !password) {
+    error.textContent = 'Fill both fields.';
+    return;
+  }
+  btn.classList.add('loading');
+  btn.disabled = true;
+  error.textContent = '';
+  try {
+    const res = await fetch('/api/admin-logins');
+    const data = await res.json();
+    if (data.success && data.logins.some(r => r[0] === email && r[1] === password)) {
+      localStorage.setItem('isLoggedIn', 'true');
+      window.location.href = 'stats.html';
+    } else {
+      error.textContent = 'Invalid credentials.';
+    }
+  } catch {
+    error.textContent = 'Login failed.';
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+});
+// === INIT ===
+document.addEventListener('DOMContentLoaded', startLocationWatch);
+window.onunload = () => {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  stopVideo();
+};
   </script>
 </body>
 </html>
