@@ -651,6 +651,10 @@
         log('PDF fetch error: ' + e.message);
         rawData = await fetchPerDay(startDate, endDate);
       }
+      if (rawData.length === 0) {
+        alert('No data available for the selected period.');
+        return;
+      }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
@@ -732,6 +736,10 @@
           `${pct}%`
         ];
         body.push(row);
+      }
+      if (body.length === 0) {
+        alert('No attendance data found for the selected period/department.');
+        return;
       }
       // Add table
       doc.autoTable({
