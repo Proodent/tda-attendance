@@ -38,7 +38,7 @@
     }
     header .logout-icon:hover {background:#e53e3e;color:#fff;}
     /* Summary Tiles */
-    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
+    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;position:relative;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
     .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -142,6 +142,7 @@
   </header>
   <!-- SUMMARY TILES -->
   <section id="summary-tiles">
+    <div class="loader" id="summary-loader"><div class="spinner"></div></div>
     <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
     <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
     <div class="tile"><h3>Clock-Ins</h3><p id="clockInsToday">--</p></div>
@@ -331,6 +332,7 @@
       const selected = document.getElementById('date-select').value || currentDate;
       log(`Starting dashboard load for date: ${selected}`);
       if (showLoader) document.getElementById('table-loader').classList.add('active');
+      document.getElementById('summary-loader').classList.add('active');
       try {
         // Fetch staff first
         const staffRes = await fetchJSON(`${backendURL}/staff`);
@@ -439,6 +441,7 @@
         console.error(e);
       } finally {
         if (showLoader) document.getElementById('table-loader').classList.remove('active');
+        document.getElementById('summary-loader').classList.remove('active');
       }
     };
     // TABLE & FILTERS
@@ -543,8 +546,8 @@
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
-        ).map(e => ({ ...e, date: day.date })
-      ));
+        ).map(e => ({ ...e, date: day.date }))
+      );
       log(`Filtered ${staffEntries.length} attendance entries for staff`);
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
@@ -780,7 +783,7 @@
       }));
       ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
       resetTimeout();
-      loadDashboardData();
+      loadDashboardData(true);
       setInterval(loadDashboardData, 30000);
     });
   </script>
