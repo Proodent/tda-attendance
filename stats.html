@@ -403,9 +403,19 @@
 
         const trendMap = {};
         (trendRaw.trend || []).forEach(item => {
-          // Backend now returns proper YYYY-MM-DD
           if (item.date && /^\d{4}-\d{2}-\d{2}$/.test(item.date)) {
             trendMap[item.date] = item.present || 0;
+          } else {
+            // Fallback for 'DD MMM' format
+            const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+            const [dayStr, monthStr] = item.date ? item.date.split(' ') : [];
+            const day = parseInt(dayStr);
+            const month = monthMap[monthStr];
+            if (month && !isNaN(day)) {
+              const year = new Date().getFullYear();
+              const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              trendMap[fullDate] = item.present || 0;
+            }
           }
         });
 
@@ -540,16 +550,7 @@
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - days);
 
-      const startStr = startDate.toISOString().split('T')[0];
-      const endStr = endDate.toISOString().split('T')[0];
-
-      let rawData = [];
-      try {
-        const res = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        rawData = Array.isArray(res) ? res : (res.stats || []);
-      } catch (e) {
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
 
       // Extract staff records
       const records = [];
@@ -672,14 +673,7 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      let rawData = [];
-      try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-      } catch (e) {
-        log('PDF fetch error: ' + e.message);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
