@@ -200,7 +200,6 @@
   </section>
   <!-- PDF EXPORT -->
   <section id="pdf-export">
-    <h3 class="text-xl font-semibold text-green-600">Export PDF</h3>
     <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
     <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
     <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
@@ -481,22 +480,6 @@
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
-    const fetchPerDay = async (start, end) => {
-      const data = [];
-      let current = new Date(start);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        try {
-          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
-          dayData.date = dateStr;
-          data.push(dayData);
-        } catch (e) {
-          log(`Failed to fetch ${dateStr}: ${e.message}`);
-        }
-        current.setDate(current.getDate() + 1);
-      }
-      return data;
-    };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
       button.disabled = true;
@@ -616,12 +599,6 @@
       button.innerHTML = 'Analyze';
     };
     // PDF EXPORT
-    const loadImage = (src) => new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = src;
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-    });
     const exportToPDF = async () => {
       const dept = document.getElementById('department-select-pdf').value;
       const start = document.getElementById('start-date').value;
@@ -646,28 +623,13 @@
         rawData = Array.isArray(rawData) ? rawData : [rawData];
       } catch (e) {
         log('PDF fetch error: ' + e.message);
-        rawData = await fetchPerDay(startDate, endDate);
+        return;
       }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
-      // Add logo and headers
-      try {
-        const logo = await loadImage('/assets/favicon.png');
-        doc.addImage(logo, 'PNG', 10, 10, 20, 20);
-      } catch (e) {
-        log('Failed to load logo for PDF: ' + e.message);
-      }
-      doc.setFontSize(14);
-      doc.text('Geofence Attendance Management System', 40, 15);
-      doc.text('Tolon District Assembly', 40, 25);
-      doc.setFontSize(10);
-      doc.text(`Date Printed: ${new Date().toLocaleString()}`, 200, 15);
-      doc.text(`Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, 200, 25);
-      if (dept) {
-        doc.text(`Department: ${dept}`, 200, 35);
-      }
-      let y = 45;
-      doc.setFontSize(10); // Small font size
+      doc.setFontSize(12);
+      doc.text('Attendance Report', 10, 10);
+      let y = 20;
       // Calculate working days
       const workingDays = [];
       const current = new Date(startDate);
@@ -685,60 +647,32 @@
         (day.staffAttendance || []).forEach(entry => {
           if (!dept || entry.department === dept) {
             const name = entry.name;
-            if (!staffMap[name]) {
-              staffMap[name] = {
-                userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A',
-                department: entry.department || '--',
-                days: {},
-                present: 0
-              };
-            }
+            if (!staffMap[name]) staffMap[name] = { userId: entry.userId || allStaff.find(s => s.name === name)?.userId || 'N/A', days: {}, present: 0 };
             staffMap[name].days[day.date] = { ti: entry.timeIn || '--', to: entry.timeOut || '--' };
             if (entry.timeIn) staffMap[name].present++;
           }
         });
       });
-      // Prepare table head and body
-      const headRow1 = ['User ID', 'Name', "Dep't"];
-      const headRow2 = ['', '', ''];
-      workingDays.forEach((date, index) => {
-        headRow1.push({ content: `Date ${index + 1}`, colSpan: 2 });
-        headRow2.push('CI', 'CO');
-      });
-      headRow1.push({ content: 'Avg.', colSpan: 2 });
-      headRow2.push('CI', 'CO');
-      headRow1.push('Days Present', '% Present');
-      headRow2.push('', '');
-      const head = [headRow1, headRow2];
-      const body = [];
-      const staffList = Object.entries(staffMap).sort((a, b) => a[0].localeCompare(b[0]));
-      for (const [name, info] of staffList) {
-        const inTimes = Object.values(info.days).map(d => timeToMinutes(d.ti)).filter(t => t !== null);
-        const outTimes = Object.values(info.days).map(d => timeToMinutes(d.to)).filter(t => t !== null);
-        const avgIn = minutesToTime(avgTime(inTimes));
-        const avgOut = minutesToTime(avgTime(outTimes));
-        const pct = totalWorkingDays > 0 ? Math.round((info.present / totalWorkingDays) * 100) : 0;
-        const row = [
-          info.userId,
-          name,
-          info.department,
-          ...workingDays.flatMap(d => [info.days[d]?.ti || '--', info.days[d]?.to || '--']),
-          avgIn,
-          avgOut,
-          `${info.present}/${totalWorkingDays}`,
-          `${pct}%`
-        ];
-        body.push(row);
+      // Add absent
+      for (const name in staffMap) {
+        staffMap[name].absent = totalWorkingDays - staffMap[name].present;
       }
-      // Add table
-      doc.autoTable({
-        startY: y,
-        head,
-        body,
-        margin: { left: 10 },
-        styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } } // Adjust widths as needed
-      });
+      // Generate table
+      for (const [name, info] of Object.entries(staffMap)) {
+        doc.text(`Staff: ${name} (ID: ${info.userId}) - Present: ${info.present}, Absent: ${info.absent}`, 10, y);
+        y += 10;
+        doc.autoTable({
+          startY: y,
+          head: [['Date', 'TI', 'TO']],
+          body: Object.entries(info.days).map(([date, times]) => [date, times.ti, times.to]),
+          margin: { left: 10 }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+        if (y > 190) {
+          doc.addPage();
+          y = 10;
+        }
+      }
       doc.save('attendance_report.pdf');
     };
     // INIT
