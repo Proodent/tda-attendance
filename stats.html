@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-  
+   
     /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
@@ -490,21 +490,16 @@
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
-    const fetchPerDay = async (start, end) => {
-      const dates = [];
-      let current = new Date(start);
-      while (current <= end) {
-        dates.push(current.toISOString().split('T')[0]);
-        current.setDate(current.getDate() + 1);
+    const fetchBatch = async (start, end) => {
+      const startStr = start.toISOString().split('T')[0];
+      const endStr = end.toISOString().split('T')[0];
+      try {
+        const data = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
+        return Array.isArray(data) ? data : data.stats || [];
+      } catch (e) {
+        log('Batch fetch failed, using per-day: ' + e.message);
+        return await fetchPerDay(start, end);
       }
-      const promises = dates.map(dateStr => fetchJSON(`${backendURL}/stats?date=${dateStr}`).then(dayData => {
-        dayData.date = dateStr;
-        return dayData;
-      }).catch(e => {
-        log(`Failed to fetch ${dateStr}: ${e.message}`);
-        return { date: dateStr, staffAttendance: [] };
-      }));
-      return await Promise.all(promises);
     };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
@@ -537,11 +532,11 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      const rawData = await fetchPerDay(startDate, endDate);
+      const rawData = await fetchBatch(startDate, endDate);
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name.toLowerCase() === targetStaff.name.toLowerCase() && (e.timeIn || e.timeOut)
-        ).map(e => ({ ...e, date: day.date }))
+        ).map(e => ({ ...e, date: day.date || '' }))
       );
       log(`Filtered ${staffEntries.length} attendance entries for staff`);
       if (staffEntries.length === 0) {
@@ -659,7 +654,7 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      const rawData = await fetchPerDay(startDate, endDate);
+      const rawData = await fetchBatch(startDate, endDate);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
@@ -678,7 +673,7 @@
       if (dept) {
         doc.text(`Department: ${dept}`, 200, 35);
       }
-      let y = 45;
+      y = 45;
       doc.setFontSize(10); // Small font size
       // Calculate working days
       const workingDays = [];
