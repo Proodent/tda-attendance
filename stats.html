@@ -392,7 +392,7 @@
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-        // 90-Day Attendance Trend - FIXED
+        // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trend = trendRaw.trend || [];
         const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
@@ -537,24 +537,19 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      let rawData = [];
-      try {
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
-        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-        log(`Fetched multi-day stats: ${rawData.length} days of data`);
-      } catch (e) {
-        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
         ).map(e => ({ ...e, date: day.date }))
       );
       log(`Filtered ${staffEntries.length} attendance entries for staff`);
+      if (staffEntries.length === 0) {
+        alert('No attendance records found in this period');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
+        return;
+      }
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
@@ -649,14 +644,7 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      let rawData = [];
-      try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-      } catch (e) {
-        log('PDF fetch error: ' + e.message);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
