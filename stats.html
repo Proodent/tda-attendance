@@ -392,64 +392,51 @@
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-        // 90-Day Attendance Trend - FIXED
-        let trendRaw;
-        try {
-          trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
-        } catch (e) {
-          log('Failed to load 90-day trend: ' + e.message);
-          trendRaw = { trend: [] };
-        }
-
+        // 90-Day Clock-In Trend
+        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
+        const trend = trendRaw.trend || [];
+        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
         const trendMap = {};
-        (trendRaw.trend || []).forEach(item => {
-          if (item.date && /^\d{4}-\d{2}-\d{2}$/.test(item.date)) {
-            trendMap[item.date] = item.present || 0;
+        trend.forEach(item => {
+          let fullDate;
+          if (item.date.includes('-')) {
+            fullDate = item.date;
           } else {
-            // Fallback for 'DD MMM' format
-            const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
-            const [dayStr, monthStr] = item.date ? item.date.split(' ') : [];
+            const [dayStr, monthStr] = item.date.split(' ');
             const day = parseInt(dayStr);
             const month = monthMap[monthStr];
-            if (month && !isNaN(day)) {
+            if (month && day) {
               const year = new Date().getFullYear();
-              const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              trendMap[fullDate] = item.present || 0;
+              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             }
           }
+          if (fullDate) {
+            trendMap[fullDate] = item.present || 0;
+          }
         });
-
         const today = new Date();
-        const trendLabels = [];
-        const trendData = [];
-
+        const labels = [];
+        const clockInData = [];
         for (let i = 89; i >= 0; i--) {
           const d = new Date(today);
           d.setDate(d.getDate() - i);
           const dateStr = d.toISOString().split('T')[0];
-          trendLabels.push(dateStr);
-          trendData.push(trendMap[dateStr] || 0);
+          labels.push(dateStr);
+          clockInData.push(trendMap[dateStr] || 0);
         }
-
         initChart('trendChart', 'line', {
           data: {
-            labels: trendLabels,
+            labels,
             datasets: [{
-              label: 'Daily Present',
-              data: trendData,
+              label: 'Total Clock-Ins',
+              data: clockInData,
               borderColor: '#48bb78',
-              backgroundColor: 'rgba(72,187,120,0.15)',
-              tension: 0.4,
-              fill: true,
-              pointRadius: 3
+              backgroundColor: 'rgba(72,187,120,0.1)',
+              tension: 0.3,
+              fill: true
             }]
           },
-          options: {
-            scales: {
-              y: { beginAtZero: true, ticks: { stepSize: 5 } },
-              x: { ticks: { maxTicksLimit: 15 } }
-            }
-          }
+          options: { scales: { y: { beginAtZero: true } } }
         });
         // Update table & title
         updateTable(staffAttendanceData);
@@ -523,108 +510,93 @@
       const button = document.getElementById('analyze-staff');
       button.disabled = true;
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-
-      const search = document.getElementById('staff-search').value.trim();
-      const days = parseInt(document.getElementById('period-select').value) || 30;
-
-      if (!search) {
-        alert('Please enter staff name or UserID');
+      const search = document.getElementById('staff-search').value.trim().toLowerCase();
+      const days = parseInt(document.getElementById('period-select').value);
+      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
+      document.getElementById('staff-chart-tile').style.display = 'none';
+      document.getElementById('staff-stats').style.display = 'none';
+      if (!search || !allStaff.length) {
+        log('Staff analysis aborted: No search term or staff data available');
+        alert('Enter staff name or ID');
         button.disabled = false;
-        button.textContent = 'Analyze';
+        button.innerHTML = 'Analyze';
         return;
       }
-
-      const target = allStaff.find(s =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.userId?.toLowerCase().includes(search.toLowerCase())
+      const targetStaff = allStaff.find(s =>
+        s.name.toLowerCase().includes(search) ||
+        (s.userId && s.userId.toLowerCase().includes(search))
       );
-
-      if (!target) {
+      if (!targetStaff) {
+        log('Staff analysis aborted: No matching staff found for search term');
         alert('Staff not found');
         button.disabled = false;
-        button.textContent = 'Analyze';
+        button.innerHTML = 'Analyze';
         return;
       }
-
+      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - days);
-
+      startDate.setDate(startDate.getDate() - days);
       const rawData = await fetchPerDay(startDate, endDate);
-
-      // Extract staff records
-      const records = [];
-      rawData.forEach(day => {
-        if (!day.date || !day.staffAttendance) return;
-        day.staffAttendance.forEach(entry => {
-          if (entry.name === target.name) {
-            records.push({
-              date: day.date,
-              timeIn: entry.timeIn || null,
-              timeOut: entry.timeOut || null
-            });
-          }
-        });
-      });
-
-      if (records.length === 0) {
+      const staffEntries = rawData.flatMap(day =>
+        (day.staffAttendance || []).filter(e =>
+          e.name === targetStaff.name && (e.timeIn || e.timeOut)
+        ).map(e => ({ ...e, date: day.date }))
+      );
+      log(`Filtered ${staffEntries.length} attendance entries for staff`);
+      if (staffEntries.length === 0) {
         alert('No attendance records found in this period');
         button.disabled = false;
-        button.textContent = 'Analyze';
+        button.innerHTML = 'Analyze';
         return;
       }
-
-      // Calculate stats
-      const inMins = records.map(r => timeToMinutes(r.timeIn)).filter(Boolean);
-      const outMins = records.map(r => timeToMinutes(r.timeOut)).filter(Boolean);
-      const avgIn = inMins.length ? Math.round(inMins.reduce((a,b)=>a+b,0)/inMins.length) : null;
-      const avgOut = outMins.length ? Math.round(outMins.reduce((a,b)=>a+b,0)/outMins.length) : null;
-
-      // Working days only
+      const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
+      const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
+      const avgIn = avgTime(inTimes);
+      const avgOut = avgTime(outTimes);
+      // Working days (Mon–Fri)
       const workingDays = [];
-      const presentSet = new Set();
-      let curr = new Date(startDate);
-      while (curr <= endDate) {
-        if (curr.getDay() >= 1 && curr.getDay() <= 5) {
-          const ds = curr.toISOString().split('T')[0];
-          workingDays.push(ds);
-          if (records.some(r => r.date === ds && r.timeIn)) presentSet.add(ds);
+      const presentDays = new Set();
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day >= 1 && day <= 5) {
+          const dateStr = current.toISOString().split('T')[0];
+          workingDays.push(dateStr);
+          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) {
+            presentDays.add(dateStr);
+          }
         }
-        curr.setDate(curr.getDate() + 1);
+        current.setDate(current.getDate() + 1);
       }
-
-      const present = presentSet.size;
-      const pct = workingDays.length ? Math.round((present / workingDays.length) * 100) : 0;
-
-      // Show results
-      document.getElementById('staff-chart-title').textContent = `${target.name} - Attendance Trend`;
+      const daysPresent = presentDays.size;
+      const totalWorkingDays = workingDays.length;
+      const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
+      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
+      // Chart data
+      const dateMap = {};
+      staffEntries.forEach(e => {
+        if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
+        if (e.timeIn) dateMap[e.date].in = timeToMinutes(e.timeIn);
+        if (e.timeOut) dateMap[e.date].out = timeToMinutes(e.timeOut);
+      });
+      const inData = workingDays.map(d => dateMap[d]?.in ?? null);
+      const outData = workingDays.map(d => dateMap[d]?.out ?? null);
+      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - Clock Times`;
       document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
       document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
-      document.getElementById('daysPresent').textContent = `${present} / ${workingDays.length}`;
-      document.getElementById('attendancePercent').textContent = `${pct}%`;
-
+      document.getElementById('daysPresent').textContent = `${daysPresent} / ${totalWorkingDays}`;
+      document.getElementById('attendancePercent').textContent = `${attendancePct}%`;
       document.getElementById('staff-chart-tile').style.display = 'block';
       document.getElementById('staff-stats').style.display = 'grid';
-
-      // Chart
       if (staffAnalysisChart) staffAnalysisChart.destroy();
-
-      const chartDataIn = workingDays.map(d => {
-        const rec = records.find(r => r.date === d);
-        return rec && rec.timeIn ? timeToMinutes(rec.timeIn) : null;
-      });
-      const chartDataOut = workingDays.map(d => {
-        const rec = records.find(r => r.date === d);
-        return rec && rec.timeOut ? timeToMinutes(rec.timeOut) : null;
-      });
-
       staffAnalysisChart = new Chart(document.getElementById('staffTrendChart'), {
         type: 'line',
         data: {
-          labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', {month:'short', day:'numeric'})),
+          labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
           datasets: [
-            { label: 'Clock In', data: chartDataIn, borderColor: '#48bb78', tension: 0.3, fill: false },
-            { label: 'Clock Out', data: chartDataOut, borderColor: '#f56565', tension: 0.3, fill: false }
+            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false },
+            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false }
           ]
         },
         options: {
@@ -634,19 +606,18 @@
             y: {
               beginAtZero: true,
               ticks: {
-                callback: v => {
-                  const h = Math.floor(v/60).toString().padStart(2,'0');
-                  const m = (v%60).toString().padStart(2,'0');
-                  return `${h}:${m}`;
+                callback: value => {
+                  const h = Math.floor(value / 60);
+                  const m = value % 60;
+                  return `${h}:${String(m).padStart(2,'0')}`;
                 }
               }
             }
           }
         }
       });
-
       button.disabled = false;
-      button.textContent = 'Analyze';
+      button.innerHTML = 'Analyze';
     };
     // PDF EXPORT
     const loadImage = (src) => new Promise((resolve, reject) => {
