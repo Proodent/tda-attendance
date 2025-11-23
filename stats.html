@@ -9,7 +9,6 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
@@ -165,7 +164,7 @@
     <div class="chart-tile"><h3>Clocking</h3><div class="chart-container"><canvas id="clockingChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
-    <div class="chart-tile full-width-chart"><h3>90 Days Attendance Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>90 Days Clock-In Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
   </section>
   <!-- FILTERS -->
   <section id="filters">
@@ -216,7 +215,7 @@
   </section>
   <!-- STAFF ANALYSIS -->
   <section id="staff-analysis">
-    <h3>Individual Staff Attendance Analysis</h3>
+    <h3>Staff Attendance Analysis</h3>
     <div id="staff-filters">
       <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
       <div class="filter-group"><label for="period-select">Period:</label>
@@ -392,26 +391,18 @@
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-        // 90-Day Attendance Trend - FIXED
+        // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trend = trendRaw.trend || [];
         const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
         const trendMap = {};
         trend.forEach(item => {
-          let fullDate;
-          if (item.date.includes('-')) {
-            fullDate = item.date;
-          } else {
-            const [dayStr, monthStr] = item.date.split(' ');
-            const day = parseInt(dayStr);
-            const month = monthMap[monthStr];
-            if (month && day) {
-              const year = new Date().getFullYear();
-              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-          }
-          if (fullDate) {
-            trendMap[fullDate] = item.present || 0;
+          const [dayStr, monthStr] = item.date.split(' ');
+          const day = parseInt(dayStr);
+          const month = monthMap[monthStr];
+          if (month && day) {
+            const fullDate = new Date(2025, month - 1, day).toISOString().split('T')[0];
+            trendMap[fullDate] = item.present;
           }
         });
         const today = new Date();
@@ -490,16 +481,21 @@
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
-    const fetchBatch = async (start, end) => {
-      const startStr = start.toISOString().split('T')[0];
-      const endStr = end.toISOString().split('T')[0];
-      try {
-        const data = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        return Array.isArray(data) ? data : data.stats || [];
-      } catch (e) {
-        log('Batch fetch failed, using per-day: ' + e.message);
-        return await fetchPerDay(start, end);
+    const fetchPerDay = async (start, end) => {
+      const data = [];
+      let current = new Date(start);
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0];
+        try {
+          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
+          dayData.date = dateStr;
+          data.push(dayData);
+        } catch (e) {
+          log(`Failed to fetch ${dateStr}: ${e.message}`);
+        }
+        current.setDate(current.getDate() + 1);
       }
+      return data;
     };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
@@ -532,20 +528,24 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      const rawData = await fetchBatch(startDate, endDate);
+      let rawData = [];
+      try {
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
+        log(`Fetched multi-day stats: ${rawData.length} days of data`);
+      } catch (e) {
+        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
+        rawData = await fetchPerDay(startDate, endDate);
+      }
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
-          e.name.toLowerCase() === targetStaff.name.toLowerCase() && (e.timeIn || e.timeOut)
-        ).map(e => ({ ...e, date: day.date || '' }))
+          e.name === targetStaff.name && (e.timeIn || e.timeOut)
+        ).map(e => ({ ...e, date: day.date }))
       );
       log(`Filtered ${staffEntries.length} attendance entries for staff`);
-      if (staffEntries.length === 0) {
-        log('No attendance records found in this period');
-        alert('No attendance records found in this period');
-        button.disabled = false;
-        button.innerHTML = 'Analyze';
-        return;
-      }
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
@@ -591,36 +591,22 @@
         data: {
           labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
           datasets: [
-            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false, pointStyle: 'circle' },
-            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false, pointStyle: 'circle' }
+            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false },
+            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  let label = context.dataset.label || '';
-                  if (label) label += ': ';
-                  if (context.parsed.y !== null) label += minutesToTime(context.parsed.y);
-                  return label;
-                }
-              }
-            },
-            legend: {
-              labels: {
-                usePointStyle: true,
-                pointStyle: 'circle'
-              }
-            }
-          },
           scales: {
             y: {
               beginAtZero: true,
               ticks: {
-                callback: value => minutesToTime(value)
+                callback: value => {
+                  const h = Math.floor(value / 60);
+                  const m = value % 60;
+                  return `${h}:${String(m).padStart(2,'0')}`;
+                }
               }
             }
           }
@@ -654,7 +640,14 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      const rawData = await fetchBatch(startDate, endDate);
+      let rawData = [];
+      try {
+        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
+        rawData = Array.isArray(rawData) ? rawData : [rawData];
+      } catch (e) {
+        log('PDF fetch error: ' + e.message);
+        rawData = await fetchPerDay(startDate, endDate);
+      }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
@@ -673,7 +666,7 @@
       if (dept) {
         doc.text(`Department: ${dept}`, 200, 35);
       }
-      y = 45;
+      let y = 45;
       doc.setFontSize(10); // Small font size
       // Calculate working days
       const workingDays = [];
