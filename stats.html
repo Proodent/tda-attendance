@@ -230,6 +230,7 @@
       </div>
       <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
     </div>
+    <div class="loader" id="staff-loader"><div class="spinner"></div></div>
     <div class="chart-tile full-width-chart" id="staff-chart-tile" style="display:none;">
       <h3 id="staff-chart-title">Attendance Trend</h3>
       <div class="chart-container"><canvas id="staffTrendChart"></canvas></div>
@@ -392,51 +393,53 @@
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-        // 90-Day Clock-In Trend
-        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
-        const trend = trendRaw.trend || [];
-        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+        // 90-Day Attendance Trend - FIXED
+        let trendRaw;
+        try {
+          trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
+        } catch (e) {
+          log('Failed to load 90-day trend: ' + e.message);
+          trendRaw = { trend: [] };
+        }
+
         const trendMap = {};
-        trend.forEach(item => {
-          let fullDate;
-          if (item.date.includes('-')) {
-            fullDate = item.date;
-          } else {
-            const [dayStr, monthStr] = item.date.split(' ');
-            const day = parseInt(dayStr);
-            const month = monthMap[monthStr];
-            if (month && day) {
-              const year = new Date().getFullYear();
-              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-          }
-          if (fullDate) {
-            trendMap[fullDate] = item.present || 0;
+        (trendRaw.trend || []).forEach(item => {
+          if (item.date && /^\d{4}-\d{2}-\d{2}$/.test(item.date)) {
+            trendMap[item.date] = item.present || 0;
           }
         });
+
         const today = new Date();
-        const labels = [];
-        const clockInData = [];
+        const trendLabels = [];
+        const trendData = [];
+
         for (let i = 89; i >= 0; i--) {
           const d = new Date(today);
           d.setDate(d.getDate() - i);
           const dateStr = d.toISOString().split('T')[0];
-          labels.push(dateStr);
-          clockInData.push(trendMap[dateStr] || 0);
+          trendLabels.push(dateStr);
+          trendData.push(trendMap[dateStr] || 0);
         }
+
         initChart('trendChart', 'line', {
           data: {
-            labels,
+            labels: trendLabels,
             datasets: [{
-              label: 'Total Clock-Ins',
-              data: clockInData,
+              label: 'Daily Present',
+              data: trendData,
               borderColor: '#48bb78',
-              backgroundColor: 'rgba(72,187,120,0.1)',
-              tension: 0.3,
-              fill: true
+              backgroundColor: 'rgba(72,187,120,0.15)',
+              tension: 0.4,
+              fill: true,
+              pointRadius: 3
             }]
           },
-          options: { scales: { y: { beginAtZero: true } } }
+          options: {
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 5 } },
+              x: { ticks: { maxTicksLimit: 15 } }
+            }
+          }
         });
         // Update table & title
         updateTable(staffAttendanceData);
@@ -510,6 +513,7 @@
       const button = document.getElementById('analyze-staff');
       button.disabled = true;
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+      document.getElementById('staff-loader').classList.add('active');
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
       log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
@@ -520,6 +524,7 @@
         alert('Enter staff name or ID');
         button.disabled = false;
         button.innerHTML = 'Analyze';
+        document.getElementById('staff-loader').classList.remove('active');
         return;
       }
       const targetStaff = allStaff.find(s =>
@@ -531,6 +536,7 @@
         alert('Staff not found');
         button.disabled = false;
         button.innerHTML = 'Analyze';
+        document.getElementById('staff-loader').classList.remove('active');
         return;
       }
       log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
@@ -548,6 +554,7 @@
         alert('No attendance records found in this period');
         button.disabled = false;
         button.innerHTML = 'Analyze';
+        document.getElementById('staff-loader').classList.remove('active');
         return;
       }
       const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
@@ -602,6 +609,21 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + minutesToTime(context.raw);
+                }
+              }
+            },
+            legend: {
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'circle'
+              }
+            }
+          },
           scales: {
             y: {
               beginAtZero: true,
@@ -618,6 +640,7 @@
       });
       button.disabled = false;
       button.innerHTML = 'Analyze';
+      document.getElementById('staff-loader').classList.remove('active');
     };
     // PDF EXPORT
     const loadImage = (src) => new Promise((resolve, reject) => {
