@@ -398,12 +398,20 @@
         const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
         const trendMap = {};
         trend.forEach(item => {
-          const [dayStr, monthStr] = item.date.split(' ');
-          const day = parseInt(dayStr);
-          const month = monthMap[monthStr];
-          if (month && day) {
-            const fullDate = new Date(2025, month - 1, day).toISOString().split('T')[0];
-            trendMap[fullDate] = item.present;
+          let fullDate;
+          if (item.date.includes('-')) {
+            fullDate = item.date;
+          } else {
+            const [dayStr, monthStr] = item.date.split(' ');
+            const day = parseInt(dayStr);
+            const month = monthMap[monthStr];
+            if (month && day) {
+              const year = new Date().getFullYear();
+              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+          }
+          if (fullDate) {
+            trendMap[fullDate] = item.present || 0;
           }
         });
         const today = new Date();
@@ -529,18 +537,7 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      let rawData = [];
-      try {
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
-        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-        log(`Fetched multi-day stats: ${rawData.length} days of data`);
-      } catch (e) {
-        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
@@ -647,14 +644,7 @@
         startDate = new Date(start);
         endDate = new Date(end);
       }
-      let rawData = [];
-      try {
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-      } catch (e) {
-        log('PDF fetch error: ' + e.message);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
       // Add logo and headers
