@@ -393,37 +393,12 @@
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
-        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
-        const trend = trendRaw.trend || [];
-        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
-        const trendMap = {};
-        trend.forEach(item => {
-          let fullDate;
-          if (item.date.includes('-')) {
-            fullDate = item.date;
-          } else {
-            const [dayStr, monthStr] = item.date.split(' ');
-            const day = parseInt(dayStr);
-            const month = monthMap[monthStr];
-            if (month && day) {
-              const year = new Date().getFullYear();
-              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-          }
-          if (fullDate) {
-            trendMap[fullDate] = item.present || 0;
-          }
-        });
-        const today = new Date();
-        const labels = [];
-        const clockInData = [];
-        for (let i = 89; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          labels.push(dateStr);
-          clockInData.push(trendMap[dateStr] || 0);
-        }
+        const trendEnd = new Date();
+        const trendStart = new Date();
+        trendStart.setDate(trendStart.getDate() - 89);
+        const trendData = await fetchPerDay(trendStart, trendEnd);
+        const labels = trendData.map(day => day.date);
+        const clockInData = trendData.map(day => (day.staffAttendance || []).filter(e => e.timeIn).length);
         initChart('trendChart', 'line', {
           data: {
             labels,
@@ -494,20 +469,23 @@
     const holidays2025 = ['2025-01-01', '2025-01-07', '2025-03-06', '2025-03-31', '2025-04-01', '2025-04-18', '2025-04-21', '2025-05-01', '2025-06-06', '2025-07-01', '2025-09-21', '2025-09-22', '2025-12-05', '2025-12-25', '2025-12-26'];
     const holidays = new Set([...holidays2024, ...holidays2025]);
     const fetchPerDay = async (start, end) => {
-      const data = [];
+      const dates = [];
       let current = new Date(start);
       while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
+        dates.push(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+      }
+      const promises = dates.map(async dateStr => {
         try {
           const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
           dayData.date = dateStr;
-          data.push(dayData);
+          return dayData;
         } catch (e) {
           log(`Failed to fetch ${dateStr}: ${e.message}`);
+          return {date: dateStr, staffAttendance: []};
         }
-        current.setDate(current.getDate() + 1);
-      }
-      return data;
+      });
+      return await Promise.all(promises);
     };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
@@ -673,6 +651,7 @@
       }
       try {
         const rawData = await fetchPerDay(startDate, endDate);
+        window.jsPDF = window.jspdf.jsPDF;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape');
         // Add logo and headers
@@ -698,8 +677,9 @@
         const current = new Date(startDate);
         while (current <= endDate) {
           const day = current.getDay();
-          if (day >= 1 && day <= 5) {
-            workingDays.push(current.toISOString().split('T')[0]);
+          const dateStr = current.toISOString().split('T')[0];
+          if (day >= 1 && day <= 5 && !holidays.has(dateStr)) {
+            workingDays.push(dateStr);
           }
           current.setDate(current.getDate() + 1);
         }
