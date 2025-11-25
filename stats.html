@@ -651,9 +651,9 @@
       }
       try {
         const rawData = await fetchPerDay(startDate, endDate);
-        window.jsPDF = window.jspdf.jsPDF;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape');
+        doc.autoTable = autoTable;
         // Add logo and headers
         try {
           const logo = await loadImage('/assets/favicon.png');
