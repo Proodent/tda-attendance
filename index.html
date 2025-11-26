@@ -650,7 +650,7 @@ const startLocationWatch = () => {
             break;
           }
         }
-        statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside approved area';
+        statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside Office Locations';
         userIdInput.disabled = !current_office;
         if (!current_office) {
           userIdInput.value = '';
@@ -665,17 +665,6 @@ const startLocationWatch = () => {
         console.error('GPS Error:', err);
         statusEl.textContent = `GPS error: ${err.message}`;
         gpsEl.textContent = 'GPS: Failed';
-        setTimeout(() => {
-          if (!statusEl.dataset.lat) {
-            statusEl.dataset.lat = 9.4;
-            statusEl.dataset.long = -0.85;
-            gpsEl.textContent = 'GPS: Test Mode (9.4, -0.85)';
-            current_office = 'Test Office';
-            statusEl.textContent = 'Test Office 📍';
-            userIdInput.disabled = false;
-            if (userIdInput.value.trim()) validateUser();
-          }
-        }, 3000);
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
     );
