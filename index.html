@@ -10,6 +10,7 @@
     .container {padding: 20px;border-radius: 12px;box-shadow: 0 8px 24px rgba(0,0,0,.15);max-width: 600px;width: 90%;background: rgba(255,255,255,0.92);}
     .logo {width: 60px;height: 60px;margin-bottom: 8px;border-radius: 50%;object-fit: contain;box-shadow: 0 2px 8px rgba(0,0,0,0.1);border: 1.8px solid #009245;}
     h1 {color: #009245;margin-bottom: 15px;font-size: 1.4em;}
+    }
     h1 .subtitle {color: #242424;font-size: .65em;}
     .input-group {margin: 20px 0 8px;max-width: 300px;}
     .input-group input {width: 100%;padding: 10px 12px;font-size: 15px;border: 1.5px solid #ccc;border-radius: 8px;text-align: center;font-weight: 600;background: rgba(255,255,255,0.95);}
@@ -229,7 +230,7 @@
         }
         if (staff.active.toLowerCase() !== 'yes') {
           userIdStatus.className = 'inactive';
-          userIdStatus.textContent = `User ${userId}: ${staff.name} - ⛔Inactive`;
+          userIdStatus.textContent = `User ${userId}: ${staff.name} - Inactive`;
           clockInBtn.disabled = clockOutBtn.disabled = true;
           return;
         }
@@ -443,8 +444,7 @@
           data.success
         );
 
-        // Reset sound flag after 3 seconds so next action can play sound again
-        setTimeout(() => soundPlayed = false, 3000);
+        setTimeout(() => soundPlayed = false, 3000); // Allow next clock-in/out to play sound again
 
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
