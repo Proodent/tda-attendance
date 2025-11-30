@@ -650,7 +650,7 @@ const startLocationWatch = () => {
             break;
           }
         }
-        statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside Office Locations';
+        statusEl.textContent = current_office ? `${current_office}📍` : 'Outside Office Locations';
         userIdInput.disabled = !current_office;
         if (!current_office) {
           userIdInput.value = '';
@@ -877,3 +877,4 @@ window.onunload = () => {
   </script>
 </body>
 </html>
+
