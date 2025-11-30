@@ -6,58 +6,416 @@
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <style>
-    body {font-family: Arial, sans-serif;background: #e8f5e8;text-align: center;margin: 0;padding: 20px;min-height: 100vh;display: flex;flex-direction: column;justify-content: center;align-items: center;overflow-x: hidden;}
-    .container {padding: 20px;border-radius: 12px;box-shadow: 0 8px 24px rgba(0,0,0,.15);max-width: 600px;width: 90%;background: rgba(255,255,255,0.92);}
-    .logo {width: 60px;height: 60px;margin-bottom: 8px;border-radius: 50%;object-fit: contain;box-shadow: 0 2px 8px rgba(0,0,0,0.1);border: 1.8px solid #009245;}
-    h1 {color: #009245;margin-bottom: 15px;font-size: 1.4em;}
+    /* === BODY – LIGHT GREEN BACKGROUND === */
+    body {
+      font-family: Arial, sans-serif;
+      background: #e8f5e8; /* Light green */
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
     }
-    h1 .subtitle {color: #242424;font-size: .65em;}
-    .input-group {margin: 20px 0 8px;max-width: 300px;}
-    .input-group input {width: 100%;padding: 10px 12px;font-size: 15px;border: 1.5px solid #ccc;border-radius: 8px;text-align: center;font-weight: 600;background: rgba(255,255,255,0.95);}
-    #userIdStatus {font-size: 0.85em;font-weight: 600;margin-top: 8px;padding: 8px 12px;border-radius: 8px;max-width: 300px;min-height: 40px;display: flex;align-items: center;justify-content: center;background: rgba(255,255,255,0.95);}
-    #userIdStatus.valid {color: #155724;background: #d4edda;border: 1.5px solid #c3e6cb;}
-    #userIdStatus.inactive {color: #856404;background: #fff3cd;border: 1.5px solid #ffeaa7;}
-    #userIdStatus.invalid {color: #721c24;background: #f8d7da;border: 1.5px solid #f5c6cb;}
-    #userIdStatus.loading {color: #856404;background: #fff3cd;border: 1.5px solid #ffeaa7;}
-    #userIdStatus.placeholder {color: #666;background: #f8f9fa;border: 1.5px dashed #ccc;}
-    .status-box {margin: 18px 0 8px;max-width: 300px;}
-    #gpsCoords {font-size: 0.8em;color: #006837;background: #d4edda;padding: 6px 14px;border-radius: 8px;display: inline-block;margin-bottom: 8px;}
-    #status {font-size: 1.3em;color: #009245;font-weight: 700;}
-    .time-box {margin: 20px 0 12px;max-width: 300px;}
-    #liveClock {font-size: 1em;font-weight: 700;letter-spacing: 2px;color: #009245;background: #d4edda;padding: 6px 8px;border-radius: 8px;display: inline-block;min-width: 150px;}
-    .colon {color: #006837;font-weight: 600;}
-    #liveDate {font-size: .8em;color: #444;margin-top: 7px;font-weight: 600;}
-    .button-group {display: flex;gap: 12px;margin-top: 20px;max-width: 300px;}
-    button {flex: 1;padding: 14px;font-size: 16px;background: #009245;color: #fff;border: none;border-radius: 8px;cursor: pointer;font-weight: 600;transition: background .3s, transform .2s;}
-    #clockIn {background: #4CAF50;}
-    #clockOut {background: #F44336;}
-    button:hover:not(:disabled) {transform: scale(1.05);}
-    #clockIn:hover:not(:disabled) {background: #45a049;}
-    #clockOut:hover:not(:disabled) {background: #d32f2f;}
-    button:disabled {background: #ccc;opacity: .6;cursor: not-allowed;}
-    #adminDashboard {background: #009245;color: #fff;padding: 6px 12px;font-size: 0.8em;border-radius: 6px;margin-bottom: 8px;}
-    #adminDashboard:hover {background: #007a3d;}
-    #faceModal {display: none;position: fixed;top: 0;left: 0;width: 100%;height: 100%;background: rgba(0,0,0,.6);z-index: 3000;justify-content: center;align-items: center;}
-    #faceModal.show {display: flex;}
-    #faceModal .popup-content {background: #fff;padding: 20px;border-radius: 14px;max-width: 380px;width: 90%;text-align: center;box-shadow: 0 10px 30px rgba(0,0,0,.3);}
-    #faceModal .popup-header {background: #009245;color: #fff;padding: 10px;border-radius: 8px;font-weight: bold;margin-bottom: 15px;}
-    #faceModal .video-container {position: relative;margin: 15px auto;width: 280px;height: 210px;border: 3px solid #009245;border-radius: 12px;overflow: hidden;}
-    #faceModal video {width: 100%;height: 100%;object-fit: cover;transform: scaleX(-1);}
-    #faceModal .face-guide {position: absolute;top: 50%;left: 50%;transform: translate(-50%,-50%);width: 140px;height: 180px;border: 2px dashed #fff;border-radius: 50%;opacity: 0.7;}
-    #faceModal .capture-status {margin: 15px 0;font-weight: 600;color: #009245;}
-    #loaderOverlay {display: none;position: fixed;top: 0;left: 0;width: 100%;height: 100%;background: rgba(255,255,255,.95);z-index: 3000;justify-content: center;align-items: center;flex-direction: column;backdrop-filter: blur(3px);}
-    .loader {border: 6px solid #f3f3f3;border-top: 6px solid #009245;border-radius: 50%;width: 55px;height: 55px;animation: spin 1s linear infinite;margin-bottom: 15px;}
-    @keyframes spin {100% {transform: rotate(360deg);}}
-    .popup {display: none;position: fixed;top: 0;left: 0;width: 100%;height: 100%;background: rgba(0,0,0,.4);justify-content: center;align-items: center;z-index: 2000;}
-    .popup.show {display: flex;}
-    .popup-content {background: #fff;padding: 25px;border-radius: 12px;width: 90%;max-width: 380px;text-align: center;box-shadow: 0 5px 20px rgba(0,0,0,.2);}
-    .popup-header {font-size: 1.2em;font-weight: bold;margin-bottom: 10px;padding: 8px;border-radius: 6px;}
-    .popup-header.success {background: linear-gradient(135deg,#4CAF50,#45a049);color: #fff;}
-    .popup-header.error {background: linear-gradient(135deg,#F44336,#d32f2f);color: #fff;}
-    #adminPopup {display: none;position: fixed;top: 0;left: 0;width: 100%;height: 100%;background: rgba(0,0,0,.5);z-index: 2500;justify-content: center;align-items: center;}
-    #adminPopup.show {display: flex;}
-    .footer {margin-top: auto;font-size: .9em;color: #666;padding: 10px 0;border-top: 1px solid #eee;max-width: 600px;}
-    .footer a {color: #009245;text-decoration: none;}
+    /* === Container === */
+    .container {
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.92);
+    }
+    /* === LOGO – 1.8px BORDER === */
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 8px;
+      border-radius: 50%;
+      object-fit: contain;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 1.8px solid #009245;
+      z-index: 2;
+    }
+    /* === Heading === */
+    h1 {
+      color: #009245;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+    h1 span { font-size: 1em; }
+    h1 .subtitle { color: #242424; font-size: .65em; }
+    /* === INPUT GROUP === */
+    .input-group {
+      margin: 20px 0 8px;
+      text-align: center;
+      width: 100%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    .input-group input::placeholder { color: #aaa; font-weight: 500; }
+    .input-group input:focus {
+      outline: none;
+      border-color: #009245;
+      box-shadow: 0 0 6px rgba(0, 146, 69, 0.3);
+    }
+    .input-group input:disabled {
+      background: #f0f0f0;
+      color: #999;
+      cursor: not-allowed;
+    }
+    /* === VALIDATION BOX – ALWAYS VISIBLE, CLEARS ON EMPTY === */
+    #userIdStatus {
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      min-height: 40px;
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.4;
+      background: rgba(255, 255, 255, 0.95);
+    }
+    #userIdStatus.valid { color: #155724; background: #d4edda; border: 1.5px solid #c3e6cb; }
+    #userIdStatus.inactive { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.invalid { color: #721c24; background: #f8d7da; border: 1.5px solid #f5c6cb; }
+    #userIdStatus.loading { color: #856404; background: #fff3cd; border: 1.5px solid #ffeaa7; }
+    #userIdStatus.placeholder { color: #666; background: #f8f9fa; border: 1.5px dashed #ccc; }
+    /* === Status & GPS === */
+    .status-box {
+      margin: 18px 0 8px;
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    #gpsCoords {
+      font-size: 0.8em;
+      color: #006837;
+      font-weight: 500;
+      background: #d4edda;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    #status {
+      font-size: 1.3em;
+      color: #009245;
+      font-weight: 700;
+      margin: 0;
+    }
+    /* === Clock === */
+    .time-box {
+      margin: 20px 0 12px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    #liveClock {
+      font-size: 1em;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #009245;
+      background: #d4edda;
+      padding: 6px 8px;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 150px;
+    }
+    #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
+    .colon { color: #006837; font-weight: 600; }
+    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+    /* === Buttons === */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 300px;
+      position: relative;
+      z-index: 2;
+    }
+    button {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .3s, transform .2s;
+      font-weight: 600;
+    }
+    #clockIn { background: #4CAF50; }
+    #clockOut { background: #F44336; }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    #clockIn:hover:not(:disabled) { background: #45a049; }
+    #clockOut:hover:not(:disabled) { background: #d32f2f; }
+    }
+    button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
+    /* === ADMIN BUTTON – SMALL === */
+    #adminDashboard {
+      background: #009245;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background .3s;
+    }
+    #adminDashboard:hover { background: #007a3d; }
+    /* === FACE MODAL === */
+    #faceModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.6);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+    }
+    #faceModal.show { display: flex; }
+    #faceModal .popup-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    #faceModal .popup-header {
+      background: #009245;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    #faceModal .video-container {
+      position: relative;
+      margin: 15px auto;
+      width: 280px;
+      height: 210px;
+      border: 3px solid #009245;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #faceModal video {
+      width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+    }
+    #faceModal .face-guide {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px; height: 180px;
+      border: 2px dashed #fff;
+      border-radius: 50%;
+      opacity: 0.7;
+    }
+    #faceModal .capture-status {
+      margin: 15px 0;
+      font-weight: 600;
+      color: #009245;
+    }
+    /* === Loader === */
+    #loaderOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,.95);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      backdrop-filter: blur(3px);
+    }
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #009245;
+      border-radius: 50%;
+      width: 55px; height: 55px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    /* === Popup === */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .popup.show { display: flex; }
+    .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+    }
+    .popup-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .popup-header.success { background: linear-gradient(135deg,#4CAF50,#45a049); color: #fff; }
+    .popup-header.error { background: linear-gradient(135deg,#F44336,#d32f2f); color: #fff; }
+    /* === ADMIN POPUP === */
+    #adminPopup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,.5);
+      z-index: 2500;
+      justify-content: center;
+      align-items: center;
+    }
+    #adminPopup.show { display: flex; }
+    #adminPopup .popup-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 8px 25px rgba(0,0,0,.2);
+      position: relative;
+    }
+    #adminPopup h2 {
+      margin: 0 0 15px;
+      color: #009245;
+      font-size: 1.3em;
+    }
+    #adminPopup input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    #adminLoginBtn {
+      width: 100%;
+      padding: 12px;
+      background: #009245;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      position: relative;
+      transition: background .3s;
+    }
+    #adminLoginBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #adminLoginBtn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #adminLoginBtn.loading .spinner {
+      display: block;
+    }
+    #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
+    .popup-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      color: #999;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .2s;
+    }
+    .popup-close:hover {
+      color: #d32f2f;
+    }
+    /* === Footer === */
+    .footer {
+      margin-top: auto;
+      font-size: .9em;
+      color: #666;
+      padding: 10px 0;
+      border-top: 1px solid #eee;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    .footer a { color: #009245; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -126,7 +484,7 @@
 
   <script>
     const successSound = new Audio('/assets/success-sound.mp3');
-    let soundPlayed = false; // Prevents double sound
+    let soundPlayed = false; // ← THIS LINE FIXES DOUBLE SOUND
 
     function updateClock() {
       const now = new Date();
@@ -189,7 +547,7 @@
           name: l.name,
           lat: Number(l.lat),
           long: Number(l.long),
-          radiusMeters: Number(l.radiusMeters)
+          radiusMeters: Number(l.radiusMeters
         }));
       } catch (err) {
         showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
@@ -404,7 +762,7 @@
         return;
       }
 
-      // Play success sound ONLY ONCE – when face is verified
+      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play();
         soundPlayed = true;
@@ -436,15 +794,17 @@
 
         const data = await res.json();
 
+        // Final message – NO SOUND PLAYED HERE
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
             ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
-            : data.message || 'Failed to record attendance.',
+            : data.message || 'Attendance failed.',
           data.success
         );
 
-        setTimeout(() => soundPlayed = false, 3000); // Allow next clock-in/out to play sound again
+        // Allow sound again after 3 seconds
+        setTimeout(() => soundPlayed = false, 3000);
 
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
