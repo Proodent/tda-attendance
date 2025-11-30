@@ -160,7 +160,7 @@
     }
     #liveClock span { display: inline-block; min-width: 1.2ch; text-align: center; }
     .colon { color: #006837; font-weight: 600; }
-    #liveDate { font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
+    #liveDate {font-size: .8em; color: #444; margin-top: 7px; font-weight: 600; }
     /* === Buttons === */
     .button-group {
       display: flex;
@@ -189,7 +189,6 @@
     button:hover:not(:disabled) { transform: scale(1.05); }
     #clockIn:hover:not(:disabled) { background: #45a049; }
     #clockOut:hover:not(:disabled) { background: #d32f2f; }
-    }
     button:disabled { background: #ccc; cursor: not-allowed; opacity: .6; }
     /* === ADMIN BUTTON – SMALL === */
     #adminDashboard {
@@ -281,7 +280,7 @@
       animation: spin 1s linear infinite;
       margin-bottom: 15px;
     }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes spin { 100% {transform: rotate(360deg);}}
     /* === Popup === */
     .popup {
       display: none;
@@ -427,8 +426,8 @@
       <p id="status">Checking location...</p>
     </div>
     <div class="time-box">
-      <div id="liveClock">00 : 00 : 00</div>
-      <div id="liveDate">Monday, 03 November 2025</div>
+      <div id="liveClock">00:00:00</div>
+      <div id="liveDate"></div>
     </div>
     <div class="input-group">
       <input type="number" id="userId" placeholder="Enter User ID" maxlength="10" autocomplete="off" disabled />
@@ -483,20 +482,32 @@
   </div>
 
   <script>
+    // SUCCESS SOUND ONLY ONCE
     const successSound = new Audio('/assets/success-sound.mp3');
-    let soundPlayed = false; // ← THIS LINE FIXES DOUBLE SOUND
+    let soundPlayed = false;
 
+    // CLOCK & DATE FIXED (no hard-coded date)
     function updateClock() {
       const now = new Date();
-      const h = now.getHours().toString().padStart(2,'0');
-      const m = now.getMinutes().toString().padStart(2,'0');
-      const s = now.getSeconds().toString().padStart(2,'0');
-      const dateStr = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-      document.getElementById('liveClock').innerHTML = `<span>${h}</span><span class="colon">:</span><span>${m}</span><span class="colon">:</span><span>${s}</span>`;
+      const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
+      const dateStr = now.toLocaleDateString('en-GB', options);
+      const timeStr = now.toLocaleTimeString('en-US', {hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit'});
+      document.getElementById('liveClock').textContent = timeStr;
       document.getElementById('liveDate').textContent = dateStr;
     }
     updateClock();
-    setInterval(updateClock, 500);
+    setInterval(updateClock, 1000);
+
+    // GPS Display update
+    const gpsEl = document.getElementById('gpsCoords');
+    const statusEl = document.getElementById('status');
+    const updateGPSDisplay = () => {
+      const lat = statusEl.dataset.lat;
+      const lng = statusEl.dataset.long;
+      gpsEl.textContent = lat && lng ? `GPS: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}` : 'GPS: Waiting for signal...';
+    };
+    updateGPSDisplay();
+    new MutationObserver(updateGPSDisplay).observe(statusEl, {attributes: true, attributeFilter: ['data-lat', 'data-long']});
 
     let watchId = null;
     let current_office = null;
@@ -535,6 +546,7 @@
         console.error('Staff fetch error:', err);
       }
       return null;
+    return null;
     };
 
     const fetchLocations = async () => {
@@ -547,7 +559,7 @@
           name: l.name,
           lat: Number(l.lat),
           long: Number(l.long),
-          radiusMeters: Number(l.radiusMeters
+          radiusMeters: Number(l.radiusMeters)
         }));
       } catch (err) {
         showPopup('Location Error', `Failed to load locations: ${err.message}`, false);
@@ -762,7 +774,7 @@
         return;
       }
 
-      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
+      // Play success sound ONLY ONCE – when face is verified
       if (!soundPlayed) {
         successSound.play();
         soundPlayed = true;
@@ -794,16 +806,14 @@
 
         const data = await res.json();
 
-        // Final message – NO SOUND PLAYED HERE
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
             ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
-            : data.message || 'Attendance failed.',
+            : data.message || 'Failed to record attendance.',
           data.success
         );
 
-        // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
 
       } catch (err) {
