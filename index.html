@@ -818,7 +818,7 @@
           data.success
         );
 
-        // Reset sound flag after 3 seconds so next clock-in/out can play sound again
+        // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
 
       } catch (err) {
@@ -899,11 +899,7 @@
       }
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      updateClockAndDate();
-      startLocationWatch();
-    });
-
+    document.addEventListener('DOMContentLoaded', startLocationWatch);
     window.onunload = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
       stopVideo();
