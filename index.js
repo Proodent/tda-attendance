@@ -32,7 +32,9 @@ const {
 } = process.env;
 
 if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !COMPREFACE_API_KEY || !COMPREFACE_URL || !PORT) {
-  console.error("Missing required environment variables");
+  console.error("Missing required environment variables:", {
+    SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, COMPREFACE_API_KEY, COMPREFACE_URL, PORT
+  });
   process.exit(1);
 }
 
@@ -76,12 +78,14 @@ app.get("/api/locations", async (req, res) => {
     const locSheet = doc.sheetsByTitle["Locations Sheet"];
     if (!locSheet) return res.status(500).json({ error: "Locations Sheet not found" });
     const rows = await locSheet.getRows();
+
     const locations = rows.map(r => ({
       name: (r["Location Name"] || r.get("Location Name") || "").trim(),
       lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
     })).filter(l => l.name && l.lat && l.long);
+
     console.log("Locations fetched:", locations.length, "records");
     res.json({ success: true, locations });
   } catch (err) {
@@ -97,10 +101,12 @@ app.get("/api/admin-logins", async (req, res) => {
     const adminSheet = doc.sheetsByTitle["Admin Logins"];
     if (!adminSheet) return res.status(500).json({ error: "Admin Logins sheet not found" });
     const rows = await adminSheet.getRows();
+
     const adminLogins = rows.map(r => [
       (r["Email"] || r.get("Email") || "").trim(),
       (r["Password"] || r.get("Password") || "").trim()
     ]).filter(row => row[0] && row[1]);
+
     console.log("Admin logins fetched:", adminLogins.length, "records");
     res.json({ success: true, logins: adminLogins });
   } catch (err) {
@@ -115,21 +121,26 @@ app.post("/api/staff-by-id", async (req, res) => {
     await loadDoc();
     const sheet = doc.sheetsByTitle["Staff Sheet"];
     if (!sheet) return res.status(404).json({ success: false, message: "Staff Sheet not found" });
+
     const rows = await sheet.getRows();
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ success: false, message: "UserID required" });
+
     const userIdStr = userId.toString().trim();
     const staff = rows.find(r => {
       const id = (r["UserID"] || r.get("UserID") || "").toString().trim();
       return id === userIdStr;
     });
+
     if (!staff) return res.status(404).json({ success: false, message: "User not found" });
+
     const name = (staff["Name"] || staff.get("Name") || "").trim();
     const active = (staff["Active"] || staff.get("Active") || "No").toString().trim();
     const allowed = (staff["Allowed Locations"] || staff.get("Allowed Locations") || "")
       .split(",")
       .map(s => s.trim())
       .filter(Boolean);
+
     res.json({
       success: true,
       staff: { name, active, allowedLocations: allowed }
@@ -145,6 +156,7 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   try {
     const payload = req.body || {};
     const url = `${COMPREFACE_URL.replace(/\/$/, "")}/api/v1/recognition/recognize?limit=5`;
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -153,6 +165,7 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
       },
       body: JSON.stringify(payload)
     });
+
     const data = await response.json();
     return res.json(data);
   } catch (err) {
@@ -161,10 +174,11 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   }
 });
 
-// ----------------- Attendance Logging — FIXED CLOCK-OUT -----------------
+// ----------------- Attendance Logging (CASE-INSENSITIVE LOCATION MATCH) -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, userId, latitude, longitude, timestamp } = req.body;
+
     if (!action || !subjectName || !userId || isNaN(Number(latitude)) || isNaN(Number(longitude)) || !timestamp) {
       return res.status(400).json({ success: false, message: "Missing or invalid input." });
     }
@@ -186,9 +200,9 @@ app.post("/api/attendance/web", async (req, res) => {
 
     const userIdStr = userId.toString().trim();
     const staffMember = staffRows.find(r => {
-      const id = (r["UserID"] || r.get("UserID") || "").toString().trim();
-      const name = (r["Name"] || r.get("Name") || "").trim();
-      const act = (r["Active"] || r.get("Active") || "No").toString().toLowerCase();
+      const id   = (r["UserID"] || r.get("UserID") || "").toString().trim();
+      const name = (r["Name"]    || r.get("Name")    || "").trim();
+      const act  = (r["Active"]  || r.get("Active")  || "No").toString().toLowerCase();
       return id === userIdStr && name === subjectName.trim() && act === "yes";
     });
 
@@ -196,14 +210,16 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: `Invalid UserID or Name, or staff is inactive.` });
     }
 
+    // ----- ALLOWED LOCATIONS (trimmed, lowercased) -----
     const allowedRaw = (staffMember["Allowed Locations"] || staffMember.get("Allowed Locations") || "")
       .split(",")
       .map(s => s.trim().toLowerCase())
       .filter(Boolean);
 
+    // ----- OFFICE LOCATIONS (from Locations Sheet) -----
     const officeLocations = locRows.map(r => ({
       name: (r["Location Name"] || r.get("Location Name") || "").trim(),
-      lat: parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
+      lat:  parseFloat(r["Latitude"] ?? r.get("Latitude") ?? 0),
       long: parseFloat(r["Longitude"] ?? r.get("Longitude") ?? 0),
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
     })).filter(o => o.name && o.lat && o.long);
@@ -212,7 +228,7 @@ app.post("/api/attendance/web", async (req, res) => {
     for (const o of officeLocations) {
       const distKm = getDistanceKm(Number(latitude), Number(longitude), o.lat, o.long);
       if (distKm <= (o.radiusMeters / 1000)) {
-        officeName = o.name;
+        officeName = o.name; // Keep original case for display
         break;
       }
     }
@@ -221,6 +237,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
 
+    // ----- CASE-INSENSITIVE LOCATION CHECK -----
     if (!allowedRaw.includes(officeName.toLowerCase())) {
       return res.status(403).json({ success: false, message: `Unapproved Location – you are not allowed at "${officeName}".` });
     }
@@ -255,7 +272,6 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
-    // ==================== CLOCK OUT — NOW WORKS PERFECTLY ====================
     if (action === "clock out") {
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
@@ -264,20 +280,26 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // CLEAN UPDATE — SAME METHOD AS CLOCK IN → NO APOSTROPHE, ALWAYS LOGS
-      existing["Time Out"] = timeStr;
-      existing["Clock Out Location"] = officeName;
-      await existing.save();
+      const headers = attendanceSheet.headerValues.map(h => h.trim().toLowerCase());
+      const timeOutCol = headers.indexOf("time out");
+      const clockOutLocCol = headers.indexOf("clock out location");
 
-      return res.json({
-        success: true,
-        message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).`
-      });
+      if (timeOutCol === -1 || clockOutLocCol === -1) {
+        return res.status(500).json({ success: false, message: "Missing Time Out or Clock Out Location columns." });
+      }
+
+      await attendanceSheet.loadCells();
+      const rowIndex = existing._rowNumber - 1;
+      const timeOutCell = attendanceSheet.getCell(rowIndex, timeOutCol);
+      const locOutCell = attendanceSheet.getCell(rowIndex, clockOutLocCol);
+      timeOutCell.value = timeStr;
+      locOutCell.value = officeName;
+      await attendanceSheet.saveUpdatedCells();
+
+      return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
-    // ====================================================================
 
     return res.status(400).json({ success: false, message: "Unknown action." });
-
   } catch (err) {
     console.error("POST /api/attendance/web error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
@@ -290,11 +312,13 @@ app.get("/api/staff", async (req, res) => {
     await loadDoc();
     const sheet = doc.sheetsByTitle["Staff Sheet"];
     if (!sheet) return res.status(404).json({ success: false, message: "Staff Sheet not found" });
+
     const rows = await sheet.getRows();
     const activeStaff = rows.filter(r =>
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     );
     const totalStaff = rows.length;
+
     res.json({
       success: true,
       totalStaff,
@@ -313,7 +337,6 @@ app.get("/api/staff", async (req, res) => {
 });
 
 // ----------------- API: Stats -----------------
-// (your original /api/stats code — unchanged)
 app.get("/api/stats", async (req, res) => {
   try {
     await loadDoc();
@@ -322,41 +345,51 @@ app.get("/api/stats", async (req, res) => {
     if (!attendanceSheet || !staffSheet) {
       return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
     }
+
     const attendanceRows = await attendanceSheet.getRows();
     const staffRows = await staffSheet.getRows();
+
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split("T")[0];
+
     const requestedDate = req.query.date || yesterdayStr;
+
     const parseDate = str => new Date(str + "T00:00:00");
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const filterByRange = (rows, d1, d2) =>
       rows.filter(r => {
         const d = parseDate(r["Date"] || r.get("Date"));
         return d >= d1 && d <= d2;
       });
+
     const clockIns = {
       today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time In"] || r.get("Time In"))).length,
       week: filterByRange(attendanceRows, startOfWeek, yesterday).filter(r => r["Time In"] || r.get("Time In")).length,
       month: filterByRange(attendanceRows, startOfMonth, yesterday).filter(r => r["Time In"] || r.get("Time In")).length
     };
+
     const clockOuts = {
       today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time Out"] || r.get("Time Out"))).length,
       week: filterByRange(attendanceRows, startOfWeek, yesterday).filter(r => r["Time Out"] || r.get("Time Out")).length,
       month: filterByRange(attendanceRows, startOfMonth, yesterday).filter(r => r["Time Out"] || r.get("Time Out")).length
     };
+
     const activeStaff = staffRows.filter(r =>
       (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
     ).length;
     const totalStaff = staffRows.length;
+
     const presentToday = clockIns.today;
     const absentToday = activeStaff > 0 ? Math.max(0, activeStaff - presentToday) : 0;
     const percentClockedIn = activeStaff > 0 ? Math.round((presentToday / activeStaff) * 100) : 0;
     const percentClockedOut = presentToday > 0 ? Math.round((clockOuts.today / presentToday) * 100) : 0;
+
     const staffAttendance = attendanceRows
       .filter(r => (r["Date"] || r.get("Date")) === requestedDate)
       .map(r => ({
@@ -368,6 +401,7 @@ app.get("/api/stats", async (req, res) => {
         clockInLocation: r["Clock In Location"] || r.get("Clock In Location") || "Unknown",
         clockOutLocation: r["Clock Out Location"] || r.get("Clock Out Location") || "Unknown"
       }));
+
     const trend = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
@@ -381,6 +415,7 @@ app.get("/api/stats", async (req, res) => {
         present: count
       });
     }
+
     res.json({
       success: true,
       totalStaff,
