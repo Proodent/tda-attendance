@@ -244,14 +244,8 @@ app.post("/api/attendance/web", async (req, res) => {
 
     const dt = new Date(timestamp);
     const dateStr = dt.toISOString().split("T")[0];
-    // const timeStr = dt.toTimeString().split(" ")[0].slice(0, 8);
-    const timeStr = new Intl.DateTimeFormat('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-  timeZone: 'Africa/Accra'  // or your timezone
-}).format(dt);
+    const timeStr = dt.toTimeString().split(" ")[0].slice(0, 8);
+  
 
     const existing = attendanceRows.find(r =>
       (r["Date"] || r.get("Date")) === dateStr &&
@@ -454,5 +448,6 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`Proodent Attendance API running on port ${listenPort}`)
 );
+
 
 
