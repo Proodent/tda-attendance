@@ -6,21 +6,10 @@ let countdown = 0;
 let countdownInterval = null;
 let locations = [];
 
-// Sound unlock + play only once
+// SUCCESS SOUND PLAYS ONLY ONCE (when face verified)
 const successSound = new Audio('/assets/success-sound.mp3');
 const errorSound = new Audio('/assets/error-sound.mp3');
 let soundPlayed = false;
-
-const unlockAudio = () => {
-  if (soundPlayed) return;
-  successSound.load(); errorSound.load();
-  const silent = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-  silent.play().catch(() => {});
-  document.removeEventListener('click', unlockAudio);
-  document.removeEventListener('touchstart', unlockAudio);
-};
-document.addEventListener('click', unlockAudio);
-document.addEventListener('touchstart', unlockAudio);
 
 const toRad = v => v * Math.PI / 180;
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -47,7 +36,9 @@ const getStaffByUserId = async (userId) => {
       staff_cache.set(userId, staff);
       return staff;
     }
-  } catch (err) { console.error('Staff fetch error:', err); }
+  } catch (err) {
+    console.error('Staff fetch error:', err);
+  }
   return null;
 };
 
@@ -87,13 +78,13 @@ const startLocationWatch = () => {
 
   const validateUser = async () => {
     const userId = userIdInput.value.trim();
-    if (!userId || userId === lastValidatedId) return;
+    if (!userId) return;
+    if (userId === lastValidatedId) return;
     lastValidatedId = userId;
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
     const staff = await getStaffByUserId(userId);
     if (userIdInput.value.trim() !== userId) return;
-
     if (!staff) {
       userIdStatus.className = 'invalid';
       userIdStatus.textContent = `User ${userId} not found`;
@@ -124,6 +115,7 @@ const startLocationWatch = () => {
     }
     userIdStatus.className = 'loading';
     userIdStatus.textContent = 'Validating...';
+    lastValidatedId = '';
     window.validateTimeout = setTimeout(validateUser, 300);
   });
 
@@ -137,7 +129,6 @@ const startLocationWatch = () => {
       showPopup('GPS Error', 'Geolocation not supported.', false);
       return;
     }
-
     watchId = navigator.geolocation.watchPosition(
       pos => {
         const { latitude, longitude } = pos.coords;
@@ -147,12 +138,12 @@ const startLocationWatch = () => {
         current_office = null;
         for (const loc of locations) {
           const dist = getDistanceKm(latitude, longitude, loc.lat, loc.long);
-          if (dist * 1000 <= loc.radiusMeters) {
+          if (dist <= loc.radiusMeters / 1000) {
             current_office = loc.name;
             break;
           }
         }
-        statusEl.textContent = current_office ? `${current_office}` : 'Outside approved area';
+        statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside Office Locations';
         userIdInput.disabled = !current_office;
         if (!current_office) {
           userIdInput.value = '';
@@ -165,20 +156,8 @@ const startLocationWatch = () => {
       },
       err => {
         console.error('GPS Error:', err);
-        statusEl.textContent = 'GPS error';
+        statusEl.textContent = `GPS error: ${err.message}`;
         gpsEl.textContent = 'GPS: Failed';
-        // TEST MODE fallback
-        setTimeout(() => {
-          if (!statusEl.dataset.lat) {
-            statusEl.dataset.lat = 9.4321;
-            statusEl.dataset.long = -0.8456;
-            gpsEl.textContent = 'GPS: Test Mode (9.4321, -0.8456)';
-            current_office = 'Tolon Office';
-            statusEl.textContent = `${current_office}`;
-            userIdInput.disabled = false;
-            if (userIdInput.value.trim()) validateUser();
-          }
-        }, 3000);
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
     );
@@ -188,14 +167,155 @@ const startLocationWatch = () => {
   clockOutBtn.onclick = () => handleClock('clock out');
 };
 
-// Face & attendance functions (your code – unchanged & perfect)
-const validateFaceWithSubject = async (base64, subjectName) => { /* ... your code ... */ };
-const showFaceModal = async (staff, action) => { /* ... your code ... */ };
-const hideFaceModal = () => { /* ... your code ... */ };
-const startVideo = async () => { /* ... your code ... */ };
-const stopVideo = () => { /* ... your code ... */ };
-const captureAndVerify = async (staff, action) => { /* ... your code ... */ };
-const submitAttendance = async (action, staff) => { /* ... your code ... */ };
+// === ADMIN POPUP ===
+const adminPopup = document.getElementById('adminPopup');
+const adminCloseBtn = document.getElementById('adminCloseBtn');
+document.getElementById('adminDashboard')?.addEventListener('click', () => {
+  adminPopup.classList.add('show');
+});
+adminCloseBtn?.addEventListener('click', () => {
+  adminPopup.classList.remove('show');
+});
+adminPopup?.addEventListener('click', e => {
+  if (e.target === adminPopup) adminPopup.classList.remove('show');
+});
+
+// === FACE VERIFICATION ===
+const validateFaceWithSubject = async (base64, subjectName) => {
+  try {
+    const res = await fetch('/api/proxy/face-recognition', {
+      method: 'POST,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: base64, subject: subjectName })
+    });
+    if (!res.ok) return { ok: false, error: 'Face service unavailable' };
+    const data = await res.json();
+    if (data?.result?.[0]?.subjects?.length) {
+      const match = data.result[0].subjects.find(s => s.subject === subjectName);
+      if (match && match.similarity >= 0.6) return { ok: true, similarity: match.similarity };
+    }
+    return { ok: false, error: 'Face not recognized' };
+  } catch (err) {
+    return { ok: false, error: 'Face service error' };
+  }
+};
+
+const showFaceModal = async (staff, action) => {
+  faceModal = document.getElementById('faceModal');
+  videoEl = document.getElementById('video');
+  captureStatus = document.getElementById('captureStatus');
+  faceModal.classList.add('show');
+  if (!await startVideo()) {
+    hideFaceModal();
+    return;
+  }
+  countdown = 2;
+  captureStatus.textContent = `Capturing in ${countdown}...`;
+  countdownInterval = setInterval(async () => {
+    countdown--;
+    if (countdown > 0) {
+      captureStatus.textContent = `Capturing in ${countdown}...`;
+    } else {
+      clearInterval(countdownInterval);
+      captureStatus.textContent = 'Verifying...';
+      await captureAndVerify(staff, action);
+    }
+  }, 1000);
+};
+
+const hideFaceModal = () => {
+  if (faceModal) faceModal.classList.remove('show');
+  if (countdownInterval) clearInterval(countdownInterval);
+  stopVideo();
+};
+
+const startVideo = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    videoEl.srcObject = stream;
+    await videoEl.play();
+    return true;
+  } catch (err) {
+    showPopup('Camera Error', `Access denied: ${err.message}`, false);
+    return false;
+  }
+};
+
+const stopVideo = () => {
+  if (videoEl?.srcObject) {
+    videoEl.srcObject.getTracks().forEach(t => t.stop());
+    videoEl.srcObject = null;
+  }
+};
+
+const captureAndVerify = async (staff, action) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = videoEl.videoWidth;
+  canvas.height = videoEl.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+
+  hideFaceModal();
+  showLoader(`Verifying face for ${staff.name}...`);
+
+  const result = await validateFaceWithSubject(base64, staff.name);
+  hideLoader();
+
+  if (!result.ok) {
+    showPopup('Face Verification Failed', result.error, false);
+    return;
+  }
+
+  // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
+  if (!soundPlayed) {
+    successSound.play().catch(() => {});
+    soundPlayed = true;
+  }
+
+  showPopup('Success', `Face verified! Recording ${action}...`, true);
+
+  await submitAttendance(action, staff);
+};
+
+const submitAttendance = async (action, staff) => {
+  const statusEl = document.getElementById('status');
+  const lat = Number(statusEl.dataset.lat);
+  const long = Number(statusEl.dataset.long);
+
+  try {
+    const res = await fetch('/api/attendance/web', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        subjectName: staff.name,
+        userId: document.getElementById('userId').value.trim(),
+        latitude: lat,
+        longitude: long,
+        timestamp: new Date().toISOString()
+      })
+    });
+
+    const data = await res.json();
+
+    showPopup(
+      data.success ? 'Success' : 'Error',
+      data.success
+        ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
+        : data.message || 'Attendance failed.',
+      data.success
+    );
+
+    // Allow sound again after 3 seconds
+    setTimeout(() => soundPlayed = false, 3000);
+
+  } catch (err) {
+    showPopup('Error', `Connection failed: ${err.message}`, false);
+  }
+};
 
 const showPopup = (title, message, success = null) => {
   const popup = document.getElementById('popup');
@@ -205,32 +325,73 @@ const showPopup = (title, message, success = null) => {
   header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
   msg.innerHTML = message;
   popup.classList.add('show');
-  if (success === true && !soundPlayed) {
-    successSound.play().catch(() => {});
-    soundPlayed = true;
-    setTimeout(() => soundPlayed = false, 3000);
-  } else if (success === false) {
+
+  // ERROR SOUND ONLY ON FAILURE
+  if (success === false) {
     errorSound.play().catch(() => {});
   }
+
   setTimeout(() => popup.classList.remove('show'), 5000);
   document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
 };
 
-const showLoader = text => {
+const showLoader = (text) => {
   const loader = document.getElementById('loaderOverlay');
   loader.querySelector('p').textContent = text;
   loader.style.display = 'flex';
 };
-const hideLoader = () => document.getElementById('loaderOverlay').style.display = 'none';
 
-const handleClock = async (action) => { /* ... your code ... */ };
+const hideLoader = () => {
+  document.getElementById('loaderOverlay').style.display = 'none';
+};
 
-document.getElementById('adminDashboard')?.addEventListener('click', () => document.getElementById('adminPopup').classList.add('show'));
-document.getElementById('adminCloseBtn')?.addEventListener('click', () => document.getElementById('adminPopup').classList.remove('show'));
-document.getElementById('adminPopup')?.addEventListener('click', e => e.target.id === 'adminPopup' && e.target.classList.remove('show'));
+const handleClock = async (action) => {
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId) return showPopup('Error', 'Enter User ID.', false);
+  const staff = await getStaffByUserId(userId);
+  if (!staff || staff.active.toLowerCase() !== 'yes') {
+    return showPopup('Error', 'User not active.', false);
+  }
+  const statusEl = document.getElementById('status');
+  if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+  if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+  if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
+    return showPopup('Error', `Not allowed at ${current_office}.`, false);
+  }
+  showFaceModal(staff, action);
+};
 
-document.getElementById('adminLoginBtn')?.addEventListener('click', async () => { /* ... your admin login ... */ });
+// === ADMIN LOGIN ===
+document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+  const email = document.getElementById('adminEmail')?.value.trim();
+  const password = document.getElementById('adminPassword')?.value.trim();
+  const error = document.getElementById('adminError');
+  const btn = document.getElementById('adminLoginBtn');
+  if (!email || !password) {
+    error.textContent = 'Fill both fields.';
+    return;
+  }
+  btn.classList.add('loading');
+  btn.disabled = true;
+  error.textContent = '';
+  try {
+    const res = await fetch('/api/admin-logins');
+    const data = await res.json();
+    if (data.success && data.logins.some(r => r[0] === email && r[1] === password)) {
+      localStorage.setItem('isLoggedIn', 'true');
+      window.location.href = 'stats.html';
+    } else {
+      error.textContent = 'Invalid credentials.';
+    }
+  } catch {
+    error.textContent = 'Login failed.';
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+});
 
+// === INIT ===
 document.addEventListener('DOMContentLoaded', startLocationWatch);
 window.onunload = () => {
   if (watchId) navigator.geolocation.clearWatch(watchId);
