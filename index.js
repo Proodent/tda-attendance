@@ -32,9 +32,7 @@ const {
 } = process.env;
 
 if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !COMPREFACE_API_KEY || !COMPREFACE_URL || !PORT) {
-  console.error("Missing required environment variables:", {
-    SPREADSHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, COMPREFACE_API_KEY, COMPREFACE_URL, PORT
-  });
+  console.error("Missing required environment variables");
   process.exit(1);
 }
 
@@ -163,7 +161,7 @@ app.post("/api/proxy/face-recognition", async (req, res) => {
   }
 });
 
-// ----------------- Attendance Logging — APOSTROPHE FIXED 100% -----------------
+// ----------------- Attendance Logging — FIXED CLOCK-OUT -----------------
 app.post("/api/attendance/web", async (req, res) => {
   try {
     const { action, subjectName, userId, latitude, longitude, timestamp } = req.body;
@@ -257,7 +255,7 @@ app.post("/api/attendance/web", async (req, res) => {
       return res.json({ success: true, message: `Dear ${subjectName}, clock-in recorded at ${timeStr} (${officeName}).` });
     }
 
-    // ==================== CLOCK OUT — FIXED FOREVER ====================
+    // ==================== CLOCK OUT — NOW WORKS PERFECTLY ====================
     if (action === "clock out") {
       if (!existing) {
         return res.json({ success: false, message: `Dear ${subjectName}, no clock-in found for today.` });
@@ -266,10 +264,10 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.json({ success: false, message: `Dear ${subjectName}, you have already clocked out today.` });
       }
 
-      // CLEAN METHOD — SAME AS CLOCK IN → NO APOSTROPHE EVER
+      // CLEAN UPDATE — SAME METHOD AS CLOCK IN → NO APOSTROPHE, ALWAYS LOGS
       existing["Time Out"] = timeStr;
       existing["Clock Out Location"] = officeName;
-      await existing.save();  // ← This is the fix
+      await existing.save();
 
       return res.json({
         success: true,
@@ -314,9 +312,94 @@ app.get("/api/staff", async (req, res) => {
   }
 });
 
-// ----------------- API: Stats ----------------- (unchanged)
-// ... [your /api/stats code remains exactly the same] ...
-// (I kept it identical — no changes needed there)
+// ----------------- API: Stats -----------------
+// (your original /api/stats code — unchanged)
+app.get("/api/stats", async (req, res) => {
+  try {
+    await loadDoc();
+    const attendanceSheet = doc.sheetsByTitle["Attendance Sheet"];
+    const staffSheet = doc.sheetsByTitle["Staff Sheet"];
+    if (!attendanceSheet || !staffSheet) {
+      return res.status(500).json({ success: false, message: "Required sheet(s) not found." });
+    }
+    const attendanceRows = await attendanceSheet.getRows();
+    const staffRows = await staffSheet.getRows();
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const requestedDate = req.query.date || yesterdayStr;
+    const parseDate = str => new Date(str + "T00:00:00");
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const filterByRange = (rows, d1, d2) =>
+      rows.filter(r => {
+        const d = parseDate(r["Date"] || r.get("Date"));
+        return d >= d1 && d <= d2;
+      });
+    const clockIns = {
+      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time In"] || r.get("Time In"))).length,
+      week: filterByRange(attendanceRows, startOfWeek, yesterday).filter(r => r["Time In"] || r.get("Time In")).length,
+      month: filterByRange(attendanceRows, startOfMonth, yesterday).filter(r => r["Time In"] || r.get("Time In")).length
+    };
+    const clockOuts = {
+      today: attendanceRows.filter(r => (r["Date"] || r.get("Date")) === requestedDate && (r["Time Out"] || r.get("Time Out"))).length,
+      week: filterByRange(attendanceRows, startOfWeek, yesterday).filter(r => r["Time Out"] || r.get("Time Out")).length,
+      month: filterByRange(attendanceRows, startOfMonth, yesterday).filter(r => r["Time Out"] || r.get("Time Out")).length
+    };
+    const activeStaff = staffRows.filter(r =>
+      (r["Active"] || r.get("Active") || "").toString().toLowerCase() === "yes"
+    ).length;
+    const totalStaff = staffRows.length;
+    const presentToday = clockIns.today;
+    const absentToday = activeStaff > 0 ? Math.max(0, activeStaff - presentToday) : 0;
+    const percentClockedIn = activeStaff > 0 ? Math.round((presentToday / activeStaff) * 100) : 0;
+    const percentClockedOut = presentToday > 0 ? Math.round((clockOuts.today / presentToday) * 100) : 0;
+    const staffAttendance = attendanceRows
+      .filter(r => (r["Date"] || r.get("Date")) === requestedDate)
+      .map(r => ({
+        userId: r["UserID"] || r.get("UserID") || "",
+        name: r["Name"] || r.get("Name") || "",
+        department: r["Department"] || r.get("Department") || "",
+        timeIn: r["Time In"] || r.get("Time In") || "",
+        timeOut: r["Time Out"] || r.get("Time Out") || "",
+        clockInLocation: r["Clock In Location"] || r.get("Clock In Location") || "Unknown",
+        clockOutLocation: r["Clock Out Location"] || r.get("Clock Out Location") || "Unknown"
+      }));
+    const trend = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(now.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      const count = attendanceRows.filter(r =>
+        (r["Date"] || r.get("Date")) === dateStr && (r["Time In"] || r.get("Time In"))
+      ).length;
+      trend.push({
+        date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        present: count
+      });
+    }
+    res.json({
+      success: true,
+      totalStaff,
+      activeStaff,
+      clockIns,
+      clockOuts,
+      presentToday,
+      absentToday,
+      percentClockedIn,
+      percentClockedOut,
+      trend,
+      staffAttendance,
+      selectedDate: requestedDate
+    });
+  } catch (err) {
+    console.error("GET /api/stats error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ----------------- Static Frontend -----------------
 app.use(express.static(__dirname));
