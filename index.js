@@ -290,11 +290,29 @@ app.post("/api/attendance/web", async (req, res) => {
 
       await attendanceSheet.loadCells();
       const rowIndex = existing._rowNumber - 1;
+      
       const timeOutCell = attendanceSheet.getCell(rowIndex, timeOutCol);
       const locOutCell = attendanceSheet.getCell(rowIndex, clockOutLocCol);
-      timeOutCell.value = timeStr;
+      
+      // Convert timeStr "14:34:24" into real time parts
+      const [hh, mm, ss] = timeStr.split(":").map(Number);
+      
+      // Force Google Sheets to treat as TIME, not text
+      timeOutCell.numberFormat = { type: "TIME" };
+      timeOutCell.value = { hour: hh, minute: mm, second: ss };
+      
       locOutCell.value = officeName;
+      
       await attendanceSheet.saveUpdatedCells();
+
+
+      // await attendanceSheet.loadCells();
+      // const rowIndex = existing._rowNumber - 1;
+      // const timeOutCell = attendanceSheet.getCell(rowIndex, timeOutCol);
+      // const locOutCell = attendanceSheet.getCell(rowIndex, clockOutLocCol);
+      // timeOutCell.value = timeStr;
+      // locOutCell.value = officeName;
+      // await attendanceSheet.saveUpdatedCells();
 
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
     }
@@ -447,3 +465,4 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`Proodent Attendance API running on port ${listenPort}`)
 );
+
