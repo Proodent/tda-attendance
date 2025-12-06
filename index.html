@@ -604,13 +604,13 @@
         }
         if (staff.active.toLowerCase() !== 'yes') {
           userIdStatus.className = 'inactive';
-          userIdStatus.textContent = `User ${userId}: ${staff.name} - Inactive`;
+          userIdStatus.textContent = `User ${userId}: ${staff.name} - Inactive⛔`;
           clockInBtn.disabled = clockOutBtn.disabled = true;
           return;
         }
         const approved = current_office && staff.allowedLocations.includes(current_office.toLowerCase());
         userIdStatus.className = approved ? 'valid' : 'invalid';
-        userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved' : 'Denied'}`;
+        userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved✅' : 'Denied❌'}`;
         clockInBtn.disabled = clockOutBtn.disabled = !approved;
       };
 
@@ -907,3 +907,4 @@
   </script>
 </body>
 </html>
+
