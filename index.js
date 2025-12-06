@@ -288,22 +288,28 @@ app.post("/api/attendance/web", async (req, res) => {
         return res.status(500).json({ success: false, message: "Missing Time Out or Clock Out Location columns." });
       }
 
-      await attendanceSheet.loadCells();
+     await attendanceSheet.loadCells();
       const rowIndex = existing._rowNumber - 1;
-      
       const timeOutCell = attendanceSheet.getCell(rowIndex, timeOutCol);
       const locOutCell = attendanceSheet.getCell(rowIndex, clockOutLocCol);
       
-      // Convert timeStr "14:34:24" into real time parts
+      // Parse "HH:MM:SS"
       const [hh, mm, ss] = timeStr.split(":").map(Number);
       
-      // Force Google Sheets to treat as TIME, not text
-      timeOutCell.numberFormat = { type: "TIME" };
-      timeOutCell.value = { hour: hh, minute: mm, second: ss };
+      // Convert to Google Sheets serial time
+      const timeSerial = (hh * 3600 + mm * 60 + ss) / 86400;
+      
+      // Write clean numeric time (Google Sheets will format it)
+      timeOutCell.value = timeSerial;
+      
+      // Optional: force formatting (this part is SAFE)
+      timeOutCell.numberFormat = { type: "TIME", pattern: "hh:mm:ss" };
       
       locOutCell.value = officeName;
       
+      // Save
       await attendanceSheet.saveUpdatedCells();
+
 
 
       // await attendanceSheet.loadCells();
@@ -465,4 +471,5 @@ const listenPort = Number(PORT) || 3000;
 app.listen(listenPort, () =>
   console.log(`Proodent Attendance API running on port ${listenPort}`)
 );
+
 
