@@ -589,13 +589,13 @@
 
       const validateUser = async () => {
         const userId = userIdInput.value.trim();
-        if (!userId || userId === lastValidatedId) return;
+        if (!userId) return;
+        if (userId === lastValidatedId) return;
         lastValidatedId = userId;
         userIdStatus.className = 'loading';
         userIdStatus.textContent = 'Validating...';
         const staff = await getStaffByUserId(userId);
         if (userIdInput.value.trim() !== userId) return;
-
         if (!staff) {
           userIdStatus.className = 'invalid';
           userIdStatus.textContent = `User ${userId} not found`;
@@ -654,7 +654,7 @@
                 break;
               }
             }
-            statusEl.textContent = current_office ? `${current_office}📍` : 'Outside Office Locations';
+            statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside Office Locations';
             userIdInput.disabled = !current_office;
             if (!current_office) {
               userIdInput.value = '';
@@ -778,12 +778,14 @@
         return;
       }
 
+      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
         soundPlayed = true;
       }
 
       showPopup('Success', `Face verified! Recording ${action}...`, true);
+
       await submitAttendance(action, staff);
     };
 
@@ -816,7 +818,9 @@
           data.success
         );
 
+        // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
+
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
       }
@@ -831,6 +835,7 @@
       msg.innerHTML = message;
       popup.classList.add('show');
 
+      // ERROR SOUND ONLY ON FAILURE
       if (success === false) {
         errorSound.play().catch(() => {});
       }
@@ -849,17 +854,20 @@
       document.getElementById('loaderOverlay').style.display = 'none';
     };
 
-    // OPTIMIZED handleClock — NO REDUNDANT CHECKS, NO EXTRA API CALLS
     const handleClock = async (action) => {
       const userId = document.getElementById('userId').value.trim();
-      const staff = staff_cache.get(userId);  // Guaranteed to exist when buttons are enabled
-
-      if (!staff) {
-        showPopup('Error', 'Session expired. Please re-enter User ID.', false);
-        return;
+      if (!userId) return showPopup('Error', 'Enter User ID.', false);
+      const staff = await getStaffByUserId(userId);
+      if (!staff || staff.active.toLowerCase() !== 'yes') {
+        return showPopup('Error', 'User not active.', false);
       }
-
-      showFaceModal(staff, action);  // Instant face verification — no delays!
+      const statusEl = document.getElementById('status');
+      if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+      if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+      if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
+        return showPopup('Error', `Not allowed at ${current_office}.`, false);
+      }
+      showFaceModal(staff, action);
     };
 
     document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
@@ -899,4 +907,5 @@
   </script>
 </body>
 </html>
+
 
