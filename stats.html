@@ -7,10 +7,13 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-  
+   
     /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
@@ -100,6 +103,10 @@
       #stats-container{grid-template-columns:repeat(2,1fr);}
     }
     @media (max-width:768px){
+      header{font-size:1.1rem;padding:0.5rem;}
+      header img{height:1.6rem;}
+      header .title{font-size:1rem;}
+      header .logout-icon{width:1.8rem;height:1.8rem;font-size:1rem;}
       #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
       .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
       #avg-times{grid-template-columns:repeat(2,1fr);}
@@ -191,6 +198,48 @@
       </thead>
       <tbody id="attendance-body"></tbody>
     </table>
+  </section>
+  <!-- PDF EXPORT -->
+  <section id="pdf-export">
+    <h3 class="text-xl font-semibold text-green-600">Export PDF</h3>
+    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
+    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
+    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
+    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
+      <select id="month-select">
+        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
+        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
+  </section>
+  <!-- STAFF ANALYSIS -->
+  <section id="staff-analysis">
+    <h3>Individual Staff Attendance Analysis</h3>
+    <div id="staff-filters">
+      <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
+      <div class="filter-group"><label for="period-select">Period:</label>
+        <select id="period-select">
+          <option value="7">1 Week</option>
+          <option value="30">1 Month</option>
+          <option value="90">3 Months</option>
+          <option value="180">6 Months</option>
+          <option value="365">1 Year</option>
+        </select>
+      </div>
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
+    </div>
+    <div class="chart-tile full-width-chart" id="staff-chart-tile" style="display:none;">
+      <h3 id="staff-chart-title">Attendance Trend</h3>
+      <div class="chart-container"><canvas id="staffTrendChart"></canvas></div>
+    </div>
+    <div id="staff-stats" style="display:none;">
+      <div class="stat-box"><h4>Avg Clock In</h4><p id="avgClockIn">--:--</p></div>
+      <div class="stat-box"><h4>Avg Clock Out</h4><p id="avgClockOut">--:--</p></div>
+      <div class="stat-box"><h4>Days Present</h4><p id="daysPresent">0 / 0</p></div>
+      <div class="stat-box"><h4>Attendance %</h4><p id="attendancePercent">0%</p></div>
+    </div>
   </section>
   <!-- LOGS -->
   <div id="log-container">
@@ -342,7 +391,7 @@
         const locData = await fetchJSON(`${backendURL}/locations`);
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
-        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } } });
+        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trend = trendRaw.trend || [];
@@ -463,6 +512,7 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
+      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
       if (!search || !allStaff.length) {
@@ -661,4 +711,75 @@
       const staffList = Object.entries(staffMap).sort((a, b) => a[0].localeCompare(b[0]));
       for (const [name, info] of staffList) {
         const inTimes = Object.values(info.days).map(d => timeToMinutes(d.ti)).filter(t => t !== null);
-       
+        const outTimes = Object.values(info.days).map(d => timeToMinutes(d.to)).filter(t => t !== null);
+        const avgIn = minutesToTime(avgTime(inTimes));
+        const avgOut = minutesToTime(avgTime(outTimes));
+        const pct = totalWorkingDays > 0 ? Math.round((info.present / totalWorkingDays) * 100) : 0;
+        const row = [
+          info.userId,
+          name,
+          info.department,
+          ...workingDays.flatMap(d => [info.days[d]?.ti || '--', info.days[d]?.to || '--']),
+          avgIn,
+          avgOut,
+          `${info.present}/${totalWorkingDays}`,
+          `${pct}%`
+        ];
+        body.push(row);
+      }
+      // Add table
+      doc.autoTable({
+        startY: y,
+        head,
+        body,
+        margin: { left: 10 },
+        styles: { fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } } // Adjust widths as needed
+      });
+      doc.save('attendance_report.pdf');
+    };
+    // INIT
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
+      document.getElementById('date-select').value = currentDate;
+      document.getElementById('logoutBtn').addEventListener('click', () => { log('Logout'); logout(); });
+      document.getElementById('clear-logs').addEventListener('click', () => {
+        document.getElementById('log').innerHTML = '';
+        log('Logs cleared');
+      });
+      document.getElementById('clear-filter-btn').addEventListener('click', () => {
+        document.getElementById('date-select').value = currentDate;
+        document.getElementById('department-select').value = '';
+        document.getElementById('name-search').value = '';
+        loadDashboardData(true);
+      });
+      document.getElementById('export-btn').addEventListener('click', () => {
+        const enriched = staffAttendanceData.map(r => {
+          const staff = allStaff.find(s => s.name === r.name) || {};
+          return { ...r, userId: r.userId || staff.userId || 'N/A' };
+        });
+        const csv = "data:text/csv;charset=utf-8,User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
+          enriched.map(r => `${r.userId},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
+        const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
+      });
+      document.getElementById('date-select').addEventListener('change', () => loadDashboardData(true));
+      document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
+      document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
+      document.getElementById('analyze-staff').addEventListener('click', analyzeStaff);
+      document.getElementById('pdf-export-btn').addEventListener('click', exportToPDF);
+      document.querySelectorAll('.sortable').forEach(th => th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        sortConfig.dir = sortConfig.key === key && sortConfig.dir === 'asc' ? 'desc' : 'asc';
+        sortConfig.key = key;
+        document.querySelectorAll('.sortable').forEach(t => t.classList.remove('asc', 'desc'));
+        th.classList.add(sortConfig.dir);
+        updateTable(staffAttendanceData);
+      }));
+      ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
+      resetTimeout();
+      loadDashboardData();
+      setInterval(loadDashboardData, 30000);
+    });
+  </script>
+</body>
+</html>
