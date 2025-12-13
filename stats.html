@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-   
+  
     /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
@@ -159,10 +159,6 @@
   </section>
   <!-- CHARTS -->
   <section id="stats-container">
-    <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
-    <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
-    <div class="chart-tile"><h3>Departure</h3><div class="chart-container"><canvas id="departureChart"></canvas></div></div>
-    <div class="chart-tile"><h3>Clocking</h3><div class="chart-container"><canvas id="clockingChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>90 Days Attendance Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
@@ -333,112 +329,79 @@
       log(`Starting dashboard load for date: ${selected}`);
       if (showLoader) document.getElementById('table-loader').classList.add('active');
       try {
-        // Fetch staff first
-        const staffRes = await fetchJSON(`${backendURL}/staff`);
-        allStaff = staffRes.staff || [];
-        const totalStaff = staffRes.totalStaff ?? allStaff.length;
-        const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
-        const inactive = totalStaff - active;
-        log(`Fetched staff data: total ${totalStaff}, active ${active}, inactive ${inactive}`);
-        // Fetch attendance
-        const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
-        staffAttendanceData = stats.staffAttendance || [];
-        log(`Fetched attendance data for ${selected}: ${staffAttendanceData.length} entries`);
-        // Populate departments
-        const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
-        log(`Populated departments: ${depts.length} departments`);
-        ['department-select', 'department-select-pdf'].forEach(id => {
-          const sel = document.getElementById(id);
-          sel.innerHTML = '<option value="">All Departments</option>';
-          depts.forEach(d => sel.appendChild(new Option(d, d)));
+        // Fetch pre-calculated stats from "Stats" sheet
+        const statsSheet = await fetchJSON(`${backendURL}/stats-sheet`);
+        // Summary tiles
+        const set = (id, key) => document.getElementById(id).innerText = statsSheet.summary[key] || '--';
+        set('totalStaff', 'Total Staff');
+        set('activeStaff', 'Active Staff');
+        set('clockInsToday', 'Clocked Ins Today');
+        set('clockOutsToday', 'Clock Outs Today');
+        set('absentToday', 'Absent Today');
+        set('inactiveStaff', 'Inactive Staff');
+        set('percentClockedIn', 'Attendance Rate %');
+        set('percentClockedOut', 'Departure Rate %');
+        set('avgReportingTime', 'Avg Clock-In Time');
+        set('avgDepartureTime', 'Avg Clock-Out Time');
+        // Department chart
+        const deptLabels = statsSheet.departments.map(r => r[0]);
+        const deptTotal = statsSheet.departments.map(r => r[1]);
+        const deptIn = statsSheet.departments.map(r => r[2]);
+        const deptOut = statsSheet.departments.map(r => r[3]);
+        initChart('departmentChart', 'bar', {
+          data: {
+            labels: deptLabels,
+            datasets: [
+              { label: 'Total Active', data: deptTotal, backgroundColor: 'rgba(45,55,72,0.2)' },
+              { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
+              { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
+            ]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
         });
-        // Summary stats
-        const inToday = staffAttendanceData.filter(e => e.timeIn).length;
-        const outToday = staffAttendanceData.filter(e => e.timeOut).length;
-        const both = staffAttendanceData.filter(e => e.timeIn && e.timeOut).length;
-        const partial = inToday - both;
-        const absent = active - inToday;
-        const pctIn = active ? Math.round(inToday / active * 100) : 0;
-        const pctOut = inToday ? Math.round(outToday / inToday * 100) : 0;
-        const inMins = staffAttendanceData.map(e => timeToMinutes(e.timeIn));
-        const outMins = staffAttendanceData.map(e => timeToMinutes(e.timeOut));
-        const avgIn = avgTime(inMins);
-        const avgOut = avgTime(outMins);
-        const set = (id, v) => document.getElementById(id).innerText = v;
-        set('totalStaff', totalStaff); set('activeStaff', active);
-        set('clockInsToday', inToday); set('clockOutsToday', outToday);
-        set('absentToday', absent); set('inactiveStaff', inactive);
-        set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
-        set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
-        log(`Calculated summary stats: Clock-Ins ${inToday}, Clock-Outs ${outToday}, Absent ${absent}`);
-        // Charts
-        initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        // Fixed Departure Chart: only count those with timeOut
-        const clockedOut = staffAttendanceData.filter(e => e.timeOut);
-        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [clockedOut.filter(e => timeToMinutes(e.timeOut) < 960).length, clockedOut.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        initChart('clockingChart', 'doughnut', { data: { labels: ['Full Clocks', 'Half Clocks'], datasets: [{ data: [both, partial], backgroundColor: ['#48bb78', '#ff9800'] }] } });
-        // Department & Location Charts
-        const sortedDepts = depts.sort();
-        const deptTotal = sortedDepts.map(d => allStaff.filter(s => s.department === d).length);
-        const deptIn = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
-        const deptOut = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
-        initChart('departmentChart', 'bar', { data: { labels: sortedDepts, datasets: [
-          { label: 'Total Staff', data: deptTotal, backgroundColor: 'rgba(45,55,72,0.2)' },
-          { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
-          { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
-        ]}, options: { scales: { y: { beginAtZero: true } } } });
-        const locData = await fetchJSON(`${backendURL}/locations`);
-        const allLocs = (locData.locations || []).map(l => l.name).sort();
-        const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
-        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-        // 90-Day Clock-In Trend
-        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
-        const trend = trendRaw.trend || [];
-        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
-        const trendMap = {};
-        trend.forEach(item => {
-          let fullDate;
-          if (item.date.includes('-')) {
-            fullDate = item.date;
-          } else {
-            const [dayStr, monthStr] = item.date.split(' ');
-            const day = parseInt(dayStr);
-            const month = monthMap[monthStr];
-            if (month && day) {
-              const year = new Date().getFullYear();
-              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-          }
-          if (fullDate) {
-            trendMap[fullDate] = item.present || 0;
-          }
+        // Location chart
+        const locLabels = statsSheet.locations.map(r => r[0]);
+        const locAssigned = statsSheet.locations.map(r => r[1]);
+        const locIn = statsSheet.locations.map(r => r[2]);
+        const locOut = statsSheet.locations.map(r => r[3]);
+        initChart('locationChart', 'bar', {
+          data: {
+            labels: locLabels,
+            datasets: [
+              { label: 'Staff Assigned', data: locAssigned, backgroundColor: 'rgba(45,55,72,0.2)' },
+              { label: 'Clock In', data: locIn, backgroundColor: '#48bb78' },
+              { label: 'Clock Out', data: locOut, backgroundColor: '#f56565' }
+            ]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
         });
-        const today = new Date();
-        const labels = [];
-        const clockInData = [];
-        for (let i = 89; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          labels.push(dateStr);
-          clockInData.push(trendMap[dateStr] || 0);
-        }
+        // 90-Day Trend
+        const trendLabels = statsSheet.trend.map(r => r[0]);
+        const trendData = statsSheet.trend.map(r => r[1]);
         initChart('trendChart', 'line', {
           data: {
-            labels,
+            labels: trendLabels,
             datasets: [{
-              label: 'Total Clock-Ins',
-              data: clockInData,
+              label: 'Staff Present',
+              data: trendData,
               borderColor: '#48bb78',
               backgroundColor: 'rgba(72,187,120,0.1)',
-              tension: 0.3,
+              tension: 0.4,
               fill: true
             }]
           },
           options: { scales: { y: { beginAtZero: true } } }
         });
-        // Update table & title
+        // Fetch today's attendance for table (from Attendance Sheet)
+        const attStats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
+        staffAttendanceData = attStats.staffAttendance || [];
+        allStaff = (await fetchJSON(`${backendURL}/staff`)).staff || [];
+        // Populate department filter
+        const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
+        const deptSelect = document.getElementById('department-select');
+        deptSelect.innerHTML = '<option value="">All Departments</option>';
+        depts.forEach(d => deptSelect.appendChild(new Option(d, d)));
+        // Update table
         updateTable(staffAttendanceData);
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
@@ -488,7 +451,7 @@
       </tr>`).join('');
       document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
     };
-    // STAFF ANALYSIS
+    // STAFF ANALYSIS (still uses Attendance Sheet via multiple /stats calls)
     let staffAnalysisChart = null;
     const fetchPerDay = async (start, end) => {
       const data = [];
@@ -512,11 +475,9 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
-      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
-      if (!search || !allStaff.length) {
-        log('Staff analysis aborted: No search term or staff data available');
+      if (!search) {
         alert('Enter staff name or ID');
         button.disabled = false;
         button.innerHTML = 'Analyze';
@@ -527,13 +488,11 @@
         (s.userId && s.userId.toLowerCase().includes(search))
       );
       if (!targetStaff) {
-        log('Staff analysis aborted: No matching staff found for search term');
         alert('Staff not found');
         button.disabled = false;
         button.innerHTML = 'Analyze';
         return;
       }
-      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
@@ -543,7 +502,6 @@
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
         ).map(e => ({ ...e, date: day.date }))
       );
-      log(`Filtered ${staffEntries.length} attendance entries for staff`);
       if (staffEntries.length === 0) {
         alert('No attendance records found in this period');
         button.disabled = false;
@@ -554,7 +512,6 @@
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
       const avgOut = avgTime(outTimes);
-      // Working days (Mon–Fri)
       const workingDays = [];
       const presentDays = new Set();
       const current = new Date(startDate);
@@ -572,8 +529,6 @@
       const daysPresent = presentDays.size;
       const totalWorkingDays = workingDays.length;
       const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
-      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
-      // Chart data
       const dateMap = {};
       staffEntries.forEach(e => {
         if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
@@ -619,7 +574,7 @@
       button.disabled = false;
       button.innerHTML = 'Analyze';
     };
-    // PDF EXPORT
+    // PDF EXPORT (unchanged)
     const loadImage = (src) => new Promise((resolve, reject) => {
       const img = new Image();
       img.src = src;
@@ -647,7 +602,6 @@
       const rawData = await fetchPerDay(startDate, endDate);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape');
-      // Add logo and headers
       try {
         const logo = await loadImage('/assets/favicon.png');
         doc.addImage(logo, 'PNG', 10, 10, 20, 20);
@@ -660,23 +614,16 @@
       doc.setFontSize(10);
       doc.text(`Date Printed: ${new Date().toLocaleString()}`, 200, 15);
       doc.text(`Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, 200, 25);
-      if (dept) {
-        doc.text(`Department: ${dept}`, 200, 35);
-      }
+      if (dept) doc.text(`Department: ${dept}`, 200, 35);
       let y = 45;
-      doc.setFontSize(10); // Small font size
-      // Calculate working days
       const workingDays = [];
       const current = new Date(startDate);
       while (current <= endDate) {
         const day = current.getDay();
-        if (day >= 1 && day <= 5) {
-          workingDays.push(current.toISOString().split('T')[0]);
-        }
+        if (day >= 1 && day <= 5) workingDays.push(current.toISOString().split('T')[0]);
         current.setDate(current.getDate() + 1);
       }
       const totalWorkingDays = workingDays.length;
-      // Group by staff
       const staffMap = {};
       rawData.forEach(day => {
         (day.staffAttendance || []).forEach(entry => {
@@ -695,7 +642,6 @@
           }
         });
       });
-      // Prepare table head and body
       const headRow1 = ['User ID', 'Name', "Dep't"];
       const headRow2 = ['', '', ''];
       workingDays.forEach((date, index) => {
@@ -727,14 +673,13 @@
         ];
         body.push(row);
       }
-      // Add table
       doc.autoTable({
         startY: y,
         head,
         body,
         margin: { left: 10 },
         styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } } // Adjust widths as needed
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } }
       });
       doc.save('attendance_report.pdf');
     };
