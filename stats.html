@@ -159,6 +159,10 @@
   </section>
   <!-- CHARTS -->
   <section id="stats-container">
+    <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Departure</h3><div class="chart-container"><canvas id="departureChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Clocking</h3><div class="chart-container"><canvas id="clockingChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
     <div class="chart-tile full-width-chart"><h3>90 Days Attendance Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
@@ -451,7 +455,7 @@
       </tr>`).join('');
       document.getElementById('attendance-count').textContent = `Showing ${sorted.length} of ${data.length} entries`;
     };
-    // STAFF ANALYSIS (still uses Attendance Sheet via multiple /stats calls)
+    // STAFF ANALYSIS
     let staffAnalysisChart = null;
     const fetchPerDay = async (start, end) => {
       const data = [];
@@ -475,9 +479,11 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
       const search = document.getElementById('staff-search').value.trim().toLowerCase();
       const days = parseInt(document.getElementById('period-select').value);
+      log(`Starting staff attendance analysis for search term: "${search}", period: ${days} days`);
       document.getElementById('staff-chart-tile').style.display = 'none';
       document.getElementById('staff-stats').style.display = 'none';
-      if (!search) {
+      if (!search || !allStaff.length) {
+        log('Staff analysis aborted: No search term or staff data available');
         alert('Enter staff name or ID');
         button.disabled = false;
         button.innerHTML = 'Analyze';
@@ -488,11 +494,13 @@
         (s.userId && s.userId.toLowerCase().includes(search))
       );
       if (!targetStaff) {
+        log('Staff analysis aborted: No matching staff found for search term');
         alert('Staff not found');
         button.disabled = false;
         button.innerHTML = 'Analyze';
         return;
       }
+      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
@@ -502,6 +510,7 @@
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
         ).map(e => ({ ...e, date: day.date }))
       );
+      log(`Filtered ${staffEntries.length} attendance entries for staff`);
       if (staffEntries.length === 0) {
         alert('No attendance records found in this period');
         button.disabled = false;
@@ -512,6 +521,7 @@
       const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
       const avgIn = avgTime(inTimes);
       const avgOut = avgTime(outTimes);
+      // Working days (Mon–Fri)
       const workingDays = [];
       const presentDays = new Set();
       const current = new Date(startDate);
@@ -529,6 +539,8 @@
       const daysPresent = presentDays.size;
       const totalWorkingDays = workingDays.length;
       const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
+      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
+      // Chart data
       const dateMap = {};
       staffEntries.forEach(e => {
         if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
@@ -574,7 +586,7 @@
       button.disabled = false;
       button.innerHTML = 'Analyze';
     };
-    // PDF EXPORT (unchanged)
+    // PDF EXPORT
     const loadImage = (src) => new Promise((resolve, reject) => {
       const img = new Image();
       img.src = src;
@@ -614,16 +626,23 @@
       doc.setFontSize(10);
       doc.text(`Date Printed: ${new Date().toLocaleString()}`, 200, 15);
       doc.text(`Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`, 200, 25);
-      if (dept) doc.text(`Department: ${dept}`, 200, 35);
+      if (dept) {
+        doc.text(`Department: ${dept}`, 200, 35);
+      }
       let y = 45;
+      doc.setFontSize(10); // Small font size
+      // Calculate working days
       const workingDays = [];
       const current = new Date(startDate);
       while (current <= endDate) {
         const day = current.getDay();
-        if (day >= 1 && day <= 5) workingDays.push(current.toISOString().split('T')[0]);
+        if (day >= 1 && day <= 5) {
+          workingDays.push(current.toISOString().split('T')[0]);
+        }
         current.setDate(current.getDate() + 1);
       }
       const totalWorkingDays = workingDays.length;
+      // Group by staff
       const staffMap = {};
       rawData.forEach(day => {
         (day.staffAttendance || []).forEach(entry => {
@@ -642,6 +661,7 @@
           }
         });
       });
+      // Prepare table head and body
       const headRow1 = ['User ID', 'Name', "Dep't"];
       const headRow2 = ['', '', ''];
       workingDays.forEach((date, index) => {
@@ -673,13 +693,14 @@
         ];
         body.push(row);
       }
+      // Add table
       doc.autoTable({
         startY: y,
         head,
         body,
         margin: { left: 10 },
         styles: { fontSize: 8, cellPadding: 2 },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } }
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 40 }, 2: { cellWidth: 30 } } // Adjust widths as needed
       });
       doc.save('attendance_report.pdf');
     };
