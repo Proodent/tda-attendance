@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Dashboard</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
+   
+    /* HEADER - All in one row, icon for logout */
+    header {
+      background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
+      color:#fff;
+      padding:0.75rem 1rem;
+      font-size:1.4rem;
+      font-weight:700;
+      box-shadow:0 4px 6px rgba(0,0,0,0.1);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:nowrap;
+      gap:0.5rem;
+    }
+    header img {height:2rem;}
+    header .title {flex:1;text-align:center;font-size:1.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    header .logout-icon {
+      width:2rem;height:2rem;
+      background:rgba(255,255,255,0.2);
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;cursor:pointer;transition:all .2s;
+    }
+    header .logout-icon:hover {background:#e53e3e;color:#fff;}
+    /* Summary Tiles */
+    #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
+    .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
+    .tile:hover {transform:translateY(-5px);}
+    .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tile p {font-size:1.5rem;font-weight:700;margin:0;color:#48bb78;}
+    .tile.error p {color:#f56565;}
+    #avg-times {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;padding:0 1.5rem 1.5rem;}
+    .avg-tile {background:#fff;border-radius:12px;padding:1rem;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+    .avg-tile h3 {font-size:.9rem;color:#2d3748;margin-bottom:.5rem;}
+    .avg-tile p {font-size:1.6rem;font-weight:700;color:#48bb78;}
+    #stats-container {display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;padding:1.5rem;}
+    .chart-tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1.25rem;transition:transform .2s;height:320px;display:flex;flex-direction:column;}
+    .chart-tile:hover {transform:translateY(-5px);}
+    .chart-tile h3 {text-align:center;color:#2d3748;margin-bottom:1rem;font-size:1.1rem;font-weight:600;height:40px;display:flex;align-items:center;justify-content:center;}
+    .chart-container {flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;}
+    .chart-container canvas {max-width:100%!important;max-height:100%!important;}
+    .full-width-chart {grid-column:1/-1;height:380px;}
+    .full-width-chart .chart-container {height:280px;}
+    /* Logs */
+    #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
+    #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
+    #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
+    #clear-logs:hover {background:#c53030;}
+    #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    /* Table */
+    #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
+    #attendance-count {font-size:0.9rem;color:#4a5568;}
+    #attendance-table {margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;position:relative;}
+    #attendance-table table {width:100%;border-collapse:collapse;min-width:600px;}
+    #attendance-table th,#attendance-table td {padding:.75rem;text-align:left;border-bottom:1px solid #e2e8f0;font-size:.9rem;}
+    #attendance-table th {background:#2d3748;color:#fff;cursor:pointer;white-space:nowrap;position:relative;}
+    #attendance-table th:hover {background:#4a5568;}
+    #attendance-table tr:nth-child(even){background:#f7fafc;}
+    .asc::after, .desc::after {position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:bold;}
+    .asc::after {content:"asc";}
+    .desc::after {content:"des";}
+    #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
+    #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
+    input,select {padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
+    input:focus,select:focus {border-color:#48bb78;outline:none;}
+    button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;min-width:100px;}
+    button:hover {background:#38a169;}
+    .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
+    .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
+    .button-group .filter-group,.button-group .pdf-filter-group {min-width:auto;flex:1;}
+    /* Staff Analysis */
+    #staff-analysis {margin:1.5rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative;}
+    #staff-analysis h3 {font-size:1.25rem;font-weight:600;color:#2d3748;margin-bottom:1rem;}
+    #staff-filters {display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem;}
+    #staff-chart-tile {height:380px;margin-top:1rem;}
+    #staff-stats {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-top:1rem;}
+    .stat-box {background:#f8fafc;padding:1rem;border-radius:8px;text-align:center;}
+    .stat-box h4 {font-size:0.9rem;color:#4a5568;margin-bottom:0.5rem;}
+    .stat-box p {font-size:1.4rem;font-weight:700;color:#48bb78;}
+    /* Loader */
+    .loader {display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:10;justify-content:center;align-items:center;}
+    .loader.active {display:flex;}
+    .spinner {border:4px solid #f3f3f3;border-top:4px solid #48bb78;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
+    @keyframes spin {0% {transform:rotate(0deg);} 100% {transform:rotate(360deg);}}
+    /* Mobile Responsive */
+    @media (max-width:1024px){
+      #stats-container{grid-template-columns:repeat(2,1fr);}
+    }
+    @media (max-width:768px){
+      header{font-size:1.1rem;padding:0.5rem;}
+      header img{height:1.6rem;}
+      header .title{font-size:1rem;}
+      header .logout-icon{width:1.8rem;height:1.8rem;font-size:1rem;}
+      #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
+      .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
+      #avg-times{grid-template-columns:repeat(2,1fr);}
+      .avg-tile h3{font-size:.8rem;}.avg-tile p{font-size:1.2rem;}
+      #stats-container{grid-template-columns:1fr;gap:1rem;padding:1rem;}
+      .chart-tile{height:280px;padding:1rem;}
+      .full-width-chart{height:320px;}
+      .full-width-chart .chart-container{height:220px;}
+      #filters,#pdf-export{flex-direction:column;padding:1rem;}
+      .filter-group,.pdf-filter-group{min-width:100%;}
+      .button-group{width:100%;}
+      #attendance-table {padding:0.75rem;}
+      #attendance-table th,#attendance-table td {font-size:.75rem;padding:.5rem;}
+      #staff-filters{flex-direction:column;}
+      #staff-stats{grid-template-columns:1fr;}
+    }
+    @media (max-width:480px){
+      header{font-size:0.95rem;padding:0.5rem;}
+      header img{height:1.4rem;}
+      header .title{font-size:0.9rem;}
+      header .logout-icon{width:1.6rem;height:1.6rem;font-size:0.9rem;}
+      #log{height:120px;font-size:.75rem;}
+      #attendance-header {flex-direction:column;align-items:flex-start;gap:0.5rem;}
+      #attendance-count {text-align:right;width:100%;}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/assets/favicon.png" alt="logo" />
+    <div class="title">Attendance Dashboard</div>
+    <img src="/assets/favicon.png" alt="logo" />
+    <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
+  </header>
+  <!-- SUMMARY TILES -->
+  <section id="summary-tiles">
+    <div class="tile"><h3>Total Staff</h3><p id="totalStaff">--</p></div>
+    <div class="tile"><h3>Active Staff</h3><p id="activeStaff">--</p></div>
+    <div class="tile"><h3>Clock-Ins</h3><p id="clockInsToday">--</p></div>
+    <div class="tile"><h3>Clock-Outs</h3><p id="clockOutsToday">--</p></div>
+    <div class="tile"><h3>Absent</h3><p id="absentToday">--</p></div>
+    <div class="tile"><h3>Inactive Staff</h3><p id="inactiveStaff">--</p></div>
+    <div class="tile"><h3>Clock-In Rate</h3><p id="percentClockedIn">--%</p></div>
+    <div class="tile"><h3>Clock-Out Rate</h3><p id="percentClockedOut">--%</p></div>
+  </section>
+  <!-- AVERAGE TIMES -->
+  <section id="avg-times">
+    <div class="avg-tile"><h3>Avg Reporting Time</h3><p id="avgReportingTime">--:--</p></div>
+    <div class="avg-tile"><h3>Avg Departure Time</h3><p id="avgDepartureTime">--:--</p></div>
+  </section>
+  <!-- CHARTS -->
+  <section id="stats-container">
+    <div class="chart-tile"><h3>General Attendance</h3><div class="chart-container"><canvas id="generalAttendanceChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Reporting</h3><div class="chart-container"><canvas id="reportingChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Departure</h3><div class="chart-container"><canvas id="departureChart"></canvas></div></div>
+    <div class="chart-tile"><h3>Clocking</h3><div class="chart-container"><canvas id="clockingChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>Department Attendance</h3><div class="chart-container"><canvas id="departmentChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>Location Attendance</h3><div class="chart-container"><canvas id="locationChart"></canvas></div></div>
+    <div class="chart-tile full-width-chart"><h3>90 Days Attendance Trend</h3><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+  </section>
+  <!-- FILTERS -->
+  <section id="filters">
+    <div class="filter-group"><label for="date-select">Select Date:</label><input type="date" id="date-select"></div>
+    <div class="filter-group"><label for="department-select">Filter Department:</label><select id="department-select"><option value="">All Departments</option></select></div>
+    <div class="filter-group"><label for="name-search">Search Name / User ID:</label><input type="text" id="name-search" placeholder="Search name or ID..."></div>
+    <div class="button-group">
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="clear-filter-btn">Clear Filter</button></div>
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="export-btn">Export to CSV</button></div>
+    </div>
+  </section>
+  <!-- TABLE -->
+  <section id="attendance-table">
+    <div id="attendance-header">
+      <h3 id="attendance-title" class="text-xl font-semibold text-green-600">Attendance Details</h3>
+      <p id="attendance-count">Showing 0 of 0 entries</p>
+    </div>
+    <div class="loader" id="table-loader"><div class="spinner"></div></div>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="userId">User ID</th>
+          <th class="sortable" data-sort="name">Name</th>
+          <th class="sortable" data-sort="department">Department</th>
+          <th class="sortable" data-sort="timeIn">Time In</th>
+          <th class="sortable" data-sort="timeOut">Time Out</th>
+          <th class="sortable" data-sort="workTime">Work Time</th>
+          <th class="sortable" data-sort="clockInLocation">Clock In Location</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-body"></tbody>
+    </table>
+  </section>
+  <!-- PDF EXPORT -->
+  <section id="pdf-export">
+    <h3 class="text-xl font-semibold text-green-600">Export PDF</h3>
+    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
+    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
+    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
+    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
+      <select id="month-select">
+        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
+        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
+  </section>
+  <!-- STAFF ANALYSIS -->
+  <section id="staff-analysis">
+    <h3>Individual Staff Attendance Analysis</h3>
+    <div id="staff-filters">
+      <div class="filter-group"><label for="staff-search">Search Staff:</label><input type="text" id="staff-search" placeholder="Enter name or ID..."></div>
+      <div class="filter-group"><label for="period-select">Period:</label>
+        <select id="period-select">
+          <option value="7">1 Week</option>
+          <option value="30">1 Month</option>
+          <option value="90">3 Months</option>
+          <option value="180">6 Months</option>
+          <option value="365">1 Year</option>
+        </select>
+      </div>
+      <div class="filter-group"><label style="visibility:hidden;">.</label><button id="analyze-staff">Analyze</button></div>
+    </div>
+    <div class="chart-tile full-width-chart" id="staff-chart-tile" style="display:none;">
+      <h3 id="staff-chart-title">Attendance Trend</h3>
+      <div class="chart-container"><canvas id="staffTrendChart"></canvas></div>
+    </div>
+    <div id="staff-stats" style="display:none;">
+      <div class="stat-box"><h4>Avg Clock In</h4><p id="avgClockIn">--:--</p></div>
+      <div class="stat-box"><h4>Avg Clock Out</h4><p id="avgClockOut">--:--</p></div>
+      <div class="stat-box"><h4>Days Present</h4><p id="daysPresent">0 / 0</p></div>
+      <div class="stat-box"><h4>Attendance %</h4><p id="attendancePercent">0%</p></div>
+    </div>
+  </section>
+  <!-- LOGS -->
+  <div id="log-container">
+    <div id="log-header">
+      <span>System Logs</span>
+      <button id="clear-logs">Clear Logs</button>
+    </div>
+    <div id="log"></div>
+  </div>
+  <script>
+    // CONFIG
+    const backendURL = "https://tolon-attendance.proodentit.com/api";
+    const currentDate = new Date().toISOString().split('T')[0];
+    let allStaff = [], staffAttendanceData = [], charts = {}, staffAnalysisChart = null;
+
+    const log = (msg, isError = false) => {
+      const box = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      const color = isError ? '#ff6b6b' : '#25e876';
+      box.innerHTML += `<span style="color:${color}">[${timestamp}] ${msg}</span><br>`;
+      box.scrollTop = box.scrollHeight;
+      if (isError) console.error(msg);
+      else console.log(msg);
+    };
+
+    const fetchJSON = async (url, retries = 2) => {
+      for (let i = 0; i <= retries; i++) {
+        try {
+          log(`Fetching: ${url}`);
+          const res = await fetch(url, { cache: "no-cache" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          log(`Success: ${url} → ${Array.isArray(data) ? data.length : 1} records`);
+          return data;
+        } catch (err) {
+          log(`Attempt ${i + 1} failed: ${err.message}`, true);
+          if (i === retries) throw err;
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+    };
+
+    const timeToMinutes = t => t && t !== '--' ? t.split(':').reduce((h, m) => h * 60 + +m, 0) : null;
+    const minutesToTime = m => m == null ? '--:--' : `${String(Math.floor(m/60)).padStart(2,0)}:${String(m%60).padStart(2,0)}`;
+
+    const initChart = (id, config) => {
+      const ctx = document.getElementById(id)?.getContext('2d');
+      if (!ctx) return;
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(ctx, {
+        ...config,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { usePointStyle: true, pointStyle: 'circle' } },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  if (ctx.dataset.label.includes('Clock')) {
+                    const val = ctx.raw;
+                    return val == null ? 'No record' : `${ctx.dataset.label}: ${minutesToTime(val)}`;
+                  }
+                  return ctx.formattedValue;
+                }
+              }
+            }
+          },
+          ...config.options
+        }
+      });
+    };
+
+    // STAFF ANALYSIS — THE MAIN FIX
+    const analyzeStaff = async () => {
+      const btn = document.getElementById('analyze-staff');
+      btn.disabled = true;
+      btn.innerHTML = 'Analyzing...';
+
+      const search = document.getElementById('staff-search').value.trim();
+      const days = parseInt(document.getElementById('period-select').value);
+
+      if (!search) return showError("Please enter staff name or ID");
+
+      const staff = allStaff.find(s =>
+        s.name?.toLowerCase().includes(search.toLowerCase()) ||
+        s.userId?.toLowerCase().includes(search.toLowerCase())
+      );
+
+      if (!staff) return showError("Staff not found in database");
+
+      log(`Analyzing: ${staff.name} (${staff.userId || 'No ID'}) for last ${days} days`);
+
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - days);
+      const s = start.toISOString().split('T')[0];
+      const e = end.toISOString().split('T')[0];
+
+      let data = [];
+      try {
+        const rangeData = await fetchJSON(`${backendURL}/stats?start=${s}&end=${e}`);
+        data = Array.isArray(rangeData) ? rangeData : Object.values(rangeData);
+        log(`Range fetch succeeded: ${data.length} days`);
+      } catch (err) {
+        log("Range fetch failed, trying day-by-day...", true);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const ds = d.toISOString().split('T')[0];
+          try {
+            const day = await fetchJSON(`${backendURL}/stats?date=${ds}`);
+            day.date = ds;
+            data.push(day);
+          } catch {} // silently skip missing days
+        }
+      }
+
+      if (!data.length) return showError("No data returned from server for this period");
+
+      const entries = data.flatMap(day =>
+        (day.staffAttendance || [])
+          .filter(e => e.name === staff.name && (e.timeIn || e.timeOut))
+          .map(e => ({ ...e, date: day.date || ds }))
+      );
+
+      log(`Found ${entries.length} attendance records for ${staff.name}`);
+
+      if (entries.length === 0) {
+        // Double-check with broader search
+        const anyEntry = data.some(day =>
+          (day.staffAttendance || []).some(e => e.name === staff.name)
+        );
+        return showError(anyEntry
+          ? "Staff exists but has no clock-in/out in this period"
+          : "No attendance data found for this staff in selected period"
+        );
+      }
+
+      // Build working days (Mon-Fri)
+      const workingDays = [];
+      const present = new Set();
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() >= 1 && d.getDay() <= 5) {
+          const ds = d.toISOString().split('T')[0];
+          workingDays.push(ds);
+          if (entries.some(e => e.date === ds && e.timeIn)) present.add(ds);
+        }
+      }
+
+      const inTimes = entries.map(e => timeToMinutes(e.timeIn)).filter(Boolean);
+      const outTimes = entries.map(e => timeToMinutes(e.timeOut)).filter(Boolean);
+
+      document.getElementById('staff-chart-title').textContent = `${staff.name} - Clock Times`;
+      document.getElementById('avgClockIn').textContent = minutesToTime(inTimes.length ? Math.round(inTimes.reduce((a,b)=>a+b)/inTimes.length) : null);
+      document.getElementById('avgClockOut').textContent = minutesToTime(outTimes.length ? Math.round(outTimes.reduce((a,b)=>a+b)/outTimes.length) : null);
+      document.getElementById('daysPresent').textContent = `${present.size} / ${workingDays.length}`;
+      document.getElementById('attendancePercent').textContent = workingDays.length ? Math.round(present.size / workingDays.length * 100) + '%' : '0%';
+
+      const map = {};
+      entries.forEach(e => {
+        map[e.date] = { in: timeToMinutes(e.timeIn), out: timeToMinutes(e.timeOut) };
+      });
+
+      if (staffAnalysisChart) staffAnalysisChart.destroy();
+      staffAnalysisChart = new Chart(document.getElementById('staffTrendChart'), {
+        type: 'line',
+        data: {
+          labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', {month:'short', day:'numeric'})),
+          datasets: [
+            { label: 'Clock In', data: workingDays.map(d => map[d]?.in ?? null), borderColor: '#48bb78', tension: 0.3 },
+            { label: 'Clock Out', data: workingDays.map(d => map[d]?.out ?? null), borderColor: '#f56565', tension: 0.3 }
+          ]
+        },
+        options: {
+          scales: {
+            y: {
+              ticks: { callback: minutesToTime }
+            }
+          }
+        }
+      });
+
+      document.getElementById('staff-chart-tile').style.display = 'block';
+      document.getElementById('staff-stats').style.display = 'grid';
+      btn.disabled = false;
+      btn.innerHTML = 'Analyze';
+      log(`Analysis complete for ${staff.name}`);
+    };
+
+    // Rest of your code (loadDashboardData, PDF, etc.) remains unchanged but with better logging
+    document.getElementById('analyze-staff').addEventListener('click', analyzeStaff);
+
+    log("Dashboard loaded - ready!", false);
+  </script>
+</body>
+</html>
