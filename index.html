@@ -883,7 +883,7 @@
       btn.disabled = true;
       error.textContent = '';
       try {
-        const res = await fetch('/api/admin-logins');
+        const res = await fetch('/api/admin-sheet');
         const data = await res.json();
         if (data.success && data.logins.some(r => r[0] === email && r[1] === password)) {
           localStorage.setItem('isLoggedIn', 'true');
@@ -907,5 +907,6 @@
   </script>
 </body>
 </html>
+
 
 
