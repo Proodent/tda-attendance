@@ -7,19 +7,44 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-    header {background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);color:#fff;padding:0.75rem 1rem;font-size:1.4rem;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:0.5rem;}
+  
+    /* HEADER - All in one row, icon for logout */
+    header {
+      background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
+      color:#fff;
+      padding:0.75rem 1rem;
+      font-size:1.4rem;
+      font-weight:700;
+      box-shadow:0 4px 6px rgba(0,0,0,0.1);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:nowrap;
+      gap:0.5rem;
+    }
     header img {height:2rem;}
     header .title {flex:1;text-align:center;font-size:1.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    header .logout-icon {width:2rem;height:2rem;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all .2s;}
+    header .logout-icon {
+      width:2rem;height:2rem;
+      background:rgba(255,255,255,0.2);
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;cursor:pointer;transition:all .2s;
+    }
     header .logout-icon:hover {background:#e53e3e;color:#fff;}
+    /* Summary Tiles */
     #summary-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding:1.5rem;}
     .tile {background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:1rem;text-align:center;transition:transform .2s;}
     .tile:hover {transform:translateY(-5px);}
     .tile h3 {color:#2d3748;font-size:.875rem;margin-bottom:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .tile p {font-size:1.5rem;font-weight:700;margin:0;color:#48bb78;}
+    .tile.error p {color:#f56565;}
     #avg-times {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;padding:0 1.5rem 1.5rem;}
     .avg-tile {background:#fff;border-radius:12px;padding:1rem;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
     .avg-tile h3 {font-size:.9rem;color:#2d3748;margin-bottom:.5rem;}
@@ -32,11 +57,13 @@
     .chart-container canvas {max-width:100%!important;max-height:100%!important;}
     .full-width-chart {grid-column:1/-1;height:380px;}
     .full-width-chart .chart-container {height:280px;}
+    /* Logs */
     #log-container {margin:1rem;padding:0;background:#1a202c;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow:hidden;}
     #log-header {display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;background:#2d3748;color:#fff;font-weight:600;}
     #clear-logs {background:#e53e3e;color:#fff;padding:0.25rem 0.75rem;border:none;border-radius:6px;font-size:0.8rem;cursor:pointer;}
     #clear-logs:hover {background:#c53030;}
     #log {background:#1a202c;color:#25e876;font-family:'Courier New',monospace;padding:1rem;height:180px;overflow-y:auto;font-size:.85rem;}
+    /* Table */
     #attendance-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;}
     #attendance-count {font-size:0.9rem;color:#4a5568;}
     #attendance-table {margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;position:relative;}
@@ -48,22 +75,63 @@
     .asc::after, .desc::after {position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:bold;}
     .asc::after {content:"asc";}
     .desc::after {content:"des";}
-    #filters {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
+    #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
+    #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
     input,select {padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
     input:focus,select:focus {border-color:#48bb78;outline:none;}
     button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;min-width:100px;}
     button:hover {background:#38a169;}
-    .filter-group {flex:1;min-width:180px;}
+    .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
     .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
-    .button-group .filter-group {min-width:auto;flex:1;}
-    #staff-analysis {margin:1.5rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+    .button-group .filter-group,.button-group .pdf-filter-group {min-width:auto;flex:1;}
+    /* Staff Analysis */
+    #staff-analysis {margin:1.5rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative;}
+    #staff-analysis h3 {font-size:1.25rem;font-weight:600;color:#2d3748;margin-bottom:1rem;}
+    #staff-filters {display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem;}
+    #staff-chart-tile {height:380px;margin-top:1rem;}
     #staff-stats {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-top:1rem;}
     .stat-box {background:#f8fafc;padding:1rem;border-radius:8px;text-align:center;}
+    .stat-box h4 {font-size:0.9rem;color:#4a5568;margin-bottom:0.5rem;}
     .stat-box p {font-size:1.4rem;font-weight:700;color:#48bb78;}
+    /* Loader */
     .loader {display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);z-index:10;justify-content:center;align-items:center;}
     .loader.active {display:flex;}
     .spinner {border:4px solid #f3f3f3;border-top:4px solid #48bb78;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;}
     @keyframes spin {0% {transform:rotate(0deg);} 100% {transform:rotate(360deg);}}
+    /* Mobile Responsive */
+    @media (max-width:1024px){
+      #stats-container{grid-template-columns:repeat(2,1fr);}
+    }
+    @media (max-width:768px){
+      header{font-size:1.1rem;padding:0.5rem;}
+      header img{height:1.6rem;}
+      header .title{font-size:1rem;}
+      header .logout-icon{width:1.8rem;height:1.8rem;font-size:1rem;}
+      #summary-tiles{grid-template-columns:repeat(2,1fr);gap:.75rem;padding:1rem;}
+      .tile h3{font-size:.8rem;}.tile p{font-size:1.25rem;}
+      #avg-times{grid-template-columns:repeat(2,1fr);}
+      .avg-tile h3{font-size:.8rem;}.avg-tile p{font-size:1.2rem;}
+      #stats-container{grid-template-columns:1fr;gap:1rem;padding:1rem;}
+      .chart-tile{height:280px;padding:1rem;}
+      .full-width-chart{height:320px;}
+      .full-width-chart .chart-container{height:220px;}
+      #filters,#pdf-export{flex-direction:column;padding:1rem;}
+      .filter-group,.pdf-filter-group{min-width:100%;}
+      .button-group{width:100%;}
+      #attendance-table {padding:0.75rem;}
+      #attendance-table th,#attendance-table td {font-size:.75rem;padding:.5rem;}
+      #staff-filters{flex-direction:column;}
+      #staff-stats{grid-template-columns:1fr;}
+    }
+    @media (max-width:480px){
+      header{font-size:0.95rem;padding:0.5rem;}
+      header img{height:1.4rem;}
+      header .title{font-size:0.9rem;}
+      header .logout-icon{width:1.6rem;height:1.6rem;font-size:0.9rem;}
+      #log{height:120px;font-size:.75rem;}
+      #attendance-header {flex-direction:column;align-items:flex-start;gap:0.5rem;}
+      #attendance-count {text-align:right;width:100%;}
+    }
   </style>
 </head>
 <body>
@@ -170,7 +238,7 @@
   <script>
     // CONFIG
     const backendURL = "https://tolon-attendance.proodentit.com/api";
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = "2025-12-15";
     const SESSION_TIMEOUT = 12 * 60 * 60 * 1000;
     let timeoutId;
     // SESSION
