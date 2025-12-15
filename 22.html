@@ -75,15 +75,15 @@
     .asc::after, .desc::after {position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);font-size:0.8rem;font-weight:bold;}
     .asc::after {content:"asc";}
     .desc::after {content:"des";}
-    #filters {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
-    #filters label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
+    #filters,#pdf-export {display:flex;gap:1rem;margin:1rem;padding:1.25rem;background:rgb(209,226,250);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);flex-wrap:wrap;align-items:flex-end;}
+    #filters label,#pdf-export label {font-weight:600;color:#2d3748;font-size:.875rem;margin-bottom:.5rem;display:block;}
     input,select {padding:.5rem;border-radius:6px;border:2px solid #e2e8f0;font-size:.875rem;width:100%;height:40px;}
     input:focus,select:focus {border-color:#48bb78;outline:none;}
     button {background:#48bb78;color:#fff;padding:0 1.5rem;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;height:40px;transition:.2s;min-width:100px;}
     button:hover {background:#38a169;}
-    .filter-group {flex:1;min-width:180px;}
+    .filter-group,.pdf-filter-group {flex:1;min-width:180px;}
     .button-group {display:flex;gap:.5rem;flex-wrap:wrap;}
-    .button-group .filter-group {min-width:auto;flex:1;}
+    .button-group .filter-group,.button-group .pdf-filter-group {min-width:auto;flex:1;}
     /* Staff Analysis */
     #staff-analysis {margin:1.5rem;padding:1.5rem;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative;}
     #staff-analysis h3 {font-size:1.25rem;font-weight:600;color:#2d3748;margin-bottom:1rem;}
@@ -115,8 +115,8 @@
       .chart-tile{height:280px;padding:1rem;}
       .full-width-chart{height:320px;}
       .full-width-chart .chart-container{height:220px;}
-      #filters{flex-direction:column;padding:1rem;}
-      .filter-group{min-width:100%;}
+      #filters,#pdf-export{flex-direction:column;padding:1rem;}
+      .filter-group,.pdf-filter-group{min-width:100%;}
       .button-group{width:100%;}
       #attendance-table {padding:0.75rem;}
       #attendance-table th,#attendance-table td {font-size:.75rem;padding:.5rem;}
@@ -138,8 +138,8 @@
   <header>
     <img src="/assets/favicon.png" alt="logo" />
     <div class="title">Attendance Dashboard</div>
-    <a href="proodentit.com" class="bg-white text-green-600 px-3 py-1 rounded-md hover:bg-green-100 transition">Staff Management</a>
-    <a href="staffclock.com" class="bg-white text-green-600 px-3 py-1 rounded-md hover:bg-green-100 transition">Face Enrollment</a>
+    <a href="proodentit.com" class="text-white bg-green-700 hover:bg-green-800 px-3 py-1 rounded">Staff Management</a>
+    <a href="staffclock.com" class="text-white bg-green-700 hover:bg-green-800 px-3 py-1 rounded">Face Enrollment</a>
     <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
   </header>
   <!-- SUMMARY TILES -->
@@ -237,7 +237,10 @@
   </div>
   <script>
     // CONFIG
-    const backendURL = "https://tolon-attendance.proodentit.com/api";
+    const SPREADSHEET_ID = '1hGuj1yAy2zB1n8xQq_soIq8lMl_TYmz6x0KgTNtjP2A';
+    const STATS_SHEET = 'Stats Sheet';
+    const ATTENDANCE_SHEET = 'Attendance Sheet';
+    const STAFF_SHEET = 'Staff Sheet';
     const currentDate = new Date().toISOString().split('T')[0];
     const SESSION_TIMEOUT = 12 * 60 * 60 * 1000;
     let timeoutId;
@@ -263,16 +266,15 @@
       box.scrollTop = box.scrollHeight;
     };
     // HELPERS
-    const fetchJSON = async url => {
-      log(`Attempting to fetch data from URL: ${url}`);
-      const r = await fetch(url);
-      if (!r.ok) {
-        log(`Fetch failed for URL: ${url} with status: ${r.status} - ${r.statusText}`);
-        throw new Error(`HTTP ${r.status} - ${r.statusText}`);
-      }
-      const txt = await r.text();
-      log(`Successfully fetched data from URL: ${url} (length: ${txt.length} chars)`);
-      return JSON.parse(txt);
+    const fetchSheet = async (sheetName) => {
+      const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+      log(`Fetching ${sheetName}`);
+      const txt = await fetch(url).then(r => r.text());
+      const json = JSON.parse(txt.substr(47).slice(0, -2));
+      const headers = json.table.cols.map(c => c.label || '');
+      const rows = json.table.rows.map(r => r.c.map(c => c ? (c.f || c.v) : null));
+      log(`Fetched ${sheetName}: ${rows.length} rows`);
+      return { headers, rows };
     };
     const timeToMinutes = t => {
       if (!t || t === '--') return null;
@@ -319,109 +321,90 @@
       log(`Starting dashboard load for date: ${selected}`);
       if (showLoader) document.getElementById('table-loader').classList.add('active');
       try {
-        // Fetch staff first
-        const staffRes = await fetchJSON(`${backendURL}/staff`);
-        allStaff = staffRes.staff || [];
-        const totalStaff = staffRes.totalStaff ?? allStaff.length;
-        const active = staffRes.staffCount ?? allStaff.filter(s => s.active).length;
-        const inactive = totalStaff - active;
-        log(`Fetched staff data: total ${totalStaff}, active ${active}, inactive ${inactive}`);
-        // Fetch attendance
-        const stats = await fetchJSON(`${backendURL}/stats?date=${selected}`);
-        staffAttendanceData = stats.staffAttendance || [];
-        log(`Fetched attendance data for ${selected}: ${staffAttendanceData.length} entries`);
-        // Populate departments
-        const depts = [...new Set(allStaff.map(s => s.department))].filter(Boolean).sort();
-        log(`Populated departments: ${depts.length} departments`);
-        ['department-select'].forEach(id => {
-          const sel = document.getElementById(id);
-          sel.innerHTML = '<option value="">All Departments</option>';
-          depts.forEach(d => sel.appendChild(new Option(d, d)));
+        const { rows: statsRows } = await fetchSheet(STATS_SHEET);
+        const { rows: attRows } = await fetchSheet(ATTENDANCE_SHEET);
+        const { rows: staffRows } = await fetchSheet(STAFF_SHEET);
+        allStaff = staffRows.map(row => ({
+          name: row[0] || '--',
+          userId: row[1] || 'N/A',
+          department: row[2] || '--',
+          active: row[3] === 'Yes',
+          allowedLocations: row[4] ? row[4].split(',').map(s => s.trim()) : []
+        }));
+        const totalStaff = allStaff.length;
+        const activeStaff = allStaff.filter(s => s.active).length;
+        const inactive = totalStaff - activeStaff;
+        // Parse Stats Sheet for metrics
+        const metrics = {};
+        const deptData = {};
+        const locData = {};
+        const trend = {};
+        statsRows.forEach(row => {
+          const date = row[0];
+          const present = row[1] || 0;
+          const metric = row[2];
+          const value = row[3];
+          const dept = row[5];
+          const deptTotalActive = row[6] || 0;
+          const deptClockIn = row[7] || 0;
+          const deptClockOut = row[8] || 0;
+          const loc = row[10];
+          const locAssigned = row[11] || 0;
+          const locClockIn = row[12] || 0;
+          const locClockOut = row[13] || 0;
+          if (date) trend[date] = present;
+          if (metric) metrics[metric] = value;
+          if (dept) {
+            deptData[dept] = { total: deptTotalActive, in: deptClockIn, out: deptClockOut };
+          }
+          if (loc) {
+            locData[loc] = { assigned: locAssigned, in: locClockIn, out: locClockOut };
+          }
         });
-        // Summary stats
-        const inToday = staffAttendanceData.filter(e => e.timeIn).length;
-        const outToday = staffAttendanceData.filter(e => e.timeOut).length;
-        const both = staffAttendanceData.filter(e => e.timeIn && e.timeOut).length;
+        // Summary stats from metrics
+        const inToday = metrics['Clock-Ins Today'] || 0;
+        const outToday = metrics['Clock-Outs Today'] || 0;
+        const both = metrics['Full Clocks (in & out)'] || 0;
         const partial = inToday - both;
-        const absent = active - inToday;
-        const pctIn = active ? Math.round(inToday / active * 100) : 0;
-        const pctOut = inToday ? Math.round(outToday / inToday * 100) : 0;
-        const inMins = staffAttendanceData.map(e => timeToMinutes(e.timeIn));
-        const outMins = staffAttendanceData.map(e => timeToMinutes(e.timeOut));
-        const avgIn = avgTime(inMins);
-        const avgOut = avgTime(outMins);
+        const absent = metrics['Absent Today'] || 0;
+        const pctIn = metrics['Attendance Rate %'] || '0%';
+        const pctOut = metrics['Departure Rate %'] || '0%';
+        const avgIn = metrics['Avg Clock-In Time'] || '--:--';
+        const avgOut = metrics['Avg Clock-Out Time'] || '--:--';
         const set = (id, v) => document.getElementById(id).innerText = v;
-        set('totalStaff', totalStaff); set('activeStaff', active);
+        set('totalStaff', totalStaff); set('activeStaff', activeStaff);
         set('clockInsToday', inToday); set('clockOutsToday', outToday);
         set('absentToday', absent); set('inactiveStaff', inactive);
-        set('percentClockedIn', pctIn + '%'); set('percentClockedOut', pctOut + '%');
-        set('avgReportingTime', minutesToTime(avgIn)); set('avgDepartureTime', minutesToTime(avgOut));
+        set('percentClockedIn', pctIn); set('percentClockedOut', pctOut);
+        set('avgReportingTime', avgIn); set('avgDepartureTime', avgOut);
         log(`Calculated summary stats: Clock-Ins ${inToday}, Clock-Outs ${outToday}, Absent ${absent}`);
         // Charts
         initChart('generalAttendanceChart', 'doughnut', { data: { labels: ['Present', 'Absent'], datasets: [{ data: [inToday, absent], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [staffAttendanceData.filter(e => timeToMinutes(e.timeIn) < 600).length, staffAttendanceData.filter(e => timeToMinutes(e.timeIn) >= 600).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
-        // Fixed Departure Chart: only count those with timeOut
-        const clockedOut = staffAttendanceData.filter(e => e.timeOut);
-        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [clockedOut.filter(e => timeToMinutes(e.timeOut) < 960).length, clockedOut.filter(e => timeToMinutes(e.timeOut) >= 960).length], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
+        initChart('reportingChart', 'doughnut', { data: { labels: ['Before 10 AM', 'After 10 AM'], datasets: [{ data: [metrics['Clock-Ins Before 10 AM'] || 0, metrics['Clock-Ins After 10 AM'] || 0], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
+        initChart('departureChart', 'doughnut', { data: { labels: ['Before 4 PM', 'After 4 PM'], datasets: [{ data: [metrics['Clock-Outs Before 4 PM'] || 0, metrics['Clock-Outs After 4 PM'] || 0], backgroundColor: ['#48bb78', '#e2e8f0'] }] } });
         initChart('clockingChart', 'doughnut', { data: { labels: ['Full Clocks', 'Half Clocks'], datasets: [{ data: [both, partial], backgroundColor: ['#48bb78', '#ff9800'] }] } });
-        // Department & Location Charts
-        const sortedDepts = depts.sort();
-        const deptTotal = sortedDepts.map(d => allStaff.filter(s => s.department === d).length);
-        const deptIn = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeIn).length);
-        const deptOut = sortedDepts.map(d => staffAttendanceData.filter(e => e.department === d && e.timeOut).length);
+        // Department Chart
+        const sortedDepts = Object.keys(deptData).sort();
         initChart('departmentChart', 'bar', { data: { labels: sortedDepts, datasets: [
-          { label: 'Total Staff', data: deptTotal, backgroundColor: 'rgba(45,55,72,0.2)' },
-          { label: 'Clock In', data: deptIn, backgroundColor: '#48bb78' },
-          { label: 'Clock Out', data: deptOut, backgroundColor: '#f56565' }
+          { label: 'Total Active', data: sortedDepts.map(d => deptData[d].total), backgroundColor: 'rgba(45,55,72,0.2)' },
+          { label: 'Clock In', data: sortedDepts.map(d => deptData[d].in), backgroundColor: '#48bb78' },
+          { label: 'Clock Out', data: sortedDepts.map(d => deptData[d].out), backgroundColor: '#f56565' }
         ]}, options: { scales: { y: { beginAtZero: true } } } });
-        const locData = await fetchJSON(`${backendURL}/locations`);
-        const allLocs = (locData.locations || []).map(l => l.name).sort();
-        const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
-        const locAssigned = allLocs.map(l => allStaff.filter(s => s.allowedLocations?.includes(l)).length);
-        const locOut = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l && e.timeOut).length);
-        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [
-          { label: 'Total Assigned', data: locAssigned, backgroundColor: 'rgba(45,55,72,0.2)' },
-          { label: 'Clocked In', data: locCounts, backgroundColor: '#48bb78' },
-          { label: 'Clocked Out', data: locOut, backgroundColor: '#f56565' }
+        // Location Chart - 3 bars
+        const sortedLocs = Object.keys(locData).sort();
+        initChart('locationChart', 'bar', { data: { labels: sortedLocs, datasets: [
+          { label: 'Total Assigned', data: sortedLocs.map(l => locData[l].assigned), backgroundColor: 'rgba(45,55,72,0.2)' },
+          { label: 'Clocked In', data: sortedLocs.map(l => locData[l].in), backgroundColor: '#48bb78' },
+          { label: 'Clocked Out', data: sortedLocs.map(l => locData[l].out), backgroundColor: '#f56565' }
         ]}, options: { scales: { y: { beginAtZero: true } } } });
-        // 90-Day Clock-In Trend
-        const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
-        const trend = trendRaw.trend || [];
-        const monthMap = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
-        const trendMap = {};
-        trend.forEach(item => {
-          let fullDate;
-          if (item.date.includes('-')) {
-            fullDate = item.date;
-          } else {
-            const [dayStr, monthStr] = item.date.split(' ');
-            const day = parseInt(dayStr);
-            const month = monthMap[monthStr];
-            if (month && day) {
-              const year = new Date().getFullYear();
-              fullDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-          }
-          if (fullDate) {
-            trendMap[fullDate] = item.present || 0;
-          }
-        });
-        const today = new Date();
-        const labels = [];
-        const clockInData = [];
-        for (let i = 89; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          labels.push(dateStr);
-          clockInData.push(trendMap[dateStr] || 0);
-        }
+        // 90-Day Trend
+        const trendDates = Object.keys(trend).sort((a, b) => new Date(b) - new Date(a)).slice(0, 90).reverse();
         initChart('trendChart', 'line', {
           data: {
-            labels,
+            labels: trendDates,
             datasets: [{
               label: 'Total Clock-Ins',
-              data: clockInData,
+              data: trendDates.map(d => trend[d]),
               borderColor: '#48bb78',
               backgroundColor: 'rgba(72,187,120,0.1)',
               tension: 0.3,
@@ -430,7 +413,22 @@
           },
           options: { scales: { y: { beginAtZero: true } } }
         });
-        // Update table & title
+        // Attendance Table from Attendance Sheet
+        const dateIdx = 0; // Column A: Date
+        const deptIdx = 1; // B: Department
+        const nameIdx = 2; // C: Name
+        const userIdIdx = 3; // D: UserID
+        const timeInIdx = 4; // E: Time In
+        const timeOutIdx = 6; // G: Time Out
+        const clockInLocIdx = 5; // F: Clock In Location
+        staffAttendanceData = attRows.filter(row => row[dateIdx] === selected).map(row => ({
+          department: row[deptIdx] || '--',
+          name: row[nameIdx] || '--',
+          userId: row[userIdIdx] || 'N/A',
+          timeIn: row[timeInIdx] || '--',
+          timeOut: row[timeOutIdx] || '--',
+          clockInLocation: row[clockInLocIdx] || 'Unknown'
+        }));
         updateTable(staffAttendanceData);
         const dateStr = new Date(selected).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('attendance-title').textContent = `Attendance Details - ${dateStr}`;
@@ -448,11 +446,7 @@
       const tbody = document.getElementById('attendance-body');
       const dept = document.getElementById('department-select').value;
       const search = document.getElementById('name-search').value.toLowerCase();
-      const enrichedData = data.map(entry => {
-        const staff = allStaff.find(s => s.name === entry.name) || {};
-        return { ...entry, userId: entry.userId || staff.userId || 'N/A' };
-      });
-      const filtered = enrichedData.filter(r =>
+      const filtered = data.filter(r =>
         (!dept || r.department === dept) &&
         (r.name.toLowerCase().includes(search) || r.userId.toLowerCase().includes(search))
       );
@@ -482,21 +476,12 @@
     };
     // STAFF ANALYSIS
     let staffAnalysisChart = null;
-    const fetchPerDay = async (start, end) => {
-      const data = [];
-      let current = new Date(start);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        try {
-          const dayData = await fetchJSON(`${backendURL}/stats?date=${dateStr}`);
-          dayData.date = dateStr;
-          data.push(dayData);
-        } catch (e) {
-          log(`Failed to fetch ${dateStr}: ${e.message}`);
-        }
-        current.setDate(current.getDate() + 1);
+    let attendanceCache = null;
+    const loadAttendanceCache = async () => {
+      if (!attendanceCache) {
+        attendanceCache = await fetchSheet(ATTENDANCE_SHEET);
       }
-      return data;
+      return attendanceCache;
     };
     const analyzeStaff = async () => {
       const button = document.getElementById('analyze-staff');
@@ -529,12 +514,19 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      const rawData = await fetchPerDay(startDate, endDate);
-      const staffEntries = rawData.flatMap(day =>
-        (day.staffAttendance || []).filter(e =>
-          e.name === targetStaff.name && (e.timeIn || e.timeOut)
-        ).map(e => ({ ...e, date: day.date }))
-      );
+      const { rows } = await loadAttendanceCache();
+      const dateIdx = 0;
+      const nameIdx = 2;
+      const timeInIdx = 4;
+      const timeOutIdx = 6;
+      const staffEntries = rows.filter(row => {
+        const date = new Date(row[dateIdx]);
+        return row[nameIdx] === targetStaff.name && date >= startDate && date <= endDate;
+      }).map(row => ({
+        date: row[dateIdx],
+        timeIn: row[timeInIdx] || '--',
+        timeOut: row[timeOutIdx] || '--'
+      }));
       log(`Filtered ${staffEntries.length} attendance entries for staff`);
       if (staffEntries.length === 0) {
         alert('No attendance records found in this period');
@@ -555,7 +547,7 @@
         if (day >= 1 && day <= 5) {
           const dateStr = current.toISOString().split('T')[0];
           workingDays.push(dateStr);
-          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) {
+          if (staffEntries.some(e => e.date === dateStr && e.timeIn !== '--')) {
             presentDays.add(dateStr);
           }
         }
