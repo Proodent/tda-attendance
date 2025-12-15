@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -137,7 +138,8 @@
   <header>
     <img src="/assets/favicon.png" alt="logo" />
     <div class="title">Attendance Dashboard</div>
-    <img src="/assets/favicon.png" alt="logo" />
+    <button onclick="window.location.href='proodentit.com';">Staff Management</button>
+    <button onclick="window.location.href='staffclock.com';">Face Enrollment</button>
     <span class="logout-icon" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></span>
   </header>
   <!-- SUMMARY TILES -->
@@ -197,21 +199,6 @@
       </thead>
       <tbody id="attendance-body"></tbody>
     </table>
-  </section>
-  <!-- PDF EXPORT -->
-  <section id="pdf-export">
-    <h3 class="text-xl font-semibold text-green-600">Export PDF</h3>
-    <div class="pdf-filter-group"><label for="department-select-pdf">Select Department:</label><select id="department-select-pdf"><option value="">All Departments</option></select></div>
-    <div class="pdf-filter-group"><label for="start-date">Start Date:</label><input type="date" id="start-date"></div>
-    <div class="pdf-filter-group"><label for="end-date">End Date:</label><input type="date" id="end-date"></div>
-    <div class="pdf-filter-group"><label for="month-select">Select Month:</label>
-      <select id="month-select">
-        <option value="">All Months</option><option value="01">January</option><option value="02">February</option><option value="03">March</option>
-        <option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option>
-        <option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
-      </select>
-    </div>
-    <div class="button-group"><div class="pdf-filter-group"><label style="visibility:hidden;">.</label><button id="pdf-export-btn">Export to PDF</button></div></div>
   </section>
   <!-- STAFF ANALYSIS -->
   <section id="staff-analysis">
@@ -390,7 +377,13 @@
         const locData = await fetchJSON(`${backendURL}/locations`);
         const allLocs = (locData.locations || []).map(l => l.name).sort();
         const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
-        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [{ label: 'Attendance Count', data: locCounts, backgroundColor: '#48bb78' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+        const locAssigned = allLocs.map(l => allStaff.filter(s => s.allowedLocations?.includes(l)).length);
+        const locOut = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l && e.timeOut).length);
+        initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [
+          { label: 'Total Assigned', data: locAssigned, backgroundColor: 'rgba(45,55,72,0.2)' },
+          { label: 'Clock In', data: locCounts, backgroundColor: '#48bb78' },
+          { label: 'Clock Out', data: locOut, backgroundColor: '#f56565' }
+        ]}, options: { scales: { y: { beginAtZero: true } } } });
         // 90-Day Clock-In Trend
         const trendRaw = await fetchJSON(`${backendURL}/stats?days=90`);
         const trend = trendRaw.trend || [];
@@ -536,18 +529,7 @@
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
-      let rawData = [];
-      try {
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
-        log(`Fetching multi-day stats from ${startStr} to ${endStr}`);
-        rawData = await fetchJSON(`${backendURL}/stats?start=${startStr}&end=${endStr}`);
-        rawData = Array.isArray(rawData) ? rawData : [rawData];
-        log(`Fetched multi-day stats: ${rawData.length} days of data`);
-      } catch (e) {
-        log(`Multi-day fetch failed: ${e.message}. Falling back to per-day fetch`);
-        rawData = await fetchPerDay(startDate, endDate);
-      }
+      const rawData = await fetchPerDay(startDate, endDate);
       const staffEntries = rawData.flatMap(day =>
         (day.staffAttendance || []).filter(e =>
           e.name === targetStaff.name && (e.timeIn || e.timeOut)
