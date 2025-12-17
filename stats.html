@@ -373,20 +373,24 @@
         ]}, options: { scales: { y: { beginAtZero: true } } } });
         const locData = await fetchJSON(`${backendURL}/locations`);
         const allLocs = (locData.locations || []).map(l => l.name).sort();
+        log(`All locations from Locations Sheet: ${allLocs.join(', ')}`);
         let locationSummary = {};
         try {
           const summaryRes = await fetchJSON(`${backendURL}/location-summary`);
           locationSummary = summaryRes.summary || {};
-          log('Fetched location summary from backend');
+          log('Fetched location summary from backend: ' + JSON.stringify(locationSummary));
         } catch (e) {
-          log('Warning: /api/location-summary not available, falling back to client calculation');
+          log('Warning: /api/location-summary not available, falling back to client calculation: ' + e.message);
         }
         const locAssigned = allLocs.map(l => locationSummary[l]?.assigned || allStaff.filter(s => {
           const allowed = (s.allowedLocations || '').split(',').map(a => a.trim());
           return allowed.includes(l);
         }).length);
+        log(`Calculated locAssigned: ${JSON.stringify(locAssigned)}`);
         const locCounts = allLocs.map(l => locationSummary[l]?.clockedIn || staffAttendanceData.filter(e => e.clockInLocation === l).length);
+        log(`Calculated locCounts (Clocked In): ${JSON.stringify(locCounts)}`);
         const locOut = allLocs.map(l => locationSummary[l]?.clockedOut || staffAttendanceData.filter(e => e.clockInLocation === l && e.timeOut).length);
+        log(`Calculated locOut (Clocked Out): ${JSON.stringify(locOut)}`);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [
           { label: 'Total Assigned', data: locAssigned, backgroundColor: 'rgba(45,55,72,0.2)' },
           { label: 'Clocked In', data: locCounts, backgroundColor: '#48bb78' },
