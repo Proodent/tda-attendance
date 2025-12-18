@@ -192,16 +192,22 @@ app.post("/api/attendance/web", async (req, res) => {
       radiusMeters: parseFloat(r["Radius"] ?? r.get("Radius (meters)") ?? r["Radius (Meters)"] ?? 150)
     })).filter(o => o.name && o.lat && o.long);
     let officeName = null;
-    for (const o of officeLocations) {
+    let minDist = Infinity;
+    let closestOffice = null;
+    officeLocations.forEach(o => {
       const distKm = getDistanceKm(Number(latitude), Number(longitude), o.lat, o.long);
-      if (distKm <= (o.radiusMeters / 1000)) {
-        officeName = o.name; // Keep original case for display
-        break;
+      console.log(`Distance to ${o.name}: ${distKm.toFixed(4)} km (radius: ${o.radiusMeters / 1000} km)`);
+      if (distKm <= (o.radiusMeters / 1000) && distKm < minDist) {
+        minDist = distKm;
+        closestOffice = o.name;
       }
-    }
+    });
+    officeName = closestOffice;
     if (!officeName) {
+      console.log("No office found within radius for coordinates:", { latitude, longitude });
       return res.status(403).json({ success: false, message: "Not inside any registered office location." });
     }
+    console.log(`Detected closest office: ${officeName} at distance ${minDist.toFixed(4)} km`);
     // ----- CASE-INSENSITIVE LOCATION CHECK -----
     if (!allowedRaw.includes(officeName.toLowerCase())) {
       return res.status(403).json({ success: false, message: `Unapproved Location – you are not allowed at "${officeName}".` });
@@ -247,21 +253,21 @@ app.post("/api/attendance/web", async (req, res) => {
       const rowIndex = existing._rowNumber - 1;
       const timeOutCell = attendanceSheet.getCell(rowIndex, timeOutCol);
       const locOutCell = attendanceSheet.getCell(rowIndex, clockOutLocCol);
-    
+     
       // Parse "HH:MM:SS"
       const [hh, mm, ss] = timeStr.split(":").map(Number);
-    
+     
       // Convert to Google Sheets serial time
       const timeSerial = (hh * 3600 + mm * 60 + ss) / 86400;
-    
+     
       // Write clean numeric time (Google Sheets will format it)
       timeOutCell.value = timeSerial;
-    
+     
       // Optional: force formatting (this part is SAFE)
       timeOutCell.numberFormat = { type: "TIME", pattern: "hh:mm:ss" };
-    
+     
       locOutCell.value = officeName;
-    
+     
       // Save
       await attendanceSheet.saveUpdatedCells();
       return res.json({ success: true, message: `Dear ${subjectName}, clock-out recorded at ${timeStr} (${officeName}).` });
@@ -386,46 +392,25 @@ app.get("/api/stats", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-// ----------------- FIXED ENDPOINT: Location Summary from Stats Sheet -----------------
+// ----------------- NEW ENDPOINT: Location Summary from Stats Sheet -----------------
 app.get("/api/location-summary", async (req, res) => {
   try {
     await loadDoc();
     const statsSheet = doc.sheetsByTitle["Stats Sheet"];
-    if (!statsSheet) {
-      console.error("Stats Sheet not found");
-      return res.status(500).json({ success: false, message: "Stats Sheet not found" });
-    }
-
-    // Load headers properly
-    await statsSheet.loadHeaderRow();
-    const headers = statsSheet.headerValues.map(h => h.trim().toLowerCase());
-
-    const locationCol = headers.findIndex(h => h === "location");
-    const assignedCol = headers.findIndex(h => h === "staff assigned");
-    const clockInCol = headers.findIndex(h => h === "clock-ins today");
-    const clockOutCol = headers.findIndex(h => h === "clock-outs today");
-
-    if (locationCol === -1 || assignedCol === -1 || clockInCol === -1 || clockOutCol === -1) {
-      console.error("Required columns missing in Stats Sheet. Found headers:", headers);
-      return res.status(500).json({ success: false, message: "Missing required columns in Stats Sheet" });
-    }
-
+    if (!statsSheet) return res.status(500).json({ success: false, message: "Stats Sheet not found" });
     const rows = await statsSheet.getRows();
     const summary = {};
-
     rows.forEach(row => {
-      const rawValues = row._rawData;
-      const loc = (rawValues[locationCol] || "").toString().trim();
+      const loc = (row.get("Location") || row["Location"] || "").trim();
       if (loc) {
         summary[loc] = {
-          assigned: parseInt(rawValues[assignedCol] || 0) || 0,
-          clockedIn: parseInt(rawValues[clockInCol] || 0) || 0,
-          clockedOut: parseInt(rawValues[clockOutCol] || 0) || 0
+          assigned: parseInt(row.get("Staff Assigned") || row["Staff Assigned"] || 0),
+          clockedIn: parseInt(row.get("Clock-Ins Today") || row["Clock-Ins Today"] || 0),
+          clockedOut: parseInt(row.get("Clock-Outs Today") || row["Clock-Outs Today"] || 0)
         };
       }
     });
-
-    console.log("Location summary fetched successfully:", summary);
+    console.log("Location summary fetched:", Object.keys(summary).length, "locations");
     res.json({ success: true, summary });
   } catch (err) {
     console.error("GET /api/location-summary error:", err);
