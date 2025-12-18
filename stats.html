@@ -7,10 +7,13 @@
   <link rel="icon" type="image/png" href="/assets/favicon.png"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf-autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);color:#1a202c;margin:0;padding:0;min-height:100vh;}
-  
+   
     /* HEADER - All in one row, icon for logout */
     header {
       background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);
@@ -373,20 +376,12 @@
         ]}, options: { scales: { y: { beginAtZero: true } } } });
         const locData = await fetchJSON(`${backendURL}/locations`);
         const allLocs = (locData.locations || []).map(l => l.name).sort();
-        let locationSummary = {};
-        try {
-          const summaryRes = await fetchJSON(`${backendURL}/location-summary`);
-          locationSummary = summaryRes.summary || {};
-          log('Fetched location summary from backend');
-        } catch (e) {
-          log('Warning: /api/location-summary not available, falling back to client calculation');
-        }
-        const locAssigned = allLocs.map(l => locationSummary[l]?.assigned || allStaff.filter(s => {
+        const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
+        const locOut = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l && e.timeOut).length);
+        const locAssigned = allLocs.map(l => allStaff.filter(s => {
           const allowed = (s.allowedLocations || '').split(',').map(a => a.trim());
           return allowed.includes(l);
         }).length);
-        const locCounts = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l).length);
-        const locOut = allLocs.map(l => staffAttendanceData.filter(e => e.clockInLocation === l && e.timeOut).length);
         initChart('locationChart', 'bar', { data: { labels: allLocs, datasets: [
           { label: 'Total Assigned', data: locAssigned, backgroundColor: 'rgba(45,55,72,0.2)' },
           { label: 'Clocked In', data: locCounts, backgroundColor: '#48bb78' },
@@ -527,3 +522,139 @@
         (s.userId && s.userId.toLowerCase().includes(search))
       );
       if (!targetStaff) {
+        log('Staff analysis aborted: No matching staff found for search term');
+        alert('Staff not found');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
+        return;
+      }
+      log(`Found matching staff: ${targetStaff.name} (ID: ${targetStaff.userId})`);
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      const rawData = await fetchPerDay(startDate, endDate);
+      const staffEntries = rawData.flatMap(day =>
+        (day.staffAttendance || []).filter(e =>
+          e.name === targetStaff.name && (e.timeIn || e.timeOut)
+        ).map(e => ({ ...e, date: day.date }))
+      );
+      log(`Filtered ${staffEntries.length} attendance entries for staff`);
+      if (staffEntries.length === 0) {
+        alert('No attendance records found in this period');
+        button.disabled = false;
+        button.innerHTML = 'Analyze';
+        return;
+      }
+      const inTimes = staffEntries.map(e => timeToMinutes(e.timeIn)).filter(t => t !== null);
+      const outTimes = staffEntries.map(e => timeToMinutes(e.timeOut)).filter(t => t !== null);
+      const avgIn = avgTime(inTimes);
+      const avgOut = avgTime(outTimes);
+      // Working days (Mon–Fri)
+      const workingDays = [];
+      const presentDays = new Set();
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day >= 1 && day <= 5) {
+          const dateStr = current.toISOString().split('T')[0];
+          workingDays.push(dateStr);
+          if (staffEntries.some(e => e.date === dateStr && e.timeIn)) {
+            presentDays.add(dateStr);
+          }
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      const daysPresent = presentDays.size;
+      const totalWorkingDays = workingDays.length;
+      const attendancePct = totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 100) : 0;
+      log(`Calculated attendance: ${daysPresent} present out of ${totalWorkingDays} working days (${attendancePct}%)`);
+      // Chart data
+      const dateMap = {};
+      staffEntries.forEach(e => {
+        if (!dateMap[e.date]) dateMap[e.date] = { in: null, out: null };
+        if (e.timeIn) dateMap[e.date].in = timeToMinutes(e.timeIn);
+        if (e.timeOut) dateMap[e.date].out = timeToMinutes(e.timeOut);
+      });
+      const inData = workingDays.map(d => dateMap[d]?.in ?? null);
+      const outData = workingDays.map(d => dateMap[d]?.out ?? null);
+      document.getElementById('staff-chart-title').textContent = `${targetStaff.name} - Clock Times`;
+      document.getElementById('avgClockIn').textContent = minutesToTime(avgIn);
+      document.getElementById('avgClockOut').textContent = minutesToTime(avgOut);
+      document.getElementById('daysPresent').textContent = `${daysPresent} / ${totalWorkingDays}`;
+      document.getElementById('attendancePercent').textContent = `${attendancePct}%`;
+      document.getElementById('staff-chart-tile').style.display = 'block';
+      document.getElementById('staff-stats').style.display = 'grid';
+      if (staffAnalysisChart) staffAnalysisChart.destroy();
+      staffAnalysisChart = new Chart(document.getElementById('staffTrendChart'), {
+        type: 'line',
+        data: {
+          labels: workingDays.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+          datasets: [
+            { label: 'Clock In', data: inData, borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', tension: 0.3, fill: false },
+            { label: 'Clock Out', data: outData, borderColor: '#f56565', backgroundColor: 'rgba(245,101,101,0.1)', tension: 0.3, fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: value => {
+                  const h = Math.floor(value / 60);
+                  const m = value % 60;
+                  return `${h}:${String(m).padStart(2,'0')}`;
+                }
+              }
+            }
+          }
+        }
+      });
+      button.disabled = false;
+      button.innerHTML = 'Analyze';
+    };
+    // INIT
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!isLoggedIn()) { window.location.href = 'index.html'; return; }
+      document.getElementById('date-select').value = currentDate;
+      document.getElementById('logoutBtn').addEventListener('click', () => { log('Logout'); logout(); });
+      document.getElementById('clear-logs').addEventListener('click', () => {
+        document.getElementById('log').innerHTML = '';
+        log('Logs cleared');
+      });
+      document.getElementById('clear-filter-btn').addEventListener('click', () => {
+        document.getElementById('date-select').value = currentDate;
+        document.getElementById('department-select').value = '';
+        document.getElementById('name-search').value = '';
+        loadDashboardData(true);
+      });
+      document.getElementById('export-btn').addEventListener('click', () => {
+        const enriched = staffAttendanceData.map(r => {
+          const staff = allStaff.find(s => s.name === r.name) || {};
+          return { ...r, userId: r.userId || staff.userId || 'N/A' };
+        });
+        const csv = "data:text/csv;charset=utf-8,User ID,Name,Department,Time In,Time Out,Work Time,Location\n" +
+          enriched.map(r => `${r.userId},${r.name},${r.department},${r.timeIn},${r.timeOut},${calculateWorkTime(r.timeIn, r.timeOut)},${r.clockInLocation || 'Unknown'}`).join('\n');
+        const a = document.createElement('a'); a.href = encodeURI(csv); a.download = 'attendance.csv'; a.click();
+      });
+      document.getElementById('date-select').addEventListener('change', () => loadDashboardData(true));
+      document.getElementById('department-select').addEventListener('change', () => updateTable(staffAttendanceData));
+      document.getElementById('name-search').addEventListener('input', () => updateTable(staffAttendanceData));
+      document.getElementById('analyze-staff').addEventListener('click', analyzeStaff);
+      document.querySelectorAll('.sortable').forEach(th => th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        sortConfig.dir = sortConfig.key === key && sortConfig.dir === 'asc' ? 'desc' : 'asc';
+        sortConfig.key = key;
+        document.querySelectorAll('.sortable').forEach(t => t.classList.remove('asc', 'desc'));
+        th.classList.add(sortConfig.dir);
+        updateTable(staffAttendanceData);
+      }));
+      ['mousemove', 'keypress', 'click', 'scroll'].forEach(ev => document.addEventListener(ev, resetTimeout, { passive: true }));
+      resetTimeout();
+      loadDashboardData();
+      setInterval(loadDashboardData, 30000);
+    });
+  </script>
+</body>
+</html>
