@@ -674,7 +674,7 @@
         return { ok: false, error: 'Face service error' };
       }
     };
-    // === LIVENESS DETECTION WITH BLINK OR HEAD MOVEMENT ===
+    // LIVENESS DETECTION WITH BLINK OR HEAD MOVEMENT
     let faceModel;
     let blinkCount = 0;
     let lastEAR = 0.3;
@@ -703,32 +703,37 @@
     }
     async function runLivenessCheck(video) {
       if (!faceModel) return;
-      const faces = await faceModel.estimateFaces(video);
+      const faces = await faceModel.estimateFaces(video, { flipHorizontal: false });
       if (faces.length === 0) {
         document.getElementById('captureStatus').textContent = "No face detected";
         return;
       }
+      console.log('Face detected'); // Debug
       const landmarks = faces[0].keypoints;
       const leftEye = [landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]];
       const rightEye = [landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]];
       const leftEAR = eyeAspectRatio(leftEye);
       const rightEAR = eyeAspectRatio(rightEye);
       const avgEAR = (leftEAR + rightEAR) / 2;
+      console.log('AVG EAR:', avgEAR); // Debug EAR value
       // Blink detection
-      if (avgEAR < 0.22 && lastEAR > 0.3) {
+      if (avgEAR < 0.25 && lastEAR > 0.3) { // Slightly loosened threshold
         blinkCount++;
         document.getElementById('captureStatus').textContent = `Blink detected (${blinkCount}/2)`;
+        console.log('Blink detected, count:', blinkCount);
       }
       lastEAR = avgEAR;
       // Head movement detection
       const currentYaw = getHeadYaw(landmarks);
       if (initialYaw === 0) initialYaw = currentYaw;
       yawVariation = Math.max(yawVariation, Math.abs(currentYaw - initialYaw));
-      if (yawVariation > 10) {
+      console.log('Yaw variation:', yawVariation); // Debug yaw
+      if (yawVariation > 8) { // Loosened threshold
         document.getElementById('captureStatus').textContent = `Head movement detected (${yawVariation.toFixed(0)}%)`;
+        console.log('Head movement detected');
       }
-      // Pass if 2 blinks OR head movement > 10
-      if (blinkCount >= 2 || yawVariation > 10) {
+      // Pass if 2 blinks OR head movement > 8
+      if (blinkCount >= 2 || yawVariation > 8) {
         livenessPassed = true;
         clearInterval(livenessTimer);
         document.getElementById('captureStatus').textContent = "Liveness confirmed! Capturing...";
@@ -747,7 +752,7 @@
       initialYaw = 0;
       yawVariation = 0;
       livenessPassed = false;
-      captureStatus.textContent = "Starting liveness check...";
+      captureStatus.textContent = "Loading liveness model...";
       if (!await startVideo()) {
         hideFaceModal();
         return;
@@ -759,9 +764,9 @@
         if (!livenessPassed) {
           clearInterval(livenessTimer);
           hideFaceModal();
-          showPopup('Liveness Failed', 'No blinks or head movement detected. Please try again.', false);
+          showPopup('Liveness Failed', 'No blinks or head movement detected. Try again.', false);
         }
-      }, 15000); // 15 second timeout for more time
+      }, 15000); // Extended timeout
     };
     const hideFaceModal = () => {
       if (faceModal) faceModal.classList.remove('show');
@@ -796,6 +801,7 @@
         showPopup('Face Verification Failed', result.error, false);
         return;
       }
+      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
         soundPlayed = true;
@@ -828,6 +834,7 @@
             : data.message || 'Attendance failed.',
           data.success
         );
+        // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
@@ -841,6 +848,7 @@
       header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
       msg.innerHTML = message;
       popup.classList.add('show');
+      // ERROR SOUND ONLY ON FAILURE
       if (success === false) {
         errorSound.play().catch(() => {});
       }
