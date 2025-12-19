@@ -359,9 +359,26 @@
       position: relative;
       transition: background .3s;
     }
-    #adminLoginBtn:disabled { background: #ccc; cursor: not-allowed; }
-    #adminLoginBtn .spinner { display: none; width: 16px; height: 16px; border: 2px solid #fff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
-    #adminLoginBtn.loading .spinner { display: block; }
+    #adminLoginBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #adminLoginBtn .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #adminLoginBtn.loading .spinner {
+      display: block;
+    }
     #adminError { color: #d32f2f; margin-top: 8px; font-size: 0.9em; }
     .popup-close {
       position: absolute;
@@ -409,13 +426,13 @@
   </div>
   <div id="faceModal">
     <div class="popup-content">
-      <div class="popup-header">Face Verification</div>
-      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
+      <div class="popup-header">Face Verification (Liveness Check)</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Please blink twice or turn your head slightly</p>
       <div class="video-container">
         <video id="video" autoplay playsinline></video>
         <div class="face-guide"></div>
       </div>
-      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
+      <div class="capture-status" id="captureStatus">Detecting activity...</div>
     </div>
   </div>
   <div id="loaderOverlay">
@@ -481,8 +498,6 @@
     let current_office = null;
     let staff_cache = new Map();
     let videoEl, faceModal, captureStatus;
-    let countdown = 0;
-    let countdownInterval = null;
     let locations = [];
     const toRad = v => v * Math.PI / 180;
     const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -659,31 +674,98 @@
         return { ok: false, error: 'Face service error' };
       }
     };
-    const showFaceModal = async (staff, action) => {
+    // === LIVENESS DETECTION WITH BLINK OR HEAD MOVEMENT ===
+    let faceModel;
+    let blinkCount = 0;
+    let lastEAR = 0.3;
+    let livenessPassed = false;
+    let livenessTimer;
+    let initialYaw = 0;
+    let yawVariation = 0;
+    async function loadFaceModel() {
+      faceModel = await faceLandmarksDetection.createDetector(
+        faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+        { runtime: 'tfjs', refineLandmarks: true }
+      );
+    }
+    function eyeAspectRatio(eye) {
+      const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+      const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+      const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+      return (v1 + v2) / (2.0 * h);
+    }
+    function getHeadYaw(landmarks) {
+      const leftEye = landmarks[33]; // Left eye outer
+      const rightEye = landmarks[263]; // Right eye outer
+      const noseTip = landmarks[1]; // Nose tip
+      const eyeMidX = (leftEye.x + rightEye.x) / 2;
+      return (noseTip.x - eyeMidX) * 100; // Scaled for sensitivity
+    }
+    async function runLivenessCheck(video) {
+      if (!faceModel) return;
+      const faces = await faceModel.estimateFaces(video);
+      if (faces.length === 0) {
+        document.getElementById('captureStatus').textContent = "No face detected";
+        return;
+      }
+      const landmarks = faces[0].keypoints;
+      const leftEye = [landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]];
+      const rightEye = [landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]];
+      const leftEAR = eyeAspectRatio(leftEye);
+      const rightEAR = eyeAspectRatio(rightEye);
+      const avgEAR = (leftEAR + rightEAR) / 2;
+      // Blink detection
+      if (avgEAR < 0.22 && lastEAR > 0.3) {
+        blinkCount++;
+        document.getElementById('captureStatus').textContent = `Blink detected (${blinkCount}/2)`;
+      }
+      lastEAR = avgEAR;
+      // Head movement detection
+      const currentYaw = getHeadYaw(landmarks);
+      if (initialYaw === 0) initialYaw = currentYaw;
+      yawVariation = Math.max(yawVariation, Math.abs(currentYaw - initialYaw));
+      if (yawVariation > 10) {
+        document.getElementById('captureStatus').textContent = `Head movement detected (${yawVariation.toFixed(0)}%)`;
+      }
+      // Pass if 2 blinks OR head movement > 10
+      if (blinkCount >= 2 || yawVariation > 10) {
+        livenessPassed = true;
+        clearInterval(livenessTimer);
+        document.getElementById('captureStatus').textContent = "Liveness confirmed! Capturing...";
+        setTimeout(() => captureAndVerify(staff, action), 500); // Short delay for feedback
+      }
+    }
+    let staff, action;
+    const showFaceModal = async (s, a) => {
+      staff = s; action = a;
       faceModal = document.getElementById('faceModal');
       videoEl = document.getElementById('video');
       captureStatus = document.getElementById('captureStatus');
       faceModal.classList.add('show');
+      blinkCount = 0;
+      lastEAR = 0.3;
+      initialYaw = 0;
+      yawVariation = 0;
+      livenessPassed = false;
+      captureStatus.textContent = "Starting liveness check...";
       if (!await startVideo()) {
         hideFaceModal();
         return;
       }
-      countdown = 2;
-      captureStatus.textContent = `Capturing in ${countdown}...`;
-      countdownInterval = setInterval(async () => {
-        countdown--;
-        if (countdown > 0) {
-          captureStatus.textContent = `Capturing in ${countdown}...`;
-        } else {
-          clearInterval(countdownInterval);
-          captureStatus.textContent = 'Verifying...';
-          await captureAndVerify(staff, action);
+      if (!faceModel) await loadFaceModel();
+      captureStatus.textContent = "Please blink twice or turn your head slightly";
+      livenessTimer = setInterval(() => runLivenessCheck(videoEl), 100);
+      setTimeout(() => {
+        if (!livenessPassed) {
+          clearInterval(livenessTimer);
+          hideFaceModal();
+          showPopup('Liveness Failed', 'No blinks or head movement detected. Please try again.', false);
         }
-      }, 1000);
+      }, 15000); // 15 second timeout for more time
     };
     const hideFaceModal = () => {
       if (faceModal) faceModal.classList.remove('show');
-      if (countdownInterval) clearInterval(countdownInterval);
+      if (livenessTimer) clearInterval(livenessTimer);
       stopVideo();
     };
     const startVideo = async () => {
@@ -695,12 +777,6 @@
       } catch (err) {
         showPopup('Camera Error', `Access denied: ${err.message}`, false);
         return false;
-      }
-    };
-    const stopVideo = () => {
-      if (videoEl?.srcObject) {
-        videoEl.srcObject.getTracks().forEach(t => t.stop());
-        videoEl.srcObject = null;
       }
     };
     const captureAndVerify = async (staff, action) => {
@@ -720,7 +796,6 @@
         showPopup('Face Verification Failed', result.error, false);
         return;
       }
-      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
         soundPlayed = true;
@@ -753,7 +828,6 @@
             : data.message || 'Attendance failed.',
           data.success
         );
-        // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
@@ -767,7 +841,6 @@
       header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
       msg.innerHTML = message;
       popup.classList.add('show');
-      // ERROR SOUND ONLY ON FAILURE
       if (success === false) {
         errorSound.play().catch(() => {});
       }
@@ -825,96 +898,14 @@
         btn.disabled = false;
       }
     });
-    document.addEventListener('DOMContentLoaded', startLocationWatch);
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFaceModel(); // Preload model
+      startLocationWatch();
+    });
     window.onunload = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
       stopVideo();
     };
-    // LIVENESS DETECTION WITH BLINK AND HEAD MOVEMENT
-    let faceModel, blinkCount = 0, lastEAR = 0.3, livenessPassed = false, livenessTimer;
-    let initialYaw = 0, yawVariation = 0;
-    async function loadFaceModel() {
-      faceModel = await faceLandmarksDetection.createDetector(faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh, { runtime: 'tfjs', refineLandmarks: true });
-    }
-    function eyeAspectRatio(eye) {
-      const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-      const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-      const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-      return (v1 + v2) / (2.0 * h);
-    }
-    function getHeadYaw(landmarks) {
-      const leftEye = landmarks[33]; // Left eye outer
-      const rightEye = landmarks[263]; // Right eye outer
-      const noseTip = landmarks[1]; // Nose tip
-      const chin = landmarks[199]; // Chin
-      // Simple yaw estimation based on eye positions
-      const eyeMidX = (leftEye.x + rightEye.x) / 2;
-      return (noseTip.x - eyeMidX) * 100; // Scaled for detection
-    }
-    async function runLivenessCheck(video) {
-      if (!faceModel) return;
-      const faces = await faceModel.estimateFaces(video);
-      if (faces.length === 0) {
-        document.getElementById('captureStatus').textContent = "No face detected";
-        return;
-      }
-      const landmarks = faces[0].keypoints;
-      const leftEye = [landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]];
-      const rightEye = [landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]];
-      const leftEAR = eyeAspectRatio(leftEye);
-      const rightEAR = eyeAspectRatio(rightEye);
-      const avgEAR = (leftEAR + rightEAR) / 2;
-      // Blink detection
-      if (avgEAR < 0.22 && lastEAR > 0.3) {
-        blinkCount++;
-        document.getElementById('captureStatus').textContent = `Blink ${blinkCount}/2 detected!`;
-      }
-      lastEAR = avgEAR;
-      // Head movement (yaw variation)
-      const currentYaw = getHeadYaw(landmarks);
-      if (initialYaw === 0) initialYaw = currentYaw;
-      yawVariation = Math.max(yawVariation, Math.abs(currentYaw - initialYaw));
-      if (yawVariation > 10) {
-        document.getElementById('captureStatus').textContent = "Head movement detected!";
-      }
-      // Pass if either 2 blinks or sufficient head movement
-      if (blinkCount >= 2 || yawVariation > 10) {
-        livenessPassed = true;
-        clearInterval(livenessTimer);
-        document.getElementById('captureStatus').textContent = "Liveness passed! Capturing...";
-        setTimeout(() => captureAndVerify(staff, action), 800);
-      }
-    }
-    let staff, action;
-    const showFaceModal = async (s, a) => {
-      staff = s; action = a;
-      const modal = document.getElementById('faceModal');
-      const video = document.getElementById('video');
-      const status = document.getElementById('captureStatus');
-      modal.classList.add('show');
-      blinkCount = 0; yawVariation = 0; initialYaw = 0; livenessPassed = false;
-      status.textContent = "Loading liveness model...";
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      video.srcObject = stream;
-      video.play();
-
-      if (!faceModel) await loadFaceModel();
-      status.textContent = "Please blink or turn your head slightly";
-
-      livenessTimer = setInterval(() => runLivenessCheck(video), 100);
-      setTimeout(() => {
-        if (!livenessPassed) {
-          clearInterval(livenessTimer);
-          hideFaceModal();
-          showPopup('Liveness Failed', 'No blinks or head movement detected. Try again.', false);
-        }
-      }, 12000); // 12 sec timeout
-    };
-    document.addEventListener('DOMContentLoaded', () => {
-      loadFaceModel(); // Preload
-      startLocationWatch();
-    });
   </script>
 </body>
 </html>
