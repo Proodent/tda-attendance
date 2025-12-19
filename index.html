@@ -398,8 +398,22 @@
       justify-content: center;
       transition: color .2s;
     }
-    .popup-close:hover { color: #d32f2f; }
-    .footer { margin-top: auto; font-size: .9em; color: #666; padding: 10px 0; border-top: 1px solid #eee; width: 100%; max-width: 600px; text-align: center; position: relative; z-index: 2; }
+    .popup-close:hover {
+      color: #d32f2f;
+    }
+    /* === Footer === */
+    .footer {
+      margin-top: auto;
+      font-size: .9em;
+      color: #666;
+      padding: 10px 0;
+      border-top: 1px solid #eee;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
     .footer a { color: #009245; text-decoration: none; }
   </style>
 </head>
@@ -424,21 +438,24 @@
       <button id="clockOut" disabled>Clock Out</button>
     </div>
   </div>
+
   <div id="faceModal">
     <div class="popup-content">
-      <div class="popup-header">Face Verification (Liveness Check)</div>
-      <p style="margin:12px 0 8px;font-weight:600;">Please blink twice or turn your head slightly</p>
+      <div class="popup-header">Face Verification</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame</p>
       <div class="video-container">
         <video id="video" autoplay playsinline></video>
         <div class="face-guide"></div>
       </div>
-      <div class="capture-status" id="captureStatus">Detecting activity...</div>
+      <div class="capture-status" id="captureStatus">Capturing in 3...</div>
     </div>
   </div>
+
   <div id="loaderOverlay">
     <div class="loader"></div>
     <p>Verifying face...</p>
   </div>
+
   <div id="popup" class="popup">
     <div class="popup-content">
       <div class="popup-header" id="popupHeader">Title</div>
@@ -446,6 +463,7 @@
       <button id="popupCloseBtn">Close</button>
     </div>
   </div>
+
   <div id="adminPopup">
     <div class="popup-content">
       <button class="popup-close" id="adminCloseBtn">X</button>
@@ -457,19 +475,18 @@
       <p id="adminError" class="error"></p>
     </div>
   </div>
+
   <div class="footer">
     <div><button id="adminDashboard">Admin</button></div>
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
-  <!-- MediaPipe Face Mesh + TensorFlow.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+
   <script>
     // SUCCESS & ERROR SOUNDS – FIXED WITH UNLOCK + PLAY ONLY ONCE
     const successSound = new Audio('/assets/success-sound.mp3');
     const errorSound = new Audio('/assets/error-sound.mp3');
     let soundPlayed = false;
+
     // Unlock audio on first user interaction (required by all browsers)
     const unlockAudio = () => {
       successSound.load();
@@ -481,6 +498,7 @@
     };
     document.addEventListener('touchstart', unlockAudio);
     document.addEventListener('click', unlockAudio);
+
     // LIVE CLOCK & DATE – FIXED
     function updateClockAndDate() {
       const now = new Date();
@@ -489,16 +507,21 @@
       const h = now.getHours().toString().padStart(2, '0');
       const m = now.getMinutes().toString().padStart(2, '0');
       const s = now.getSeconds().toString().padStart(2, '0');
+
       document.getElementById('liveClock').innerHTML = `<span>${h}</span><span style="opacity:0.7;">:</span><span>${m}</span><span style="opacity:0.7;">:</span><span>${s}</span>`;
       document.getElementById('liveDate').textContent = dateStr;
     }
     updateClockAndDate();
     setInterval(updateClockAndDate, 1000);
+
     let watchId = null;
     let current_office = null;
     let staff_cache = new Map();
     let videoEl, faceModal, captureStatus;
+    let countdown = 0;
+    let countdownInterval = null;
     let locations = [];
+
     const toRad = v => v * Math.PI / 180;
     const getDistanceKm = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
@@ -508,6 +531,7 @@
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
+
     const getStaffByUserId = async (userId) => {
       if (staff_cache.has(userId)) return staff_cache.get(userId);
       try {
@@ -528,6 +552,7 @@
       }
       return null;
     };
+
     const fetchLocations = async () => {
       try {
         const res = await fetch('/api/locations');
@@ -545,6 +570,7 @@
         return [];
       }
     };
+
     const startLocationWatch = () => {
       const statusEl = document.getElementById('status');
       const gpsEl = document.getElementById('gpsCoords');
@@ -552,12 +578,15 @@
       const userIdStatus = document.getElementById('userIdStatus');
       const clockInBtn = document.getElementById('clockIn');
       const clockOutBtn = document.getElementById('clockOut');
+
       userIdStatus.className = 'placeholder';
       userIdStatus.textContent = 'Enter User ID to validate';
       userIdInput.value = '';
       userIdInput.disabled = true;
       clockInBtn.disabled = clockOutBtn.disabled = true;
+
       let lastValidatedId = '';
+
       const validateUser = async () => {
         const userId = userIdInput.value.trim();
         if (!userId) return;
@@ -584,6 +613,7 @@
         userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved✅' : 'Denied❌'}`;
         clockInBtn.disabled = clockOutBtn.disabled = !approved;
       };
+
       userIdInput.addEventListener('input', () => {
         clearTimeout(window.validateTimeout);
         const userId = userIdInput.value.trim();
@@ -599,6 +629,7 @@
         lastValidatedId = '';
         window.validateTimeout = setTimeout(validateUser, 300);
       });
+
       fetchLocations().then(fetched => {
         locations = fetched;
         if (!locations.length) {
@@ -642,9 +673,11 @@
           { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
         );
       });
+
       clockInBtn.onclick = () => handleClock('clock in');
       clockOutBtn.onclick = () => handleClock('clock out');
     };
+
     const adminPopup = document.getElementById('adminPopup');
     const adminCloseBtn = document.getElementById('adminCloseBtn');
     document.getElementById('adminDashboard')?.addEventListener('click', () => {
@@ -656,6 +689,7 @@
     adminPopup?.addEventListener('click', (e) => {
       if (e.target === adminPopup) adminPopup.classList.remove('show');
     });
+
     const validateFaceWithSubject = async (base64, subjectName) => {
       try {
         const res = await fetch('/api/proxy/face-recognition', {
@@ -674,105 +708,36 @@
         return { ok: false, error: 'Face service error' };
       }
     };
-    // LIVENESS DETECTION WITH BLINK OR HEAD MOVEMENT
-    let faceModel;
-    let blinkCount = 0;
-    let lastEAR = 0.3;
-    let livenessPassed = false;
-    let livenessTimer;
-    let initialYaw = 0;
-    let yawVariation = 0;
-    async function loadFaceModel() {
-      faceModel = await faceLandmarksDetection.createDetector(
-        faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-        { runtime: 'tfjs', refineLandmarks: true }
-      );
-    }
-    function eyeAspectRatio(eye) {
-      const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-      const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-      const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-      return (v1 + v2) / (2.0 * h);
-    }
-    function getHeadYaw(landmarks) {
-      const leftEye = landmarks[33]; // Left eye outer
-      const rightEye = landmarks[263]; // Right eye outer
-      const noseTip = landmarks[1]; // Nose tip
-      const eyeMidX = (leftEye.x + rightEye.x) / 2;
-      return (noseTip.x - eyeMidX) * 100; // Scaled for sensitivity
-    }
-    async function runLivenessCheck(video) {
-      if (!faceModel) return;
-      const faces = await faceModel.estimateFaces(video, { flipHorizontal: false });
-      if (faces.length === 0) {
-        document.getElementById('captureStatus').textContent = "No face detected";
-        return;
-      }
-      console.log('Face detected'); // Debug
-      const landmarks = faces[0].keypoints;
-      const leftEye = [landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]];
-      const rightEye = [landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]];
-      const leftEAR = eyeAspectRatio(leftEye);
-      const rightEAR = eyeAspectRatio(rightEye);
-      const avgEAR = (leftEAR + rightEAR) / 2;
-      console.log('AVG EAR:', avgEAR); // Debug EAR value
-      // Blink detection
-      if (avgEAR < 0.25 && lastEAR > 0.3) { // Slightly loosened threshold
-        blinkCount++;
-        document.getElementById('captureStatus').textContent = `Blink detected (${blinkCount}/2)`;
-        console.log('Blink detected, count:', blinkCount);
-      }
-      lastEAR = avgEAR;
-      // Head movement detection
-      const currentYaw = getHeadYaw(landmarks);
-      if (initialYaw === 0) initialYaw = currentYaw;
-      yawVariation = Math.max(yawVariation, Math.abs(currentYaw - initialYaw));
-      console.log('Yaw variation:', yawVariation); // Debug yaw
-      if (yawVariation > 8) { // Loosened threshold
-        document.getElementById('captureStatus').textContent = `Head movement detected (${yawVariation.toFixed(0)}%)`;
-        console.log('Head movement detected');
-      }
-      // Pass if 2 blinks OR head movement > 8
-      if (blinkCount >= 2 || yawVariation > 8) {
-        livenessPassed = true;
-        clearInterval(livenessTimer);
-        document.getElementById('captureStatus').textContent = "Liveness confirmed! Capturing...";
-        setTimeout(() => captureAndVerify(staff, action), 500); // Short delay for feedback
-      }
-    }
-    let staff, action;
-    const showFaceModal = async (s, a) => {
-      staff = s; action = a;
+
+    const showFaceModal = async (staff, action) => {
       faceModal = document.getElementById('faceModal');
       videoEl = document.getElementById('video');
       captureStatus = document.getElementById('captureStatus');
       faceModal.classList.add('show');
-      blinkCount = 0;
-      lastEAR = 0.3;
-      initialYaw = 0;
-      yawVariation = 0;
-      livenessPassed = false;
-      captureStatus.textContent = "Loading liveness model...";
       if (!await startVideo()) {
         hideFaceModal();
         return;
       }
-      if (!faceModel) await loadFaceModel();
-      captureStatus.textContent = "Please blink twice or turn your head slightly";
-      livenessTimer = setInterval(() => runLivenessCheck(videoEl), 100);
-      setTimeout(() => {
-        if (!livenessPassed) {
-          clearInterval(livenessTimer);
-          hideFaceModal();
-          showPopup('Liveness Failed', 'No blinks or head movement detected. Try again.', false);
+      countdown = 2;
+      captureStatus.textContent = `Capturing in ${countdown}...`;
+      countdownInterval = setInterval(async () => {
+        countdown--;
+        if (countdown > 0) {
+          captureStatus.textContent = `Capturing in ${countdown}...`;
+        } else {
+          clearInterval(countdownInterval);
+          captureStatus.textContent = 'Verifying...';
+          await captureAndVerify(staff, action);
         }
-      }, 15000); // Extended timeout
+      }, 1000);
     };
+
     const hideFaceModal = () => {
       if (faceModal) faceModal.classList.remove('show');
-      if (livenessTimer) clearInterval(livenessTimer);
+      if (countdownInterval) clearInterval(countdownInterval);
       stopVideo();
     };
+
     const startVideo = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -784,6 +749,14 @@
         return false;
       }
     };
+
+    const stopVideo = () => {
+      if (videoEl?.srcObject) {
+        videoEl.srcObject.getTracks().forEach(t => t.stop());
+        videoEl.srcObject = null;
+      }
+    };
+
     const captureAndVerify = async (staff, action) => {
       const canvas = document.createElement('canvas');
       canvas.width = videoEl.videoWidth;
@@ -793,26 +766,34 @@
       ctx.scale(-1, 1);
       ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
       const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+
       hideFaceModal();
-      showLoader(`Verifying ${staff.name}...`);
+      showLoader(`Verifying face for ${staff.name}...`);
+
       const result = await validateFaceWithSubject(base64, staff.name);
       hideLoader();
+
       if (!result.ok) {
         showPopup('Face Verification Failed', result.error, false);
         return;
       }
+
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
         soundPlayed = true;
       }
+
       showPopup('Success', `Face verified! Recording ${action}...`, true);
+
       await submitAttendance(action, staff);
     };
+
     const submitAttendance = async (action, staff) => {
       const statusEl = document.getElementById('status');
       const lat = Number(statusEl.dataset.lat);
       const long = Number(statusEl.dataset.long);
+
       try {
         const res = await fetch('/api/attendance/web', {
           method: 'POST',
@@ -826,7 +807,9 @@
             timestamp: new Date().toISOString()
           })
         });
+
         const data = await res.json();
+
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
@@ -834,12 +817,15 @@
             : data.message || 'Attendance failed.',
           data.success
         );
+
         // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
+
       } catch (err) {
         showPopup('Error', `Connection failed: ${err.message}`, false);
       }
     };
+
     const showPopup = (title, message, success = null) => {
       const popup = document.getElementById('popup');
       const header = document.getElementById('popupHeader');
@@ -848,21 +834,26 @@
       header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
       msg.innerHTML = message;
       popup.classList.add('show');
+
       // ERROR SOUND ONLY ON FAILURE
       if (success === false) {
         errorSound.play().catch(() => {});
       }
+
       setTimeout(() => popup.classList.remove('show'), 10000);
       document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
     };
+
     const showLoader = (text) => {
       const loader = document.getElementById('loaderOverlay');
       loader.querySelector('p').textContent = text;
       loader.style.display = 'flex';
     };
+
     const hideLoader = () => {
       document.getElementById('loaderOverlay').style.display = 'none';
     };
+
     const handleClock = async (action) => {
       const userId = document.getElementById('userId').value.trim();
       if (!userId) return showPopup('Error', 'Enter User ID.', false);
@@ -878,6 +869,7 @@
       }
       showFaceModal(staff, action);
     };
+
     document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
       const email = document.getElementById('adminEmail')?.value.trim();
       const password = document.getElementById('adminPassword')?.value.trim();
@@ -906,10 +898,8 @@
         btn.disabled = false;
       }
     });
-    document.addEventListener('DOMContentLoaded', () => {
-      loadFaceModel(); // Preload model
-      startLocationWatch();
-    });
+
+    document.addEventListener('DOMContentLoaded', startLocationWatch);
     window.onunload = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
       stopVideo();
@@ -917,3 +907,7 @@
   </script>
 </body>
 </html>
+
+
+
+
