@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tolon District Assembly Staff Attendance Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
   <style>
     /* === BODY – LIGHT GREEN BACKGROUND === */
     body {
@@ -259,6 +263,15 @@
       font-weight: 600;
       color: #009245;
     }
+    /* === Canvas for Face Mesh Overlay === */
+    #faceModal canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+    }
     /* === Loader === */
     #loaderOverlay {
       display: none;
@@ -416,11 +429,6 @@
     }
     .footer a { color: #009245; text-decoration: none; }
   </style>
-  <!-- MediaPipe Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="container">
@@ -445,13 +453,14 @@
   </div>
   <div id="faceModal">
     <div class="popup-content">
-      <div class="popup-header">Face Verification (Liveness Check)</div>
-      <p style="margin:12px 0 8px;font-weight:600;">Please blink twice and slightly move your head left/right</p>
+      <div class="popup-header">Face Verification</div>
+      <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame and blink or nod to verify liveness</p>
       <div class="video-container">
         <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" class="output_canvas"></canvas>
         <div class="face-guide"></div>
       </div>
-      <div class="capture-status" id="captureStatus">Starting liveness check...</div>
+      <div class="capture-status" id="captureStatus">Detecting face...</div>
     </div>
   </div>
   <div id="loaderOverlay">
@@ -481,10 +490,11 @@
     <div>Developed by: <a href="https://proodentit.com" target="_blank">Proodent IT Solutions</a></div>
   </div>
   <script>
-    // SUCCESS & ERROR SOUNDS
+    // SUCCESS & ERROR SOUNDS – FIXED WITH UNLOCK + PLAY ONLY ONCE
     const successSound = new Audio('/assets/success-sound.mp3');
     const errorSound = new Audio('/assets/error-sound.mp3');
     let soundPlayed = false;
+    // Unlock audio on first user interaction (required by all browsers)
     const unlockAudio = () => {
       successSound.load();
       errorSound.load();
@@ -495,8 +505,7 @@
     };
     document.addEventListener('touchstart', unlockAudio);
     document.addEventListener('click', unlockAudio);
-
-    // LIVE CLOCK & DATE
+    // LIVE CLOCK & DATE – FIXED
     function updateClockAndDate() {
       const now = new Date();
       const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -509,26 +518,13 @@
     }
     updateClockAndDate();
     setInterval(updateClockAndDate, 1000);
-
     let watchId = null;
     let current_office = null;
     let staff_cache = new Map();
-    let videoEl, faceModal, captureStatus;
-    let faceMesh, camera;
-
-    // MediaPipe Face Mesh constants
-    const LEFT_EYE = [33, 160, 158, 133, 153, 144];
-    const RIGHT_EYE = [362, 385, 387, 263, 373, 380];
-    const EAR_THRESHOLD = 0.27;
-    const REQUIRED_BLINKS = 2;
-    const YAW_THRESHOLD = 15; // degrees
-
-    let blinkCount = 0;
-    let headMoved = false;
-    let prevYaw = 0;
-    let livenessPassed = false;
-    let processingFrame = false;
-
+    let videoEl, canvasEl, faceModal, captureStatus;
+    let countdown = 0;
+    let countdownInterval = null;
+    let locations = [];
     const toRad = v => v * Math.PI / 180;
     const getDistanceKm = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
@@ -538,62 +534,6 @@
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
-
-    // Eye Aspect Ratio calculation
-    function computeEAR(eye) {
-      const vertical1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-      const vertical2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-      const horizontal = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-      return (vertical1 + vertical2) / (2 * horizontal);
-    }
-
-    // Simple head yaw estimation using nose to face center
-    function estimateYaw(landmarks) {
-      const nose = landmarks[1]; // nose tip
-      const left = landmarks[234];
-      const right = landmarks[454];
-      const faceCenterX = (left.x + right.x) / 2;
-      return (nose.x - faceCenterX) * 300; // approximate degrees (scaled)
-    }
-
-    async function onResults(results) {
-      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-
-      const landmarks = results.multiFaceLandmarks[0];
-
-      // Extract eye points
-      const leftEyePts = LEFT_EYE.map(i => landmarks[i]);
-      const rightEyePts = RIGHT_EYE.map(i => landmarks[i]);
-      const ear = (computeEAR(leftEyePts) + computeEAR(rightEyePts)) / 2;
-
-      // Blink detection
-      if (ear < EAR_THRESHOLD) {
-        if (!processingFrame) {
-          processingFrame = true;
-          blinkCount++;
-          processingFrame = false;
-        }
-      }
-
-      // Head movement detection
-      const yaw = estimateYaw(landmarks);
-      if (Math.abs(yaw - prevYaw) > YAW_THRESHOLD) {
-        headMoved = true;
-      }
-      prevYaw = yaw;
-
-      // Check liveness
-      if (blinkCount >= REQUIRED_BLINKS && headMoved) {
-        livenessPassed = true;
-        captureStatus.textContent = 'Liveness passed! Capturing...';
-        await new Promise(r => setTimeout(r, 800)); // small delay
-        await captureAndVerifyCurrentFrame();
-        faceMesh.send({image: videoEl}); // stop further processing
-      } else {
-        captureStatus.textContent = `Blinks: ${blinkCount}/${REQUIRED_BLINKS} | Head move: ${headMoved ? 'Yes' : 'No'}`;
-      }
-    }
-
     const getStaffByUserId = async (userId) => {
       if (staff_cache.has(userId)) return staff_cache.get(userId);
       try {
@@ -614,7 +554,6 @@
       }
       return null;
     };
-
     const fetchLocations = async () => {
       try {
         const res = await fetch('/api/locations');
@@ -632,96 +571,117 @@
         return [];
       }
     };
-
     const startLocationWatch = () => {
-      // ... (unchanged code for location watch, validation, etc.)
-      // Keep the rest of your original startLocationWatch function here
-      // (GPS, user validation, button clicks calling handleClock)
-    };
-
-    const showFaceModal = async (staff, action) => {
-      faceModal = document.getElementById('faceModal');
-      videoEl = document.getElementById('video');
-      captureStatus = document.getElementById('captureStatus');
-      faceModal.classList.add('show');
-
-      blinkCount = 0;
-      headMoved = false;
-      livenessPassed = false;
-      prevYaw = 0;
-
-      captureStatus.textContent = 'Starting camera...';
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      videoEl.srcObject = stream;
-
-      faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      const statusEl = document.getElementById('status');
+      const gpsEl = document.getElementById('gpsCoords');
+      const userIdInput = document.getElementById('userId');
+      const userIdStatus = document.getElementById('userIdStatus');
+      const clockInBtn = document.getElementById('clockIn');
+      const clockOutBtn = document.getElementById('clockOut');
+      userIdStatus.className = 'placeholder';
+      userIdStatus.textContent = 'Enter User ID to validate';
+      userIdInput.value = '';
+      userIdInput.disabled = true;
+      clockInBtn.disabled = clockOutBtn.disabled = true;
+      let lastValidatedId = '';
+      const validateUser = async () => {
+        const userId = userIdInput.value.trim();
+        if (!userId) return;
+        if (userId === lastValidatedId) return;
+        lastValidatedId = userId;
+        userIdStatus.className = 'loading';
+        userIdStatus.textContent = 'Validating...';
+        const staff = await getStaffByUserId(userId);
+        if (userIdInput.value.trim() !== userId) return;
+        if (!staff) {
+          userIdStatus.className = 'invalid';
+          userIdStatus.textContent = `User ${userId} not found`;
+          clockInBtn.disabled = clockOutBtn.disabled = true;
+          return;
+        }
+        if (staff.active.toLowerCase() !== 'yes') {
+          userIdStatus.className = 'inactive';
+          userIdStatus.textContent = `User ${userId}: ${staff.name} - Inactive⛔`;
+          clockInBtn.disabled = clockOutBtn.disabled = true;
+          return;
+        }
+        const approved = current_office && staff.allowedLocations.includes(current_office.toLowerCase());
+        userIdStatus.className = approved ? 'valid' : 'invalid';
+        userIdStatus.textContent = `User ${userId}: ${staff.name} – ${approved ? 'Approved✅' : 'Denied❌'}`;
+        clockInBtn.disabled = clockOutBtn.disabled = !approved;
+      };
+      userIdInput.addEventListener('input', () => {
+        clearTimeout(window.validateTimeout);
+        const userId = userIdInput.value.trim();
+        if (!userId) {
+          userIdStatus.className = 'placeholder';
+          userIdStatus.textContent = 'Enter User ID to validate';
+          lastValidatedId = '';
+          clockInBtn.disabled = clockOutBtn.disabled = true;
+          return;
+        }
+        userIdStatus.className = 'loading';
+        userIdStatus.textContent = 'Validating...';
+        lastValidatedId = '';
+        window.validateTimeout = setTimeout(validateUser, 300);
       });
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+      fetchLocations().then(fetched => {
+        locations = fetched;
+        if (!locations.length) {
+          statusEl.textContent = 'No locations configured.';
+          return;
+        }
+        if (!navigator.geolocation) {
+          showPopup('GPS Error', 'Geolocation not supported.', false);
+          return;
+        }
+        watchId = navigator.geolocation.watchPosition(
+          pos => {
+            const { latitude, longitude } = pos.coords;
+            statusEl.dataset.lat = latitude;
+            statusEl.dataset.long = longitude;
+            gpsEl.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+            current_office = null;
+            for (const loc of locations) {
+              const dist = getDistanceKm(latitude, longitude, loc.lat, loc.long);
+              if (dist <= loc.radiusMeters / 1000) {
+                current_office = loc.name;
+                break;
+              }
+            }
+            statusEl.textContent = current_office ? `${current_office} 📍` : 'Outside Office Locations';
+            userIdInput.disabled = !current_office;
+            if (!current_office) {
+              userIdInput.value = '';
+              userIdStatus.className = 'placeholder';
+              userIdStatus.textContent = 'Enter User ID to validate';
+              clockInBtn.disabled = clockOutBtn.disabled = true;
+            } else if (userIdInput.value.trim()) {
+              validateUser();
+            }
+          },
+          err => {
+            console.error('GPS Error:', err);
+            statusEl.textContent = `GPS error: ${err.message}`;
+            gpsEl.textContent = 'GPS: Failed';
+          },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+        );
       });
-      faceMesh.onResults(onResults);
-
-      camera = new Camera(videoEl, {
-        onFrame: async () => {
-          await faceMesh.send({image: videoEl});
-        },
-        width: 280,
-        height: 210
-      });
-      camera.start();
+      clockInBtn.onclick = () => handleClock('clock in');
+      clockOutBtn.onclick = () => handleClock('clock out');
     };
-
-    const hideFaceModal = () => {
-      if (faceModal) faceModal.classList.remove('show');
-      if (camera) camera.stop();
-      stopVideo();
-    };
-
-    const stopVideo = () => {
-      if (videoEl?.srcObject) {
-        videoEl.srcObject.getTracks().forEach(t => t.stop());
-        videoEl.srcObject = null;
-      }
-    };
-
-    async function captureAndVerifyCurrentFrame() {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoEl.videoWidth;
-      canvas.height = videoEl.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-      const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
-
-      hideFaceModal();
-      showLoader('Verifying face recognition...');
-
-      const staff = await getStaffByUserId(document.getElementById('userId').value.trim());
-      const result = await validateFaceWithSubject(base64, staff.name);
-
-      hideLoader();
-
-      if (!result.ok) {
-        showPopup('Face Verification Failed', result.error || 'Not recognized', false);
-        return;
-      }
-
-      if (!soundPlayed) {
-        successSound.play().catch(() => {});
-        soundPlayed = true;
-      }
-
-      showPopup('Success', `Face verified! Recording ${action}...`, true);
-      await submitAttendance(action, staff);
-      setTimeout(() => soundPlayed = false, 3000);
-    }
-
+    const adminPopup = document.getElementById('adminPopup');
+    const adminCloseBtn = document.getElementById('adminCloseBtn');
+    document.getElementById('adminDashboard')?.addEventListener('click', () => {
+      adminPopup.classList.add('show');
+    });
+    adminCloseBtn?.addEventListener('click', () => {
+      adminPopup.classList.remove('show');
+    });
+    adminPopup?.addEventListener('click', (e) => {
+      if (e.target === adminPopup) adminPopup.classList.remove('show');
+    });
     const validateFaceWithSubject = async (base64, subjectName) => {
       try {
         const res = await fetch('/api/proxy/face-recognition', {
@@ -740,9 +700,308 @@
         return { ok: false, error: 'Face service error' };
       }
     };
+    // Liveness Detection Variables
+    let faceMesh;
+    let blinkCount = 0;
+    let requiredBlinks = 1; // Require at least 1 blink
+    let headNodDetected = false;
+    let initialHeadY = null;
+    let headMovementThreshold = 20; // Pixels
+    let livenessTimeout;
+    let livenessPassed = false;
+    let prevLeftEyeOpen = true;
+    let prevRightEyeOpen = true;
+    let initialLandmarks = null;
+    const eyeAspectRatioThreshold = 0.25; // EAR threshold for blink
+    const livenessCheckDuration = 15000; // 15 seconds timeout for liveness
 
-    // Keep your existing submitAttendance, showPopup, showLoader, hideLoader, handleClock, admin login, etc.
+    const calculateEAR = (eyePoints) => {
+      const p2_p6 = distance(eyePoints[1], eyePoints[5]);
+      const p3_p5 = distance(eyePoints[2], eyePoints[4]);
+      const p1_p4 = distance(eyePoints[0], eyePoints[3]);
+      return (p2_p6 + p3_p5) / (2.0 * p1_p4);
+    };
 
+    const distance = (point1, point2) => {
+      return Math.sqrt(
+        Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2)
+      );
+    };
+
+    const getEyePoints = (landmarks, side) => {
+      const indices = side === 'left' ? [33, 160, 158, 133, 153, 144] : [263, 387, 385, 362, 380, 373];
+      return indices.map(i => landmarks[i]);
+    };
+
+    const detectBlink = (landmarks) => {
+      const leftEye = getEyePoints(landmarks, 'left');
+      const rightEye = getEyePoints(landmarks, 'right');
+      const leftEAR = calculateEAR(leftEye);
+      const rightEAR = calculateEAR(rightEye);
+      const avgEAR = (leftEAR + rightEAR) / 2;
+
+      const isBlinking = avgEAR < eyeAspectRatioThreshold;
+      if (isBlinking && (prevLeftEyeOpen || prevRightEyeOpen)) {
+        blinkCount++;
+        console.log(`Blink detected! Total blinks: ${blinkCount}`);
+      }
+      prevLeftEyeOpen = leftEAR >= eyeAspectRatioThreshold;
+      prevRightEyeOpen = rightEAR >= eyeAspectRatioThreshold;
+
+      return blinkCount >= requiredBlinks;
+    };
+
+    const detectHeadNod = (landmarks) => {
+      const chin = landmarks[152].y * canvasEl.height; // Chin landmark
+      if (initialHeadY === null) {
+        initialHeadY = chin;
+        return false;
+      }
+      const deltaY = Math.abs(chin - initialHeadY);
+      if (deltaY > headMovementThreshold) {
+        headNodDetected = true;
+        console.log('Head nod detected!');
+      }
+      return headNodDetected;
+    };
+
+    const onResults = (results) => {
+      const videoWidth = videoEl.videoWidth;
+      const videoHeight = videoEl.videoHeight;
+      canvasEl.width = videoWidth;
+      canvasEl.height = videoHeight;
+      const ctx = canvasEl.getContext('2d');
+      ctx.save();
+      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      ctx.translate(canvasEl.width, 0);
+      ctx.scale(-1, 1);
+
+      if (results.multiFaceLandmarks) {
+        for (const landmarks of results.multiFaceLandmarks) {
+          drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+          drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030'});
+          drawConnectors(ctx, landmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030'});
+          drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYE, {color: '#30FF30'});
+          drawConnectors(ctx, landmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30'});
+          drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0'});
+          drawConnectors(ctx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0'});
+
+          const blinked = detectBlink(landmarks);
+          const nodded = detectHeadNod(landmarks);
+
+          if (blinked || nodded) {
+            livenessPassed = true;
+            captureStatus.textContent = 'Liveness verified! Capturing...';
+            clearTimeout(livenessTimeout);
+            captureAndVerify(staffGlobal, actionGlobal); // Proceed to capture
+            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+            faceMesh.onResults(() => {}); // Stop processing after liveness pass
+          } else {
+            captureStatus.textContent = 'Blink or nod to verify...';
+          }
+        }
+      } else {
+        captureStatus.textContent = 'No face detected. Position properly.';
+      }
+      ctx.restore();
+    };
+
+    const showFaceModal = async (staff, action) => {
+      staffGlobal = staff;
+      actionGlobal = action;
+      faceModal = document.getElementById('faceModal');
+      videoEl = document.getElementById('video');
+      canvasEl = document.getElementById('canvas');
+      captureStatus = document.getElementById('captureStatus');
+      faceModal.classList.add('show');
+      if (!await startVideo()) {
+        hideFaceModal();
+        return;
+      }
+
+      // Reset liveness variables
+      blinkCount = 0;
+      headNodDetected = false;
+      initialHeadY = null;
+      livenessPassed = false;
+      prevLeftEyeOpen = true;
+      prevRightEyeOpen = true;
+
+      faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      faceMesh.onResults(onResults);
+
+      const camera = new Camera(videoEl, {
+        onFrame: async () => {
+          await faceMesh.send({image: videoEl});
+        },
+        width: 280,
+        height: 210
+      });
+      camera.start();
+
+      captureStatus.textContent = 'Detecting liveness... Blink or nod.';
+      livenessTimeout = setTimeout(() => {
+        if (!livenessPassed) {
+          hideFaceModal();
+          showPopup('Liveness Failed', 'No liveness detected. Try again.', false);
+        }
+      }, livenessCheckDuration);
+    };
+    let staffGlobal, actionGlobal;
+    const hideFaceModal = () => {
+      if (faceModal) faceModal.classList.remove('show');
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (livenessTimeout) clearTimeout(livenessTimeout);
+      stopVideo();
+      if (faceMesh) faceMesh.close();
+    };
+    const startVideo = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        return true;
+      } catch (err) {
+        showPopup('Camera Error', `Access denied: ${err.message}`, false);
+        return false;
+      }
+    };
+    const stopVideo = () => {
+      if (videoEl?.srcObject) {
+        videoEl.srcObject.getTracks().forEach(t => t.stop());
+        videoEl.srcObject = null;
+      }
+    };
+    const captureAndVerify = async (staff, action) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+      hideFaceModal();
+      showLoader(`Verifying face for ${staff.name}...`);
+      const result = await validateFaceWithSubject(base64, staff.name);
+      hideLoader();
+      if (!result.ok) {
+        showPopup('Face Verification Failed', result.error, false);
+        return;
+      }
+      // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
+      if (!soundPlayed) {
+        successSound.play().catch(() => {});
+        soundPlayed = true;
+      }
+      showPopup('Success', `Face verified! Recording ${action}...`, true);
+      await submitAttendance(action, staff);
+    };
+    const submitAttendance = async (action, staff) => {
+      const statusEl = document.getElementById('status');
+      const lat = Number(statusEl.dataset.lat);
+      const long = Number(statusEl.dataset.long);
+      try {
+        const res = await fetch('/api/attendance/web', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            subjectName: staff.name,
+            userId: document.getElementById('userId').value.trim(),
+            latitude: lat,
+            longitude: long,
+            timestamp: new Date().toISOString()
+          })
+        });
+        const data = await res.json();
+        showPopup(
+          data.success ? 'Success' : 'Error',
+          data.success
+            ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
+            : data.message || 'Attendance failed.',
+          data.success
+        );
+        // Allow sound again after 3 seconds
+        setTimeout(() => soundPlayed = false, 3000);
+      } catch (err) {
+        showPopup('Error', `Connection failed: ${err.message}`, false);
+      }
+    };
+    const showPopup = (title, message, success = null) => {
+      const popup = document.getElementById('popup');
+      const header = document.getElementById('popupHeader');
+      const msg = document.getElementById('popupMessage');
+      header.textContent = title;
+      header.className = success === true ? 'popup-header success' : success === false ? 'popup-header error' : 'popup-header';
+      msg.innerHTML = message;
+      popup.classList.add('show');
+      // ERROR SOUND ONLY ON FAILURE
+      if (success === false) {
+        errorSound.play().catch(() => {});
+      }
+      setTimeout(() => popup.classList.remove('show'), 10000);
+      document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
+    };
+    const showLoader = (text) => {
+      const loader = document.getElementById('loaderOverlay');
+      loader.querySelector('p').textContent = text;
+      loader.style.display = 'flex';
+    };
+    const hideLoader = () => {
+      document.getElementById('loaderOverlay').style.display = 'none';
+    };
+    const handleClock = async (action) => {
+      const userId = document.getElementById('userId').value.trim();
+      if (!userId) return showPopup('Error', 'Enter User ID.', false);
+      const staff = await getStaffByUserId(userId);
+      if (!staff || staff.active.toLowerCase() !== 'yes') {
+        return showPopup('Error', 'User not active.', false);
+      }
+      const statusEl = document.getElementById('status');
+      if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+      if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+      if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
+        return showPopup('Error', `Not allowed at ${current_office}.`, false);
+      }
+      showFaceModal(staff, action);
+    };
+    document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
+      const email = document.getElementById('adminEmail')?.value.trim();
+      const password = document.getElementById('adminPassword')?.value.trim();
+      const error = document.getElementById('adminError');
+      const btn = document.getElementById('adminLoginBtn');
+      if (!email || !password) {
+        error.textContent = 'Fill both fields.';
+        return;
+      }
+      btn.classList.add('loading');
+      btn.disabled = true;
+      error.textContent = '';
+      try {
+        const res = await fetch('/api/admin-logins');
+        const data = await res.json();
+        if (data.success && data.logins.some(r => r[0] === email && r[1] === password)) {
+          localStorage.setItem('isLoggedIn', 'true');
+          window.location.href = 'stats.html';
+        } else {
+          error.textContent = 'Invalid credentials.';
+        }
+      } catch {
+        error.textContent = 'Login failed.';
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    });
     document.addEventListener('DOMContentLoaded', startLocationWatch);
     window.onunload = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
