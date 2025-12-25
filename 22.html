@@ -522,8 +522,6 @@
     let current_office = null;
     let staff_cache = new Map();
     let videoEl, canvasEl, faceModal, captureStatus;
-    let countdown = 0;
-    let countdownInterval = null;
     let locations = [];
     const toRad = v => v * Math.PI / 180;
     const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -713,7 +711,7 @@
     let prevRightEyeOpen = true;
     let initialLandmarks = null;
     const eyeAspectRatioThreshold = 0.2; // Lowered to 0.2 for better blink detection
-    const livenessCheckDuration = 20000; // Increased to 20 seconds
+    const livenessCheckDuration = 10000; // Reduced to 10 seconds for faster process
 
     const calculateEAR = (eyePoints) => {
       const p2_p6 = distance(eyePoints[1], eyePoints[5]);
@@ -775,8 +773,6 @@
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
       ctx.translate(canvasEl.width, 0);
       ctx.scale(-1, 1);
-
-      // Removed all drawConnectors calls to hide the mesh
 
       if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
@@ -852,7 +848,6 @@
     let staffGlobal, actionGlobal;
     const hideFaceModal = () => {
       if (faceModal) faceModal.classList.remove('show');
-      if (countdownInterval) clearInterval(countdownInterval);
       if (livenessTimeout) clearTimeout(livenessTimeout);
       stopVideo();
       if (faceMesh) faceMesh.close();
@@ -864,7 +859,7 @@
         await videoEl.play();
         return true;
       } catch (err) {
-        showPopup('Camera Error', `Access denied: ${err.message}`, false);
+        showPopup('Camera Error', `Camera access denied or unavailable: ${err.message}. Please grant permission and try again.`, false);
         return false;
       }
     };
@@ -888,7 +883,7 @@
       const result = await validateFaceWithSubject(base64, staff.name);
       hideLoader();
       if (!result.ok) {
-        showPopup('Face Verification Failed', result.error, false);
+        showPopup('Face Verification Failed', `${result.error}. Please try again with better lighting or positioning.`, false);
         return;
       }
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
@@ -896,7 +891,7 @@
         successSound.play().catch(() => {});
         soundPlayed = true;
       }
-      showPopup('Success', `Face verified! Recording ${action}...`, true);
+      showPopup('Success', `Face verified successfully! Recording ${action}...`, true);
       await submitAttendance(action, staff);
     };
     const submitAttendance = async (action, staff) => {
@@ -920,14 +915,14 @@
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
-            ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
-            : data.message || 'Attendance failed.',
+            ? `Dear ${staff.name}, you have successfully ${action === 'clock in' ? 'clocked in' : 'clocked out'} at ${current_office}.`
+            : data.message || 'Attendance submission failed. Please try again.',
           data.success
         );
         // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
       } catch (err) {
-        showPopup('Error', `Connection failed: ${err.message}`, false);
+        showPopup('Submission Error', `Failed to submit attendance: ${err.message}. Check your connection and try again.`, false);
       }
     };
     const showPopup = (title, message, success = null) => {
@@ -942,7 +937,7 @@
       if (success === false) {
         errorSound.play().catch(() => {});
       }
-      setTimeout(() => popup.classList.remove('show'), 10000);
+      setTimeout(() => popup.classList.remove('show'), 5000); // Reduced timeout for faster UX
       document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
     };
     const showLoader = (text) => {
@@ -955,16 +950,16 @@
     };
     const handleClock = async (action) => {
       const userId = document.getElementById('userId').value.trim();
-      if (!userId) return showPopup('Error', 'Enter User ID.', false);
+      if (!userId) return showPopup('Input Error', 'Please enter a valid User ID.', false);
       const staff = await getStaffByUserId(userId);
       if (!staff || staff.active.toLowerCase() !== 'yes') {
-        return showPopup('Error', 'User not active.', false);
+        return showPopup('User Error', 'User not found or inactive. Contact admin.', false);
       }
       const statusEl = document.getElementById('status');
-      if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
-      if (!current_office) return showPopup('Error', 'Not in approved area.', false);
+      if (!statusEl.dataset.lat) return showPopup('GPS Error', 'Unable to get GPS location. Try again.', false);
+      if (!current_office) return showPopup('Location Error', 'You are not in an approved office area.', false);
       if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
-        return showPopup('Error', `Not allowed at ${current_office}.`, false);
+        return showPopup('Access Denied', `You are not authorized at ${current_office}.`, false);
       }
       showFaceModal(staff, action);
     };
@@ -974,7 +969,7 @@
       const error = document.getElementById('adminError');
       const btn = document.getElementById('adminLoginBtn');
       if (!email || !password) {
-        error.textContent = 'Fill both fields.';
+        error.textContent = 'Please fill both email and password fields.';
         return;
       }
       btn.classList.add('loading');
@@ -987,10 +982,10 @@
           localStorage.setItem('isLoggedIn', 'true');
           window.location.href = 'stats.html';
         } else {
-          error.textContent = 'Invalid credentials.';
+          error.textContent = 'Invalid email or password.';
         }
       } catch {
-        error.textContent = 'Login failed.';
+        error.textContent = 'Login failed. Check connection.';
       } finally {
         btn.classList.remove('loading');
         btn.disabled = false;
