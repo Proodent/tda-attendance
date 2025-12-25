@@ -271,6 +271,7 @@
       width: 100%;
       height: 100%;
       transform: scaleX(-1);
+      display: none; /* Hide canvas as no drawing needed */
     }
     /* === Loader === */
     #loaderOverlay {
@@ -523,6 +524,7 @@
     let staff_cache = new Map();
     let videoEl, canvasEl, faceModal, captureStatus;
     let locations = [];
+    let currentStream = null; // Global to track stream for cleanup
     const toRad = v => v * Math.PI / 180;
     const getDistanceKm = (lat1, lon1, lat2, lon2) => {
       const R = 6371;
@@ -704,14 +706,13 @@
     let requiredBlinks = 1; // Require at least 1 blink
     let headNodDetected = false;
     let initialHeadY = null;
-    let headMovementThreshold = 15; // Lowered to 15 pixels for sensitivity
+    let headMovementThreshold = 15; // Pixels for sensitivity
     let livenessTimeout;
     let livenessPassed = false;
     let prevLeftEyeOpen = true;
     let prevRightEyeOpen = true;
-    let initialLandmarks = null;
-    const eyeAspectRatioThreshold = 0.2; // Lowered to 0.2 for better blink detection
-    const livenessCheckDuration = 10000; // Reduced to 10 seconds for faster process
+    const eyeAspectRatioThreshold = 0.2; // For better blink detection
+    const livenessCheckDuration = 10000; // 10s for faster UX
 
     const calculateEAR = (eyePoints) => {
       const p2_p6 = distance(eyePoints[1], eyePoints[5]);
@@ -784,7 +785,7 @@
             captureStatus.textContent = 'Liveness verified! Capturing...';
             clearTimeout(livenessTimeout);
             captureAndVerify(staffGlobal, actionGlobal); // Proceed to capture
-            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.4, minTrackingConfidence: 0.5});
             faceMesh.onResults(() => {}); // Stop processing after liveness pass
           } else {
             captureStatus.textContent = 'Blink or nod to verify...';
@@ -823,7 +824,7 @@
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.5,
+        minDetectionConfidence: 0.4, // Lower for faster detection
         minTrackingConfidence: 0.5
       });
       faceMesh.onResults(onResults);
@@ -832,8 +833,8 @@
         onFrame: async () => {
           await faceMesh.send({image: videoEl});
         },
-        width: 280,
-        height: 210
+        width: 240, // Smaller for faster mobile perf
+        height: 180
       });
       camera.start();
 
@@ -853,17 +854,30 @@
       if (faceMesh) faceMesh.close();
     };
     const startVideo = async () => {
+      // Cleanup any existing stream first
+      stopVideo();
       try {
+        // Small delay for mobile to release resources
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        currentStream = stream;
         videoEl.srcObject = stream;
         await videoEl.play();
         return true;
       } catch (err) {
-        showPopup('Camera Error', `Camera access denied or unavailable: ${err.message}. Please grant permission and try again.`, false);
+        let message = `Camera access failed: ${err.message}. Please grant permission and try again.`;
+        if (err.name === 'NotReadableError') {
+          message = `Camera unavailable (NotReadableError): Could not start video source. Close other apps using the camera, restart your browser, or check permissions and retry.`;
+        }
+        showPopup('Camera Error', message, false);
         return false;
       }
     };
     const stopVideo = () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      }
       if (videoEl?.srcObject) {
         videoEl.srcObject.getTracks().forEach(t => t.stop());
         videoEl.srcObject = null;
@@ -883,7 +897,7 @@
       const result = await validateFaceWithSubject(base64, staff.name);
       hideLoader();
       if (!result.ok) {
-        showPopup('Face Verification Failed', `${result.error}. Please try again with better lighting or positioning.`, false);
+        showPopup('Face Verification Failed', result.error, false);
         return;
       }
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
@@ -891,7 +905,7 @@
         successSound.play().catch(() => {});
         soundPlayed = true;
       }
-      showPopup('Success', `Face verified successfully! Recording ${action}...`, true);
+      showPopup('Success', `Face verified! Recording ${action}...`, true);
       await submitAttendance(action, staff);
     };
     const submitAttendance = async (action, staff) => {
@@ -915,14 +929,14 @@
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
-            ? `Dear ${staff.name}, you have successfully ${action === 'clock in' ? 'clocked in' : 'clocked out'} at ${current_office}.`
-            : data.message || 'Attendance submission failed. Please try again.',
+            ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
+            : data.message || 'Attendance failed.',
           data.success
         );
         // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
       } catch (err) {
-        showPopup('Submission Error', `Failed to submit attendance: ${err.message}. Check your connection and try again.`, false);
+        showPopup('Error', `Connection failed: ${err.message}`, false);
       }
     };
     const showPopup = (title, message, success = null) => {
@@ -937,7 +951,7 @@
       if (success === false) {
         errorSound.play().catch(() => {});
       }
-      setTimeout(() => popup.classList.remove('show'), 5000); // Reduced timeout for faster UX
+      setTimeout(() => popup.classList.remove('show'), 10000);
       document.getElementById('popupCloseBtn').onclick = () => popup.classList.remove('show');
     };
     const showLoader = (text) => {
@@ -950,16 +964,16 @@
     };
     const handleClock = async (action) => {
       const userId = document.getElementById('userId').value.trim();
-      if (!userId) return showPopup('Input Error', 'Please enter a valid User ID.', false);
+      if (!userId) return showPopup('Error', 'Enter User ID.', false);
       const staff = await getStaffByUserId(userId);
       if (!staff || staff.active.toLowerCase() !== 'yes') {
-        return showPopup('User Error', 'User not found or inactive. Contact admin.', false);
+        return showPopup('Error', 'User not active.', false);
       }
       const statusEl = document.getElementById('status');
-      if (!statusEl.dataset.lat) return showPopup('GPS Error', 'Unable to get GPS location. Try again.', false);
-      if (!current_office) return showPopup('Location Error', 'You are not in an approved office area.', false);
+      if (!statusEl.dataset.lat) return showPopup('Error', 'No GPS data.', false);
+      if (!current_office) return showPopup('Error', 'Not in approved area.', false);
       if (!staff.allowedLocations.includes(current_office.toLowerCase())) {
-        return showPopup('Access Denied', `You are not authorized at ${current_office}.`, false);
+        return showPopup('Error', `Not allowed at ${current_office}.`, false);
       }
       showFaceModal(staff, action);
     };
@@ -969,7 +983,7 @@
       const error = document.getElementById('adminError');
       const btn = document.getElementById('adminLoginBtn');
       if (!email || !password) {
-        error.textContent = 'Please fill both email and password fields.';
+        error.textContent = 'Fill both fields.';
         return;
       }
       btn.classList.add('loading');
@@ -982,10 +996,10 @@
           localStorage.setItem('isLoggedIn', 'true');
           window.location.href = 'stats.html';
         } else {
-          error.textContent = 'Invalid email or password.';
+          error.textContent = 'Invalid credentials.';
         }
       } catch {
-        error.textContent = 'Login failed. Check connection.';
+        error.textContent = 'Login failed.';
       } finally {
         btn.classList.remove('loading');
         btn.disabled = false;
