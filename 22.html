@@ -523,6 +523,7 @@
     let current_office = null;
     let staff_cache = new Map();
     let videoEl, canvasEl, faceModal, captureStatus;
+    let countdownInterval = null;
     let locations = [];
     let currentStream = null; // Global to track stream for cleanup
     const toRad = v => v * Math.PI / 180;
@@ -706,13 +707,14 @@
     let requiredBlinks = 1; // Require at least 1 blink
     let headNodDetected = false;
     let initialHeadY = null;
-    let headMovementThreshold = 15; // Pixels for sensitivity
+    let headMovementThreshold = 10; // Lowered for easier detection
     let livenessTimeout;
     let livenessPassed = false;
     let prevLeftEyeOpen = true;
     let prevRightEyeOpen = true;
-    const eyeAspectRatioThreshold = 0.2; // For better blink detection
-    const livenessCheckDuration = 10000; // 10s for faster UX
+    let countdown = 2;
+    const eyeAspectRatioThreshold = 0.25; // Increased for easier blink detection
+    const livenessCheckDuration = 5000; // Reduced to 5 seconds for faster process
 
     const calculateEAR = (eyePoints) => {
       const p2_p6 = distance(eyePoints[1], eyePoints[5]);
@@ -784,8 +786,9 @@
             livenessPassed = true;
             captureStatus.textContent = 'Liveness verified! Capturing...';
             clearTimeout(livenessTimeout);
+            if (countdownInterval) clearInterval(countdownInterval);
             captureAndVerify(staffGlobal, actionGlobal); // Proceed to capture
-            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.4, minTrackingConfidence: 0.5});
+            faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.3, minTrackingConfidence: 0.4});
             faceMesh.onResults(() => {}); // Stop processing after liveness pass
           } else {
             captureStatus.textContent = 'Blink or nod to verify...';
@@ -817,6 +820,7 @@
       livenessPassed = false;
       prevLeftEyeOpen = true;
       prevRightEyeOpen = true;
+      countdown = 2;
 
       faceMesh = new FaceMesh({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
@@ -824,8 +828,8 @@
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.4, // Lower for faster detection
-        minTrackingConfidence: 0.5
+        minDetectionConfidence: 0.3, // Lowered for faster/easier detection
+        minTrackingConfidence: 0.4 // Lowered for faster/easier tracking
       });
       faceMesh.onResults(onResults);
 
@@ -833,7 +837,7 @@
         onFrame: async () => {
           await faceMesh.send({image: videoEl});
         },
-        width: 240, // Smaller for faster mobile perf
+        width: 240,
         height: 180
       });
       camera.start();
@@ -845,11 +849,26 @@
           showPopup('Liveness Failed', 'No liveness detected. Try again.', false);
         }
       }, livenessCheckDuration);
+
+      // Start 2-second countdown once face is detected (in onResults, but for simplicity, start here and update)
+      countdownInterval = setInterval(() => {
+        if (livenessPassed) return;
+        captureStatus.textContent = `Capturing in ${countdown}... Blink or nod.`;
+        countdown--;
+        if (countdown < 0) {
+          clearInterval(countdownInterval);
+          if (!livenessPassed) {
+            hideFaceModal();
+            showPopup('Timeout', 'No liveness detected in time. Try again.', false);
+          }
+        }
+      }, 1000);
     };
     let staffGlobal, actionGlobal;
     const hideFaceModal = () => {
       if (faceModal) faceModal.classList.remove('show');
       if (livenessTimeout) clearTimeout(livenessTimeout);
+      if (countdownInterval) clearInterval(countdownInterval);
       stopVideo();
       if (faceMesh) faceMesh.close();
     };
