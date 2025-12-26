@@ -718,15 +718,15 @@
     let requiredBlinks = 1; // Require at least 1 blink
     let headNodDetected = false;
     let initialHeadY = null;
-    let headMovementThreshold = 12; // Lowered for sensitivity
+    let headMovementThreshold = 10; // Adjusted for more accuracy
     let livenessTimeout;
     let livenessPassed = false;
     let prevLeftEyeOpen = true;
     let prevRightEyeOpen = true;
     let warmupFrames = 0;
-    const WARMUP_PERIOD = 30; // ~1 second at 30fps
-    const eyeAspectRatioThreshold = 0.18; // Adjusted for better blink detection
-    const livenessCheckDuration = 12000; // 12 seconds
+    const WARMUP_PERIOD = 15; // Shorter warm-up for faster start
+    const eyeAspectRatioThreshold = 0.15; // Adjusted for better accuracy
+    const livenessCheckDuration = 2000; // 2 seconds
 
     const calculateEAR = (eyePoints) => {
       const p2_p6 = distance(eyePoints[1], eyePoints[5]);
@@ -800,7 +800,8 @@
 
           if (blinked || nodded) {
             livenessPassed = true;
-            captureStatus.textContent = 'Liveness verified! Capturing...';
+            captureStatus.textContent = 'Liveness test passed✅ Capturing...';
+            showPopup('Liveness Success', 'Liveness test passed✅', true);
             clearTimeout(livenessTimeout);
             captureAndVerify(staffGlobal, actionGlobal);
             faceMesh.onResults(() => {});
@@ -842,8 +843,8 @@
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+        minDetectionConfidence: 0.6, // Increased for accuracy
+        minTrackingConfidence: 0.6 // Increased for accuracy
       });
       faceMesh.onResults(onResults);
 
@@ -859,8 +860,8 @@
       captureStatus.textContent = 'Detecting liveness... Blink or nod.';
       livenessTimeout = setTimeout(() => {
         if (!livenessPassed) {
+          showPopup('Liveness Failed', 'Liveness test failed❌', false);
           hideFaceModal();
-          showPopup('Liveness Failed', 'No liveness detected. Try again.', false);
         }
       }, livenessCheckDuration);
     };
@@ -913,9 +914,10 @@
       const result = await validateFaceWithSubject(base64, staff.name);
       hideLoader();
       if (!result.ok) {
-        showPopup('Face Verification Failed', result.error, false);
+        showPopup('Face Verification Failed', `Face verification Failed❌ - ${result.error}`, false);
         return;
       }
+      showPopup('Face Verification Success', 'Face verification Passed✅', true);
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
