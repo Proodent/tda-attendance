@@ -525,17 +525,17 @@
       <div class="progress-container">
         <div class="progress-item">
           <div class="progress-step" id="step1"></div>
-          <span class="progress-label">Liveness Detection</span>
+          <span class="progress-label">Liveness<br>Detection</span>
         </div>
         <div class="progress-line" id="line1"></div>
         <div class="progress-item">
           <div class="progress-step" id="step2"></div>
-          <span class="progress-label">Face Verification</span>
+          <span class="progress-label">Face<br>Verification</span>
         </div>
         <div class="progress-line" id="line2"></div>
         <div class="progress-item">
           <div class="progress-step" id="step3"></div>
-          <span class="progress-label">Recording Attendance</span>
+          <span class="progress-label">Recording<br>Attendance</span>
         </div>
         <div class="progress-line" id="line3"></div>
         <div class="progress-item">
@@ -791,17 +791,17 @@
     // Liveness Detection Variables
     let faceMesh;
     let blinkCount = 0;
-    let requiredBlinks = 1; // Require at least 1 blink
+    let requiredBlinks = 2; // Increased to 2 for stricter detection
     let headNodDetected = false;
     let initialHeadY = null;
-    let headMovementThreshold = 10; // Adjusted for more accuracy
+    let headMovementThreshold = 15; // Increased for stricter movement detection
     let livenessTimeout;
     let livenessPassed = false;
     let prevLeftEyeOpen = true;
     let prevRightEyeOpen = true;
     let warmupFrames = 0;
     const WARMUP_PERIOD = 15; // Shorter warm-up for faster start
-    const eyeAspectRatioThreshold = 0.15; // Adjusted for better accuracy
+    const eyeAspectRatioThreshold = 0.12; // Lowered for stricter blink detection
     const livenessCheckDuration = 5000; // 5 seconds
 
     const calculateEAR = (eyePoints) => {
@@ -869,12 +869,12 @@
       ctx.translate(canvasEl.width, 0);
       ctx.scale(-1, 1);
 
-      if (results.multiFaceLandmarks) {
+      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length === 1) { // Ensure only one face
         for (const landmarks of results.multiFaceLandmarks) {
           const blinked = detectBlink(landmarks);
           const nodded = detectHeadNod(landmarks);
 
-          if (blinked || nodded) {
+          if (blinked && nodded) { // Require both for stricter anti-spoof
             livenessPassed = true;
             captureStatus.textContent = 'Liveness test passed✅ Capturing...';
             updateProgress(1, true);
@@ -882,11 +882,11 @@
             captureAndVerify(staffGlobal, actionGlobal);
             faceMesh.onResults(() => {});
           } else {
-            captureStatus.textContent = 'Blink or nod to verify...';
+            captureStatus.textContent = 'Blink and nod to verify...';
           }
         }
       } else {
-        captureStatus.textContent = 'No face detected. Position properly.';
+        captureStatus.textContent = 'No face or multiple faces detected. Position properly.';
       }
       ctx.restore();
     };
@@ -920,8 +920,8 @@
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.6, // Increased for accuracy
-        minTrackingConfidence: 0.6 // Increased for accuracy
+        minDetectionConfidence: 0.7, // Increased for stricter detection
+        minTrackingConfidence: 0.7 // Increased for stricter detection
       });
       faceMesh.onResults(onResults);
 
@@ -934,9 +934,10 @@
       });
       camera.start();
 
-      captureStatus.textContent = 'Detecting liveness... Blink or nod.';
+      captureStatus.textContent = 'Detecting liveness... Blink and nod.';
       livenessTimeout = setTimeout(() => {
         if (!livenessPassed) {
+          errorSound.play().catch(() => {});
           updateProgress(1, false);
           captureStatus.textContent = 'Liveness test failed❌';
           setTimeout(hideFaceModal, 2000);
@@ -991,6 +992,7 @@
       document.getElementById('verificationMessage').textContent = `Verifying face for ${staff.name}...`;
       const result = await validateFaceWithSubject(base64, staff.name);
       if (!result.ok) {
+        errorSound.play().catch(() => {});
         updateProgress(2, false);
         document.getElementById('verificationMessage').textContent = `Face verification Failed❌ - ${result.error}`;
         setTimeout(hideFaceModal, 2000);
@@ -1007,7 +1009,6 @@
     };
     const submitAttendance = async (action, staff) => {
       document.getElementById('verificationMessage').textContent = 'Recording attendance...';
-      updateProgress(3, true); // Assume start
       const statusEl = document.getElementById('status');
       const lat = Number(statusEl.dataset.lat);
       const long = Number(statusEl.dataset.long);
@@ -1026,6 +1027,8 @@
         });
         const data = await res.json();
         if (data.success) {
+          successSound.play().catch(() => {});
+          updateProgress(3, true);
           updateProgress(4, true);
           document.getElementById('verificationMessage').textContent = 'Completed';
           showPopup(
@@ -1034,6 +1037,7 @@
             true
           );
         } else {
+          errorSound.play().catch(() => {});
           updateProgress(3, false);
           updateProgress(4, false);
           document.getElementById('verificationMessage').textContent = 'Attendance failed.';
@@ -1042,6 +1046,7 @@
         setTimeout(() => soundPlayed = false, 3000);
         setTimeout(hideFaceModal, 2000);
       } catch (err) {
+        errorSound.play().catch(() => {});
         updateProgress(3, false);
         updateProgress(4, false);
         document.getElementById('verificationMessage').textContent = `Connection failed: ${err.message}`;
