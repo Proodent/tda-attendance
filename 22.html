@@ -1041,6 +1041,11 @@
           updateProgress(3, false);
           updateProgress(4, false);
           document.getElementById('verificationMessage').textContent = 'Attendance failed.';
+          showPopup(
+            'Error',
+            `Dear ${staff.name}, attendance failed: ${data.message || 'Unknown error'}.`,
+            false
+          );
         }
         // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
@@ -1049,7 +1054,12 @@
         errorSound.play().catch(() => {});
         updateProgress(3, false);
         updateProgress(4, false);
-        document.getElementById('verificationMessage').textContent = `Connection failed: ${err.message}`;
+        document.getElementById('verificationMessage').textContent = 'Connection failed: ${err.message}';
+        showPopup(
+          'Error',
+          `Dear ${staff.name}, connection failed: ${err.message}.`,
+          false
+        );
         setTimeout(hideFaceModal, 2000);
       }
     };
@@ -1102,26 +1112,4 @@
         line.className = 'progress-line';
       }
       document.getElementById('videoContainer').style.display = 'block';
-      document.getElementById('verificationMessage').textContent = '';
-    }
-    function updateProgress(step, success) {
-      const stepEl = document.getElementById(`step${step}`);
-      const lineEl = document.getElementById(`line${step-1}`);
-      if (success) {
-        stepEl.className = 'progress-step success';
-        stepEl.innerHTML = '✓';
-        if (lineEl) lineEl.className = 'progress-line success';
-      } else {
-        stepEl.className = 'progress-step failed';
-        stepEl.innerHTML = '×';
-        if (lineEl) lineEl.className = 'progress-line failed';
-      }
-    }
-    document.addEventListener('DOMContentLoaded', startLocationWatch);
-    window.onunload = () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      stopVideo();
-    };
-  </script>
-</body>
-</html>
+      document.getElementById('
