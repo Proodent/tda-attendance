@@ -441,6 +441,52 @@
       z-index: 10;
       pointer-events: none;
     }
+    /* Progress Bar */
+    .progress-container {
+      margin: 20px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+
+    .progress-step {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ccc;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      position: relative;
+      z-index: 1;
+    }
+
+    .progress-step.active {
+      background: #009245;
+    }
+
+    .progress-step.success {
+      background: #4CAF50;
+    }
+
+    .progress-line {
+      height: 4px;
+      flex-grow: 1;
+      background: #ccc;
+      position: relative;
+      margin: 0 8px;
+    }
+
+    .progress-line.active {
+      background: #009245;
+    }
+
+    .progress-line.success {
+      background: #4CAF50;
+    }
   </style>
 </head>
 <body>
@@ -468,6 +514,15 @@
     <div class="popup-content">
       <div class="popup-header">Face Verification</div>
       <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame and blink or nod to verify liveness</p>
+      <div class="progress-container">
+        <div class="progress-step" id="step1">1</div>
+        <div class="progress-line" id="line1"></div>
+        <div class="progress-step" id="step2">2</div>
+        <div class="progress-line" id="line2"></div>
+        <div class="progress-step" id="step3">3</div>
+        <div class="progress-line" id="line3"></div>
+        <div class="progress-step" id="step4">4</div>
+      </div>
       <div class="video-container">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="canvas" class="output_canvas"></canvas>
@@ -726,7 +781,7 @@
     let warmupFrames = 0;
     const WARMUP_PERIOD = 15; // Shorter warm-up for faster start
     const eyeAspectRatioThreshold = 0.15; // Adjusted for better accuracy
-    const livenessCheckDuration = 6000; // Increased to 6 seconds
+    const livenessCheckDuration = 5000; // 5 seconds
 
     const calculateEAR = (eyePoints) => {
       const p2_p6 = distance(eyePoints[1], eyePoints[5]);
@@ -801,6 +856,7 @@
           if (blinked || nodded) {
             livenessPassed = true;
             captureStatus.textContent = 'Liveness test passed✅ Capturing...';
+            updateProgress(1);
             showPopup('Liveness Success', 'Liveness test passed✅', true);
             clearTimeout(livenessTimeout);
             captureAndVerify(staffGlobal, actionGlobal);
@@ -823,6 +879,7 @@
       canvasEl = document.getElementById('canvas');
       captureStatus = document.getElementById('captureStatus');
       faceModal.classList.add('show');
+      resetProgress();
       warmupFrames = 0;
       if (!await startVideo()) {
         hideFaceModal();
@@ -917,6 +974,7 @@
         showPopup('Face Verification Failed', `Face verification Failed❌ - ${result.error}`, false);
         return;
       }
+      updateProgress(2);
       showPopup('Face Verification Success', 'Face verification Passed✅', true);
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
@@ -944,6 +1002,10 @@
           })
         });
         const data = await res.json();
+        if (data.success) {
+          updateProgress(3);
+          updateProgress(4);
+        }
         showPopup(
           data.success ? 'Success' : 'Error',
           data.success
@@ -995,34 +1057,26 @@
       }
       showFaceModal(staff, action);
     };
-    document.getElementById('adminLoginBtn')?.addEventListener('click', async () => {
-      const email = document.getElementById('adminEmail')?.value.trim();
-      const password = document.getElementById('adminPassword')?.value.trim();
-      const error = document.getElementById('adminError');
-      const btn = document.getElementById('adminLoginBtn');
-      if (!email || !password) {
-        error.textContent = 'Fill both fields.';
-        return;
+    function resetProgress() {
+      for (let i = 1; i <= 4; i++) {
+        const step = document.getElementById(`step${i}`);
+        step.className = 'progress-step';
+        step.innerHTML = i;
       }
-      btn.classList.add('loading');
-      btn.disabled = true;
-      error.textContent = '';
-      try {
-        const res = await fetch('/api/admin-logins');
-        const data = await res.json();
-        if (data.success && data.logins.some(r => r[0] === email && r[1] === password)) {
-          localStorage.setItem('isLoggedIn', 'true');
-          window.location.href = 'stats.html';
-        } else {
-          error.textContent = 'Invalid credentials.';
-        }
-      } catch {
-        error.textContent = 'Login failed.';
-      } finally {
-        btn.classList.remove('loading');
-        btn.disabled = false;
+      for (let i = 1; i <= 3; i++) {
+        const line = document.getElementById(`line${i}`);
+        line.className = 'progress-line';
       }
-    });
+    }
+    function updateProgress(step) {
+      const stepEl = document.getElementById(`step${step}`);
+      stepEl.className = 'progress-step success';
+      stepEl.innerHTML = '✓';
+      if (step > 1) {
+        const lineEl = document.getElementById(`line${step-1}`);
+        lineEl.className = 'progress-line success';
+      }
+    }
     document.addEventListener('DOMContentLoaded', startLocationWatch);
     window.onunload = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
