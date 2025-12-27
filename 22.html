@@ -791,17 +791,17 @@
     // Liveness Detection Variables
     let faceMesh;
     let blinkCount = 0;
-    let requiredBlinks = 2; // Increased to 2 for stricter detection
+    let requiredBlinks = 1; // Reduced to 1
     let headNodDetected = false;
     let initialHeadY = null;
-    let headMovementThreshold = 15; // Increased for stricter movement detection
+    let headMovementThreshold = 10; // Reduced for easier nod detection
     let livenessTimeout;
     let livenessPassed = false;
     let prevLeftEyeOpen = true;
     let prevRightEyeOpen = true;
     let warmupFrames = 0;
     const WARMUP_PERIOD = 15; // Shorter warm-up for faster start
-    const eyeAspectRatioThreshold = 0.12; // Lowered for stricter blink detection
+    const eyeAspectRatioThreshold = 0.2; // Increased for less strict blink detection
     const livenessCheckDuration = 5000; // 5 seconds
 
     const calculateEAR = (eyePoints) => {
@@ -869,12 +869,12 @@
       ctx.translate(canvasEl.width, 0);
       ctx.scale(-1, 1);
 
-      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length === 1) { // Ensure only one face
+      if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
           const blinked = detectBlink(landmarks);
           const nodded = detectHeadNod(landmarks);
 
-          if (blinked && nodded) { // Require both for stricter anti-spoof
+          if (blinked || nodded) {
             livenessPassed = true;
             captureStatus.textContent = 'Liveness test passed✅ Capturing...';
             updateProgress(1, true);
@@ -882,11 +882,11 @@
             captureAndVerify(staffGlobal, actionGlobal);
             faceMesh.onResults(() => {});
           } else {
-            captureStatus.textContent = 'Blink and nod to verify...';
+            captureStatus.textContent = 'Blink or nod to verify...';
           }
         }
       } else {
-        captureStatus.textContent = 'No face or multiple faces detected. Position properly.';
+        captureStatus.textContent = 'No face detected. Position properly.';
       }
       ctx.restore();
     };
@@ -920,8 +920,8 @@
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.7, // Increased for stricter detection
-        minTrackingConfidence: 0.7 // Increased for stricter detection
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
       });
       faceMesh.onResults(onResults);
 
@@ -934,7 +934,7 @@
       });
       camera.start();
 
-      captureStatus.textContent = 'Detecting liveness... Blink and nod.';
+      captureStatus.textContent = 'Detecting liveness... Blink or nod.';
       livenessTimeout = setTimeout(() => {
         if (!livenessPassed) {
           errorSound.play().catch(() => {});
