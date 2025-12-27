@@ -445,14 +445,19 @@
     .progress-container {
       margin: 20px 0;
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
       width: 100%;
     }
-
+    .progress-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
     .progress-step {
-      width: 40px;
-      height: 40px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: #ccc;
       color: white;
@@ -463,29 +468,32 @@
       position: relative;
       z-index: 1;
     }
-
-    .progress-step.active {
-      background: #009245;
-    }
-
     .progress-step.success {
       background: #4CAF50;
     }
-
+    .progress-step.failed {
+      background: #F44336;
+    }
+    .progress-label {
+      margin-top: 5px;
+      font-size: 0.7em;
+      text-align: center;
+      color: #666;
+      white-space: nowrap;
+    }
     .progress-line {
       height: 4px;
       flex-grow: 1;
       background: #ccc;
       position: relative;
-      margin: 0 8px;
+      margin: 0 4px;
+      top: 15px; /* Align with steps */
     }
-
-    .progress-line.active {
-      background: #009245;
-    }
-
     .progress-line.success {
       background: #4CAF50;
+    }
+    .progress-line.failed {
+      background: #F44336;
     }
   </style>
 </head>
@@ -515,21 +523,34 @@
       <div class="popup-header">Face Verification</div>
       <p style="margin:12px 0 8px;font-weight:600;">Position your face in the frame and blink or nod to verify liveness</p>
       <div class="progress-container">
-        <div class="progress-step" id="step1">1</div>
+        <div class="progress-item">
+          <div class="progress-step" id="step1"></div>
+          <span class="progress-label">Liveness Detection</span>
+        </div>
         <div class="progress-line" id="line1"></div>
-        <div class="progress-step" id="step2">2</div>
+        <div class="progress-item">
+          <div class="progress-step" id="step2"></div>
+          <span class="progress-label">Face Verification</span>
+        </div>
         <div class="progress-line" id="line2"></div>
-        <div class="progress-step" id="step3">3</div>
+        <div class="progress-item">
+          <div class="progress-step" id="step3"></div>
+          <span class="progress-label">Recording Attendance</span>
+        </div>
         <div class="progress-line" id="line3"></div>
-        <div class="progress-step" id="step4">4</div>
+        <div class="progress-item">
+          <div class="progress-step" id="step4"></div>
+          <span class="progress-label">Completed</span>
+        </div>
       </div>
-      <div class="video-container">
+      <div class="video-container" id="videoContainer">
         <video id="video" autoplay muted playsinline></video>
         <canvas id="canvas" class="output_canvas"></canvas>
         <div class="face-guide"></div>
         <div class="video-loading" id="videoLoading">Starting camera...</div>
       </div>
       <div class="capture-status" id="captureStatus">Detecting face...</div>
+      <div id="verificationMessage" style="margin-top: 10px; color: #666;"></div>
     </div>
   </div>
   <div id="loaderOverlay">
@@ -856,8 +877,7 @@
           if (blinked || nodded) {
             livenessPassed = true;
             captureStatus.textContent = 'Liveness test passed✅ Capturing...';
-            updateProgress(1);
-            showPopup('Liveness Success', 'Liveness test passed✅', true);
+            updateProgress(1, true);
             clearTimeout(livenessTimeout);
             captureAndVerify(staffGlobal, actionGlobal);
             faceMesh.onResults(() => {});
@@ -917,8 +937,9 @@
       captureStatus.textContent = 'Detecting liveness... Blink or nod.';
       livenessTimeout = setTimeout(() => {
         if (!livenessPassed) {
-          showPopup('Liveness Failed', 'Liveness test failed❌', false);
-          hideFaceModal();
+          updateProgress(1, false);
+          captureStatus.textContent = 'Liveness test failed❌';
+          setTimeout(hideFaceModal, 2000);
         }
       }, livenessCheckDuration);
     };
@@ -966,25 +987,27 @@
       ctx.scale(-1, 1);
       ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
       const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
-      hideFaceModal();
-      showLoader(`Verifying face for ${staff.name}...`);
+      document.getElementById('videoContainer').style.display = 'none';
+      document.getElementById('verificationMessage').textContent = `Verifying face for ${staff.name}...`;
       const result = await validateFaceWithSubject(base64, staff.name);
-      hideLoader();
       if (!result.ok) {
-        showPopup('Face Verification Failed', `Face verification Failed❌ - ${result.error}`, false);
+        updateProgress(2, false);
+        document.getElementById('verificationMessage').textContent = `Face verification Failed❌ - ${result.error}`;
+        setTimeout(hideFaceModal, 2000);
         return;
       }
-      updateProgress(2);
-      showPopup('Face Verification Success', 'Face verification Passed✅', true);
+      updateProgress(2, true);
+      document.getElementById('verificationMessage').textContent = 'Face verification Passed✅';
       // SUCCESS SOUND PLAYS ONLY ONCE – WHEN FACE IS VERIFIED
       if (!soundPlayed) {
         successSound.play().catch(() => {});
         soundPlayed = true;
       }
-      showPopup('Success', `Face verified! Recording ${action}...`, true);
       await submitAttendance(action, staff);
     };
     const submitAttendance = async (action, staff) => {
+      document.getElementById('verificationMessage').textContent = 'Recording attendance...';
+      updateProgress(3, true); // Assume start
       const statusEl = document.getElementById('status');
       const lat = Number(statusEl.dataset.lat);
       const long = Number(statusEl.dataset.long);
@@ -1003,20 +1026,26 @@
         });
         const data = await res.json();
         if (data.success) {
-          updateProgress(3);
-          updateProgress(4);
+          updateProgress(4, true);
+          document.getElementById('verificationMessage').textContent = 'Completed';
+          showPopup(
+            'Success',
+            `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`,
+            true
+          );
+        } else {
+          updateProgress(3, false);
+          updateProgress(4, false);
+          document.getElementById('verificationMessage').textContent = 'Attendance failed.';
         }
-        showPopup(
-          data.success ? 'Success' : 'Error',
-          data.success
-            ? `Dear ${staff.name}, ${action === 'clock in' ? 'clocked in' : 'clocked out'} successfully at ${current_office}.`
-            : data.message || 'Attendance failed.',
-          data.success
-        );
         // Allow sound again after 3 seconds
         setTimeout(() => soundPlayed = false, 3000);
+        setTimeout(hideFaceModal, 2000);
       } catch (err) {
-        showPopup('Error', `Connection failed: ${err.message}`, false);
+        updateProgress(3, false);
+        updateProgress(4, false);
+        document.getElementById('verificationMessage').textContent = `Connection failed: ${err.message}`;
+        setTimeout(hideFaceModal, 2000);
       }
     };
     const showPopup = (title, message, success = null) => {
@@ -1061,20 +1090,26 @@
       for (let i = 1; i <= 4; i++) {
         const step = document.getElementById(`step${i}`);
         step.className = 'progress-step';
-        step.innerHTML = i;
+        step.innerHTML = '';
       }
       for (let i = 1; i <= 3; i++) {
         const line = document.getElementById(`line${i}`);
         line.className = 'progress-line';
       }
+      document.getElementById('videoContainer').style.display = 'block';
+      document.getElementById('verificationMessage').textContent = '';
     }
-    function updateProgress(step) {
+    function updateProgress(step, success) {
       const stepEl = document.getElementById(`step${step}`);
-      stepEl.className = 'progress-step success';
-      stepEl.innerHTML = '✓';
-      if (step > 1) {
-        const lineEl = document.getElementById(`line${step-1}`);
-        lineEl.className = 'progress-line success';
+      const lineEl = document.getElementById(`line${step-1}`);
+      if (success) {
+        stepEl.className = 'progress-step success';
+        stepEl.innerHTML = '✓';
+        if (lineEl) lineEl.className = 'progress-line success';
+      } else {
+        stepEl.className = 'progress-step failed';
+        stepEl.innerHTML = '×';
+        if (lineEl) lineEl.className = 'progress-line failed';
       }
     }
     document.addEventListener('DOMContentLoaded', startLocationWatch);
